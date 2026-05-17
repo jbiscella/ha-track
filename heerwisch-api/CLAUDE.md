@@ -394,7 +394,7 @@ Claude Code is responsible for:
 - Implementing defensive copies of collections in `record` canonical constructors and accessors
 - Implementing `ChartSpecBuilder.build()` with the V1–V11 validation rules
 - Implementing `defaultPaneFor(Indicator)` using exhaustive `switch` over the sealed hierarchy
-- Test infrastructure for the Gherkin scenarios above (JUnit Jupiter assumed)
+- Test infrastructure for the Gherkin scenarios above (Cucumber for Java, executed via JUnit Platform; feature files under src/test/resources/features/, step definitions under src/test/java/)
 
 What Claude Code MUST NOT do unilaterally:
 

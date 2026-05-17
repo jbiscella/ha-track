@@ -342,7 +342,7 @@ Claude Code is responsible for:
 - Implementing the V12 strict pre-check at the start of `render()`
 - Encoding the final image as PNG or JPEG via `ImageIO.write` (PNG) or `ImageIO.write(image, "jpg", baos)` with quality 0.9 for JPEG
 - Implementing `ThemeConstants` as a final class with private constructor and public static final fields
-- Test infrastructure for the Gherkin scenarios above (JUnit Jupiter assumed)
+- Test infrastructure for the Gherkin scenarios above (Cucumber for Java, executed via JUnit Platform; feature files under src/test/resources/features/, step definitions under src/test/java/)
 
 What Claude Code MUST NOT do unilaterally:
 

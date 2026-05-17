@@ -466,7 +466,7 @@ Claude Code is responsible for:
 - Implementing the `BacktestMetrics` calculators per §3 using `MathContext.DECIMAL64`
 - Implementing `Timeframe` inference from bar spacing per §3.1 and V5 validation
 - Implementing canonical constructors with `Objects.requireNonNull` and range checks
-- Test infrastructure for the Gherkin scenarios above (JUnit Jupiter assumed)
+- Test infrastructure for the Gherkin scenarios above (Cucumber for Java, executed via JUnit Platform; feature files under src/test/resources/features/, step definitions under src/test/java/)
 
 What Claude Code MUST NOT do unilaterally:
 
