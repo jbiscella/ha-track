@@ -6,9 +6,11 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 
 import org.hatrack.commons.HABar;
+import org.hatrack.commons.HASeries;
 import org.hatrack.commons.HeikinAshiCalculator;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.commons.OHLCInvariantViolationException;
+import org.hatrack.commons.OHLCSeries;
 import org.hatrack.commons.Timeframe;
 
 import java.math.BigDecimal;
@@ -28,6 +30,10 @@ public class CommonsStepDefinitions {
     private HABar computedHa;
     private List<HABar> computedChain;
     private Timeframe timeframe;
+    private List<OHLCBar> mutableOhlcList;
+    private List<HABar> mutableHaList;
+    private OHLCSeries ohlcSeries;
+    private HASeries haSeries;
     private Exception thrown;
 
     // --- Heikin Ashi ---
@@ -199,6 +205,68 @@ public class CommonsStepDefinitions {
     public void anIllegalArgumentExceptionIsThrown() {
         assertTrue(thrown instanceof IllegalArgumentException,
                 "expected IllegalArgumentException but was " + thrown);
+    }
+
+    // --- Series ---
+
+    @Given("a mutable list of {int} OHLC bars")
+    public void aMutableListOfOhlcBars(int n) {
+        mutableOhlcList = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            mutableOhlcList.add(new OHLCBar(T0.plusSeconds(i * 86400L),
+                    BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, Optional.empty()));
+        }
+    }
+
+    @Given("a mutable list of {int} HA bars")
+    public void aMutableListOfHaBars(int n) {
+        mutableHaList = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            mutableHaList.add(new HABar(T0.plusSeconds(i * 86400L),
+                    BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN));
+        }
+    }
+
+    @Given("an OHLCSeries built from that list")
+    public void anOhlcSeriesBuiltFromThatList() {
+        ohlcSeries = new OHLCSeries(mutableOhlcList);
+    }
+
+    @Given("an HASeries built from that list")
+    public void anHaSeriesBuiltFromThatList() {
+        haSeries = new HASeries(mutableHaList);
+    }
+
+    @When("I clear the original list")
+    public void iClearTheOriginalList() {
+        if (mutableOhlcList != null) {
+            mutableOhlcList.clear();
+        }
+        if (mutableHaList != null) {
+            mutableHaList.clear();
+        }
+    }
+
+    @When("I construct an OHLCSeries with a null bar list")
+    public void iConstructAnOhlcSeriesWithANullBarList() {
+        capture(() -> ohlcSeries = new OHLCSeries(null));
+    }
+
+    @When("I construct an HASeries with a null bar list")
+    public void iConstructAnHaSeriesWithANullBarList() {
+        capture(() -> haSeries = new HASeries(null));
+    }
+
+    @Then("the OHLCSeries still has {int} bars")
+    public void theOhlcSeriesStillHasBars(int n) {
+        assertTrue(ohlcSeries.bars().size() == n,
+                "OHLCSeries bars: expected " + n + " but was " + ohlcSeries.bars().size());
+    }
+
+    @Then("the HASeries still has {int} bars")
+    public void theHaSeriesStillHasBars(int n) {
+        assertTrue(haSeries.bars().size() == n,
+                "HASeries bars: expected " + n + " but was " + haSeries.bars().size());
     }
 
     // --- shared ---

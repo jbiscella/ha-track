@@ -130,6 +130,7 @@ Driver modules (`heerwisch-jfreechart`, `frau-holle-csv`, `frau-holle-eodhd`) MA
 | `Timeframe` | Open type — pattern-string-based (`"1m"`, `"5m"`, `"1h"`, `"1d"`, `"1w"`, `"1M"`, …) | closed enum bound to specific values |
 | `HeikinAshiCalculator` | Pure static methods: `compute(prev, ohlc)`, `computeChain(prev, ohlcs)` | any I/O, any clock, any mutable state |
 | `PriceSource` enum | `OPEN`, `HIGH`, `LOW`, `CLOSE`, `HA_OPEN`, `HA_HIGH`, `HA_LOW`, `HA_CLOSE` | — |
+| `Series` | `sealed interface Series permits OHLCSeries, HASeries`; each variant wraps a defensively-copied bar list | ordering/uniqueness/non-emptiness checks (those are consumer-builder rules) |
 
 Consumers that need a richer domain wrap or compose `commons` types in their own. The mapping happens at consumer boundaries, not inside `commons` or the lib modules.
 

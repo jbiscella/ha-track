@@ -6,7 +6,7 @@ This is the nested spec for the `heerwisch-api` module. The repo-wide rules (arc
 
 `heerwisch-api` is the abstract layer of the plotting library. It defines:
 
-- The immutable spec types that describe a chart (`ChartSpec`, `Series`, `Indicator`, `Annotation`, `LayoutSpec`).
+- The immutable spec types that describe a chart (`ChartSpec`, `Indicator`, `Annotation`, `LayoutSpec`). `Series` is consumed from `commons` (see §1.1), not defined here.
 - The builder for `ChartSpec`.
 - The driver port `ChartRenderer` that consumes a `ChartSpec` and produces a `ChartImage`.
 - The checked exception hierarchy rooted at `ChartRenderException`.
@@ -17,18 +17,16 @@ Dependencies: only `commons` and JDK.
 
 ## 1. Public types
 
-### 1.1 `Series` (sealed)
+### 1.1 `Series` (sealed) — imported from `commons`
 
-```
-sealed interface Series permits OHLCSeries, HASeries
-```
+`Series` (`sealed interface Series permits OHLCSeries, HASeries`) is **not defined in `heerwisch-api`**. It is a shared `commons` type (see `commons/CLAUDE.md` §1.5), because `nachtkrapp` needs the same type and the cross-module rules forbid `nachtkrapp → heerwisch-api`. `heerwisch-api` consumes it.
 
 | Variant | Fields | Notes |
 |---|---|---|
-| `OHLCSeries` | `List<OHLCBar> bars` | bars must be ordered ascending by `time`, no duplicate `time`, non-empty |
-| `HASeries` | `List<HABar> bars` | same ordering constraints |
+| `OHLCSeries` | `List<OHLCBar> bars` | defensively copied to an immutable list at construction (in `commons`) |
+| `HASeries` | `List<HABar> bars` | same |
 
-The list is defensively copied at record construction (immutability is observable: a caller's later mutation of their list MUST NOT affect the record).
+The `commons` constructor enforces only the defensive copy. The ordering / no-duplicate-`time` / non-empty constraints are NOT enforced by the `Series` record; they are validated eagerly by `ChartSpecBuilder.build()` (rules V2–V4 in §3).
 
 ### 1.2 `Indicator` (sealed)
 
