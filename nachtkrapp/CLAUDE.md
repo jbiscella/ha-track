@@ -44,6 +44,8 @@ sealed interface DetectionRule permits
 
 Each rule is an immutable record. Each rule declares (a) its parameters and (b) the minimum bars required to produce its first match.
 
+Rule record canonical constructors perform `Objects.requireNonNull` null-checks only. Parameter range and relationship constraints (e.g. `period >= 1`, `overbought` in `(50, 100)`, `slow > fast`) are NOT enforced by the constructor — they are validated eagerly by `DetectionSpecBuilder.build()` as rule V7. This is required by the Block 1 scenarios, which construct an out-of-range rule and expect the violation to surface at `build()` rather than at rule construction.
+
 #### 2.2.1 HA family
 
 | Rule | Fields | Min bars | Emits |

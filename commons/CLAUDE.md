@@ -80,6 +80,24 @@ Closed enum. Members: `OPEN`, `HIGH`, `LOW`, `CLOSE`, `HA_OPEN`, `HA_HIGH`, `HA_
 
 Used by `heerwisch-api` to declare which series channel an indicator computes against, and used by `skuld-api` for the same purpose during signal generation.
 
+### 1.5 `Series`
+
+Closed `sealed` hierarchy shared by the libraries that consume ordered bar data (`heerwisch-api`, `nachtkrapp`). It lives in `commons` because more than one library needs it and the cross-module rules forbid those libraries from depending on each other.
+
+```
+sealed interface Series permits OHLCSeries, HASeries
+```
+
+| Variant | Fields | Constraint |
+|---|---|---|
+| `OHLCSeries` | `List<OHLCBar> bars` | non-null; defensively copied to an immutable list at construction |
+| `HASeries` | `List<HABar> bars` | non-null; defensively copied to an immutable list at construction |
+
+Behavior:
+
+- The canonical constructor performs null-check only on the list reference, then replaces it with `List.copyOf(...)`. A caller's later mutation of their original list MUST NOT affect the record.
+- `commons` does NOT enforce ordering, uniqueness, or non-emptiness of the bars. Those are domain rules validated by the consuming library's spec builder (e.g. `heerwisch-api` V2–V4, `nachtkrapp` V2–V4).
+
 ## 2. OHLC invariants
 
 Enforced by `OHLCBar.validateInvariants()`. On violation, throws `OHLCInvariantViolationException` (extends `RuntimeException`).
