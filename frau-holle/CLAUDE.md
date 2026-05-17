@@ -1,0 +1,482 @@
+# CLAUDE.md — `frau-holle` module
+
+This is the nested spec for the `frau-holle` module. The repo-wide rules live in the root `CLAUDE.md`. This file specifies what is internal to `frau-holle`: the public types, the strategy port, the market-data port, the backtester engine, the result types, the validation rules, and the exception hierarchy.
+
+`frau-holle` is a **single module**. There is no separate `-api` artifact and no "engine driver" abstraction. Pluggability lives in two ports exposed by the module: `MarketDataSource` (for data providers) and `SignalGenerator` (for strategies). Implementations of `MarketDataSource` live in sibling modules (`frau-holle-csv`, `frau-holle-eodhd`, …); implementations of `SignalGenerator` are written by the consumer.
+
+## 0. Goal and scope
+
+`frau-holle` is the backtester library. It defines:
+
+- The **`MarketDataSource`** port — pluggable data provider abstraction.
+- The **`SignalGenerator`** port — opaque consumer strategy abstraction.
+- The **`BarContext`** record passed to the strategy at each step.
+- The **`Signal`** sealed hierarchy returned by the strategy.
+- The **`BacktestSpec`** that bundles the inputs of a backtest run.
+- The **`BacktestResult`** with metrics, trade list, equity curve, and optional open position.
+- The **`Backtester`** entry point that executes the simulation.
+- The checked exception hierarchy rooted at `BacktestException`.
+
+Out of scope (v1): slippage models, commission models, multi-instrument portfolios, optimization / parameter sweeps, pivot detection (out of repo v1), multi-timeframe orchestration (consumer-side per repo principle), live trading.
+
+Dependencies: only `commons` and JDK.
+
+## 1. Runtime profile
+
+`frau-holle` is a **local backtester** intended to run on a developer laptop. CPU cost is not a v1 constraint. The engine is event-driven (bar-by-bar), not vectorized. Lambda-compatibility is NOT a requirement for this module.
+
+| Aspect | v1 choice |
+|---|---|
+| Execution model | Event-driven, sequential per bar |
+| Parallelism | None at the bar loop (single-threaded simulation) |
+| Multi-instrument | Single instrument per backtest run |
+| Memory budget | Holds the full series in memory; suitable for daily/weekly bars over decades, or intraday over months |
+
+## 2. Public types
+
+### 2.1 `MarketDataSource` port
+
+```
+List<OHLCBar> fetchHistory(String symbol, Timeframe timeframe, Instant since, Instant until)
+    throws MarketDataException
+```
+
+Contract:
+
+| Aspect | Required behavior |
+|---|---|
+| Input | `symbol` non-null non-blank; `timeframe` non-null; `since` ≤ `until`; both non-null |
+| Output | `List<OHLCBar>` ordered ascending by `time()`, with unique `time()` values, all within `[since, until]` (inclusive endpoints) |
+| Empty result | Returns empty list if no bars are available in the range; this is NOT an error |
+| Lookahead-safety | Implementations MUST NOT return bars whose `time` is in the future relative to the wall clock at call time (but `until` may be in the future, in which case the implementation truncates at the last available bar) |
+| Thread-safety | NOT required at the port level. Implementations MAY declare themselves thread-safe |
+| Idempotency | Calls with the same arguments SHOULD return the same data, modulo upstream provider updates and corrections. Consumer code MUST NOT rely on bit-identical responses across calls |
+| Exceptions | `MarketDataException` (or subclasses); other `RuntimeException`s indicate programmer error |
+
+`MarketDataSource` is an interface in `frau-holle`. The reference implementations (`frau-holle-csv`, `frau-holle-eodhd`) live in sibling modules.
+
+### 2.2 `SignalGenerator` port
+
+```
+Signal generate(BarContext context) throws SignalGenerationException
+```
+
+Contract:
+
+| Aspect | Required behavior |
+|---|---|
+| Input | `BarContext` non-null. Null input throws `NullPointerException` |
+| Output | `Signal` non-null |
+| Statelessness | NOT required. Implementations MAY hold internal state across calls (e.g. memory of recent bars, internal indicators, references to additional series the consumer has loaded out-of-band) |
+| Thread-safety | NOT required. The backtester calls `generate` sequentially on a single thread |
+| Lookahead-safety | Implementations MUST NOT consult bars at times `> context.currentBar().time()`. This is a contractual promise of the strategy; the backtester does not police it. Violations corrupt the backtest |
+
+`SignalGenerator` is opaque: `frau-holle` knows nothing about how the strategy decides. The strategy can be rule-based, ML-based, hand-coded if-else, or compiled from a future YAML DSL — all consumer concerns.
+
+### 2.3 `BarContext`
+
+Immutable record passed to `SignalGenerator.generate()`:
+
+| Accessor | Type | Meaning |
+|---|---|---|
+| `currentBar()` | `OHLCBar` | The bar at the current step. The strategy may use only data up to and including this bar |
+| `history()` | `List<OHLCBar>` | All prior bars in the backtest range, ordered ascending by `time()`. Does NOT include `currentBar()`. Defensively shared (immutable List view) |
+| `currentPosition()` | `Optional<Position>` | The open position at the start of the current bar, or empty if none |
+| `currentCash()` | `BigDecimal` | Available cash at the start of the current bar |
+| `currentEquity()` | `BigDecimal` | Total equity (cash + value of open position marked-to-market at previous bar's close) at the start of the current bar |
+| `barIndex()` | `int` | Zero-based index of `currentBar` in the series |
+
+### 2.4 `Signal` (sealed)
+
+```
+sealed interface Signal permits Hold, Buy, Sell, ClosePosition
+```
+
+| Variant | Fields | Meaning |
+|---|---|---|
+| `Hold` | (no fields) | No action this bar |
+| `Buy` | `BigDecimal quantity` (> 0) | Open a long position with the given quantity. If a position is already open, signal is ignored (logged via diagnostics) |
+| `Sell` | `BigDecimal quantity` (> 0) | Open a short position. Symmetric to `Buy` |
+| `ClosePosition` | (no fields) | Close any currently open position. If no position is open, no-op |
+
+v1 supports long-only and short-only positions implicitly via `Buy` and `Sell`. Multi-leg, pyramiding, partial close — out of scope v1. A `Buy` or `Sell` signal while a position is already open is **ignored** (the existing position is not modified); this is logged in the backtest diagnostics.
+
+### 2.5 `Position`
+
+Immutable record:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `direction` | `Direction` enum: `LONG`, `SHORT` | direction of the position |
+| `quantity` | `BigDecimal` | absolute quantity |
+| `entryTime` | `Instant` | bar time at which entry fill occurred |
+| `entryPrice` | `BigDecimal` | actual fill price (the `open` of the bar after the signal) |
+
+### 2.6 `Trade`
+
+Immutable record representing a completed (entered and closed) position:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `direction` | `Direction` | direction of the trade |
+| `quantity` | `BigDecimal` | quantity traded |
+| `entryTime` | `Instant` | entry fill time |
+| `entryPrice` | `BigDecimal` | entry fill price |
+| `exitTime` | `Instant` | exit fill time |
+| `exitPrice` | `BigDecimal` | exit fill price |
+| `pnl` | `BigDecimal` | realized profit/loss |
+| `pnlPercent` | `BigDecimal` | realized P&L as fraction of entry capital (signed) |
+
+### 2.7 `EquityPoint`
+
+Immutable record:
+
+| Field | Type |
+|---|---|
+| `time` | `Instant` |
+| `equity` | `BigDecimal` |
+| `cash` | `BigDecimal` |
+| `positionValue` | `BigDecimal` (zero if no open position) |
+
+### 2.8 `BacktestSpec`
+
+Immutable record:
+
+| Accessor | Type |
+|---|---|
+| `series()` | `List<OHLCBar>` (non-empty, ordered, unique times) |
+| `signalGenerator()` | `SignalGenerator` (non-null) |
+| `initialCash()` | `BigDecimal` (> 0) |
+
+No public constructor. Built only via `BacktestSpec.builder()`.
+
+### 2.9 `BacktestResult`
+
+Immutable record:
+
+| Accessor | Type | Meaning |
+|---|---|---|
+| `metrics()` | `BacktestMetrics` | the 10 core metrics; see §3 |
+| `trades()` | `List<Trade>` | all completed trades, ordered by `exitTime` |
+| `equityCurve()` | `List<EquityPoint>` | one point per bar in the series, ordered by `time` |
+| `openPositionAtEnd()` | `Optional<Position>` | a position still open at the last bar, if any. Its value is included in equity (mark-to-market) but it is NOT in `trades()` |
+| `diagnostics()` | `BacktestDiagnostics` | informational counters (ignored signals, unfilled signals at end of series, etc.) |
+
+### 2.10 `BacktestDiagnostics`
+
+Immutable record:
+
+| Accessor | Type | Meaning |
+|---|---|---|
+| `ignoredBuySignals()` | `int` | count of `Buy` signals issued while a position was already open |
+| `ignoredSellSignals()` | `int` | count of `Sell` signals issued while a position was already open |
+| `noOpClosePositionSignals()` | `int` | count of `ClosePosition` signals issued while no position was open |
+| `unfilledSignalsAtEndOfSeries()` | `int` | count of `Buy`/`Sell` signals issued at the last bar (no next bar to fill at) |
+
+## 3. Backtest metrics
+
+`BacktestMetrics` is an immutable record exposing 10 core metrics:
+
+| Metric | Type | Definition |
+|---|---|---|
+| `totalReturn` | `BigDecimal` | `(finalEquity - initialCash) / initialCash`, as a fraction (e.g. 0.25 = +25%) |
+| `winRate` | `BigDecimal` | number of trades with `pnl > 0` divided by total trades. `BigDecimal.ZERO` if no trades |
+| `numTrades` | `int` | size of `trades()` |
+| `maxDrawdown` | `BigDecimal` | maximum peak-to-trough decline of the equity curve, as a fraction of the peak. Always ≤ 0, expressed as a non-negative value (so 0.30 = -30% drawdown) |
+| `sharpeRatio` | `BigDecimal` | `mean(returns) / stddev(returns) × sqrt(periodsPerYear)`. `returns` are bar-to-bar percentage changes of equity. `periodsPerYear` is inferred from the series timeframe (see §3.1). Risk-free rate = 0. `BigDecimal.ZERO` if stddev = 0 or < 2 bars |
+| `sortinoRatio` | `BigDecimal` | same as Sharpe but with downside-only stddev (only negative `returns` contribute to the denominator). `BigDecimal.ZERO` if no negative returns or < 2 bars |
+| `profitFactor` | `BigDecimal` | sum of all positive trade PnLs divided by absolute sum of all negative trade PnLs. `BigDecimal.ZERO` if no losing trades (consumer interprets) |
+| `avgWin` | `BigDecimal` | mean `pnl` across winning trades. `BigDecimal.ZERO` if no winning trades |
+| `avgLoss` | `BigDecimal` | mean `pnl` across losing trades (a negative number). `BigDecimal.ZERO` if no losing trades |
+| `calmarRatio` | `BigDecimal` | `annualizedReturn / maxDrawdown`. `annualizedReturn = totalReturn / yearsCovered`. `BigDecimal.ZERO` if `maxDrawdown = 0` |
+
+All `BigDecimal` arithmetic uses `MathContext.DECIMAL64`.
+
+### 3.1 `periodsPerYear` inference
+
+| Timeframe wire | periodsPerYear |
+|---|---|
+| `1m` | 525600 |
+| `5m` | 105120 |
+| `15m` | 35040 |
+| `30m` | 17520 |
+| `1h` | 8760 |
+| `4h` | 2190 |
+| `1d` | 252 (trading days convention) |
+| `1w` | 52 |
+| `1M` | 12 |
+| `1y` | 1 |
+| (other) | derived from the duration of the timeframe in seconds: `31536000 / timeframeSeconds`, with daily as the exception above |
+
+The backtester infers `periodsPerYear` from the timeframe of the series. Since the series in `BacktestSpec` is just `List<OHLCBar>` without an attached timeframe, the timeframe is derived by `Backtester` from the spacing between bars: it takes the median of consecutive `time()` deltas and matches against known timeframes within a 1% tolerance. If no match is found, the backtester throws `InvalidBacktestSpecException` with `violatedRule = "V5"`.
+
+## 4. Fill timing
+
+When `SignalGenerator.generate(context)` at bar `t` returns `Buy`, `Sell`, or `ClosePosition`:
+
+| Aspect | Behavior |
+|---|---|
+| Fill bar | bar `t+1` (the next bar after the signal) |
+| Fill price | `open` of bar `t+1` |
+| If `t` is the last bar of the series | The signal is discarded (counted in `diagnostics.unfilledSignalsAtEndOfSeries`) |
+| If a position is open at the last bar | Marked-to-market at the `close` of the last bar in the equity curve. NOT closed automatically. Reported in `openPositionAtEnd` |
+
+Rationale: nobody trades at the close that has already passed. The realistic model executes at the next open. Mark-to-market at end-of-series preserves equity-curve accuracy without inventing an unrealistic forced close.
+
+## 5. Frictionless v1
+
+v1 backtest is **frictionless**: zero commissions, zero slippage, infinite liquidity at the fill price. This is documented prominently in the `BacktestResult` as a non-binding hint (no field, just convention): consumers reading the result should know the metrics overstate live performance.
+
+Slippage and commission models are reserved for v1.1+ as additive opt-in ports (`SlippageModel`, `CommissionModel`).
+
+## 6. `Backtester` entry point
+
+```
+BacktestResult run(BacktestSpec spec) throws BacktestException
+```
+
+Contract:
+
+| Aspect | Required behavior |
+|---|---|
+| Input | `BacktestSpec` non-null. Null throws `NullPointerException` |
+| Output | `BacktestResult` non-null |
+| Thread-safety | NOT required. Multiple backtests on the same `Backtester` instance from different threads MUST be externally serialized. (Justification: `SignalGenerator` is allowed to be stateful) |
+| Determinism | For the same spec and the same `SignalGenerator` instance with the same internal state, output is fully deterministic |
+| Side effects | None at the `Backtester` level. The `SignalGenerator` may have side effects (consumer concern); the `MarketDataSource` may do I/O (it's called BEFORE the backtest, when the consumer pre-loads the series) |
+
+The series in `BacktestSpec` is already loaded. `Backtester` does NOT call `MarketDataSource` itself; the consumer pre-loads via the data source and passes the resulting list. This separation lets the consumer cache data, transform it, or load multiple series for multi-TF strategies (consumer-side composition).
+
+## 7. Validation rules — `InvalidBacktestSpecException`
+
+| # | Rule | Violation example |
+|---|---|---|
+| V1 | `series` MUST be set | builder.build() with no series |
+| V2 | `series` MUST be non-empty | empty list |
+| V3 | `signalGenerator` MUST be set | builder.build() with no signal generator |
+| V4 | `initialCash` MUST be > 0 | initialCash ≤ 0 |
+| V5 | series bars MUST be ordered ascending by `time` with unique times AND with a uniform spacing that maps to a known `Timeframe` (per §3.1, within 1% tolerance) | unordered, duplicate, or irregular bars |
+| V6 | series MUST have ≥ 2 bars | series of 1 bar (cannot compute returns) |
+
+## 8. Exception hierarchy
+
+| Exception | Cause | Carrier fields |
+|---|---|---|
+| `BacktestException` (root) | abstract — never thrown directly | `String message`, `Throwable cause` |
+| `InvalidBacktestSpecException` | Spec malformed | `String violatedRule`, `Object offendingValue` |
+| `MarketDataException` | Data fetch failed (thrown by `MarketDataSource` implementations) | `String symbol`, `Throwable cause` |
+| `MarketDataException` subclasses | `MarketDataNotFoundException` (symbol unknown), `MarketDataUnavailableException` (transient: timeout, 5xx, auth), `MarketDataSchemaException` (parse failure) | typed per subclass |
+| `SignalGenerationException` | The `SignalGenerator` itself threw (consumer bug) | `int barIndex`, `Throwable cause` |
+| `BacktestInternalException` | Internal error inside the backtester loop | `Throwable cause` is mandatory |
+
+`InvalidBacktestSpecException` thrown from `build()`. `MarketDataException` thrown from `MarketDataSource` implementations. `SignalGenerationException` and `BacktestInternalException` thrown from `Backtester.run()`.
+
+## 9. Block 1 — Builder validation
+
+```gherkin
+Feature: BacktestSpecBuilder eager validation
+
+  Scenario: Missing series fails build
+    Given a builder with no series set
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V1"
+
+  Scenario: Empty series fails build
+    Given a builder with series = emptyList()
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V2"
+
+  Scenario: Missing signalGenerator fails build
+    Given a builder with series set but no signalGenerator
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V3"
+
+  Scenario: Non-positive initialCash fails build
+    Given a builder with initialCash = 0
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V4"
+
+  Scenario: Irregular bar spacing fails build
+    Given a series with non-uniform time spacing not matching any Timeframe
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V5"
+
+  Scenario: Single-bar series fails build
+    Given a series with exactly 1 bar
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V6"
+```
+
+## 10. Block 2 — Fill timing
+
+```gherkin
+Feature: Fill at next bar open
+
+  Scenario: Buy signal at bar t fills at open of bar t+1
+    Given a series with bars B0, B1, B2, ...
+    And a SignalGenerator that returns Buy(quantity=10) at B0 and Hold thereafter
+    When I run the backtest
+    Then a position is opened at time B1.time with entryPrice = B1.open
+    And the position quantity is 10
+
+  Scenario: ClosePosition signal at bar t closes at open of bar t+1
+    Given a position is open at bar B5
+    And a SignalGenerator that returns ClosePosition at B5
+    When I run the backtest
+    Then the position is closed at time B6.time with exitPrice = B6.open
+    And a Trade record is appended to results
+
+  Scenario: Buy at last bar is unfilled
+    Given a series of N bars
+    And a SignalGenerator that returns Buy at the last bar
+    When I run the backtest
+    Then no position is opened
+    And diagnostics.unfilledSignalsAtEndOfSeries = 1
+
+  Scenario: Buy when a position is already open is ignored
+    Given a position is open
+    And the SignalGenerator returns Buy
+    When the backtester processes the bar
+    Then the existing position is unchanged
+    And diagnostics.ignoredBuySignals is incremented
+
+  Scenario: ClosePosition when no position is open is no-op
+    Given no position is open
+    And the SignalGenerator returns ClosePosition
+    When the backtester processes the bar
+    Then no position state change
+    And diagnostics.noOpClosePositionSignals is incremented
+```
+
+## 11. Block 3 — End-of-series handling
+
+```gherkin
+Feature: Mark-to-market at end of series
+
+  Scenario: Open position at last bar is marked-to-market
+    Given a position is open at the last bar Bn
+    When the backtest completes
+    Then BacktestResult.openPositionAtEnd is present
+    And the open position is NOT in BacktestResult.trades
+    And the last EquityPoint.equity reflects: cash + (quantity × Bn.close - quantity × entryPrice) for LONG (sign-adjusted for SHORT)
+
+  Scenario: No open position at last bar
+    Given all positions have been closed before the last bar
+    When the backtest completes
+    Then BacktestResult.openPositionAtEnd = Optional.empty
+    And the last EquityPoint.equity equals cash
+```
+
+## 12. Block 4 — Metrics
+
+```gherkin
+Feature: BacktestMetrics computation
+
+  Scenario: totalReturn on a flat backtest
+    Given a backtest where no trades are taken (all signals are Hold)
+    Then metrics.totalReturn = 0
+    And metrics.numTrades = 0
+    And metrics.winRate = 0
+    And metrics.maxDrawdown = 0
+
+  Scenario: winRate on a mixed-outcome backtest
+    Given 10 trades: 6 winning, 4 losing
+    Then metrics.winRate = 0.6
+
+  Scenario: maxDrawdown as non-negative fraction
+    Given an equity curve that peaks at 12000 and troughs at 9000 before recovering
+    Then metrics.maxDrawdown = (12000 - 9000) / 12000 = 0.25
+
+  Scenario: Sharpe ratio annualized for daily timeframe
+    Given a series with timeframe "1d"
+    And bar-to-bar equity returns with mean = 0.001 and stddev = 0.01
+    Then metrics.sharpeRatio = (0.001 / 0.01) × sqrt(252) ≈ 1.587
+
+  Scenario: Sharpe ratio is zero when stddev is zero
+    Given an equity curve that is constant (no variation)
+    Then metrics.sharpeRatio = 0
+
+  Scenario: Calmar ratio is zero when maxDrawdown is zero
+    Given a backtest with maxDrawdown = 0 (no drawdown ever)
+    Then metrics.calmarRatio = 0
+
+  Scenario: Sortino uses only downside stddev
+    Given returns with both positive and negative values
+    Then metrics.sortinoRatio numerator is mean of all returns
+    And the denominator is the stddev of only the negative returns
+```
+
+## 13. Block 5 — Backtester contract
+
+```gherkin
+Feature: Backtester contract
+
+  Scenario: Run returns a result on a valid spec
+    Given a valid BacktestSpec
+    When I call backtester.run(spec)
+    Then the result is non-null
+    And result.metrics is non-null
+    And result.equityCurve.size() = series.size()
+    And the first EquityPoint.equity = spec.initialCash
+
+  Scenario: Null spec is a programmer error
+    When I call backtester.run(null)
+    Then NullPointerException is thrown
+
+  Scenario: SignalGenerator exception is wrapped
+    Given a SignalGenerator that throws RuntimeException at bar B5
+    When I call backtester.run(spec)
+    Then SignalGenerationException is thrown
+    And exception.barIndex = 5
+    And exception.getCause() = the original RuntimeException
+
+  Scenario: Determinism with stateless SignalGenerator
+    Given a stateless SignalGenerator and a valid spec
+    When I call backtester.run(spec) twice on a fresh backtester instance
+    Then both BacktestResults are equal by value
+
+  Scenario: Lookahead-safety contract
+    Given a SignalGenerator implementation
+    Then at any call generate(context), the implementation may only access context.history (bars strictly before currentBar) and context.currentBar
+    And the backtester does NOT police this — it is a strategy responsibility
+    And violation leads to invalid backtest results
+```
+
+## 14. Out of scope for `frau-holle`
+
+- Slippage models — reserved for v1.1+
+- Commission models — reserved for v1.1+
+- Multi-instrument portfolios — reserved for v2
+- Optimization / parameter sweeps — reserved for v2
+- Pivot detection — out of repo v1
+- Multi-timeframe orchestration — consumer-side per repo principle; strategy may hold extra series internally
+- Live trading — out of scope entirely; this is a backtester
+- Persistence of results — consumer concern
+- Plotting of equity curve / trades — consumer composes with `heerwisch` if desired
+- Risk management primitives (stop-loss orders, take-profit orders, position sizing helpers) — consumer concern; strategy is opaque
+- Margin / leverage simulation — reserved for v2
+- Tax modeling — reserved indefinitely
+
+## 15. Implementation delegation to Claude Code
+
+Claude Code is responsible for:
+
+- Package layout (suggested: `<group>.frauholle` with subpackages `port` for `MarketDataSource` and `SignalGenerator`, `spec` for `BacktestSpec` and its builder, `model` for `Signal`/`Position`/`Trade`/`EquityPoint`/`BarContext`, `result` for `BacktestResult`/`BacktestMetrics`/`BacktestDiagnostics`, `engine` for the `Backtester` class, `error` for exceptions, `internal` for metrics calculators and the simulation loop)
+- Implementing the `Backtester` simulation loop per §4, §11, §10 (fill timing, end-of-series handling, signal application)
+- Implementing the `BacktestMetrics` calculators per §3 using `MathContext.DECIMAL64`
+- Implementing `Timeframe` inference from bar spacing per §3.1 and V5 validation
+- Implementing canonical constructors with `Objects.requireNonNull` and range checks
+- Test infrastructure for the Gherkin scenarios above (JUnit Jupiter assumed)
+
+What Claude Code MUST NOT do unilaterally:
+
+- Add slippage / commission models in v1
+- Add multi-instrument support
+- Add a non-opaque strategy abstraction (no rule-based DSL, no function-composition layer in the core)
+- Auto-close positions at end of series (must be mark-to-market only)
+- Fill at the close of the signal bar (must be next bar open)
+- Use `double` or `float` in any monetary or ratio arithmetic
+- Add reflective bean wiring or DI annotations
+- Add static mutable state
+- Expose `internal` calculators as public API
+- Catch and swallow `SignalGenerationException` — must propagate

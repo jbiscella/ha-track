@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.hatrack</groupId>
+    <artifactId>ha-track</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>ha-track</name>
+    <description>Heerwisch / Frau Holle / Nachtkrapp — three independent Java libraries and a shared kernel.</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+    </properties>
+
+    <modules>
+        <module>commons</module>
+        <module>heerwisch-api</module>
+        <module>heerwisch-jfreechart</module>
+        <module>frau-holle</module>
+        <module>frau-holle-csv</module>
+        <module>frau-holle-eodhd</module>
+        <module>nachtkrapp</module>
+    </modules>
+
+</project>
