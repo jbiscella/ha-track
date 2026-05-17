@@ -28,7 +28,7 @@ The root document fixes only what applies to the whole repo. Per-module specs â€
 
 ## Module map
 
-The repo has 8 modules in v1: 4 library modules + 2 reference market-data drivers + the shared kernel + the plotting driver. The optional `frau-holle-<source>` slot can host additional market-data drivers in the future.
+The repo has 7 modules in v1: 3 library API surfaces + 1 plotting driver + 2 reference market-data drivers + the shared kernel. The optional `frau-holle-<source>` slot can host additional market-data drivers in the future.
 
 | Module | Purpose | Dependencies | Nested spec |
 |---|---|---|---|
