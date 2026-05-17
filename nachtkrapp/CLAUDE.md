@@ -534,7 +534,7 @@ Claude Code is responsible for:
 - Implementing the indicator calculators (SMA, EMA, RSI, MACD) using the canonical formulas in §13 and `MathContext.DECIMAL64`
 - Implementing the detection logic for each rule type as specified in §13–§14
 - Implementing the `PatternDetector` interface with a single concrete class
-- Test infrastructure for the Gherkin scenarios above (JUnit Jupiter assumed)
+- Test infrastructure for the Gherkin scenarios above (Cucumber for Java, executed via JUnit Platform; feature files under src/test/resources/features/, step definitions under src/test/java/)
 
 What Claude Code MUST NOT do unilaterally:
 
