@@ -1,0 +1,231 @@
+package org.hatrack.commons.steps;
+
+import io.cucumber.datatable.DataTable;
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+
+import org.hatrack.commons.HABar;
+import org.hatrack.commons.HeikinAshiCalculator;
+import org.hatrack.commons.OHLCBar;
+import org.hatrack.commons.OHLCInvariantViolationException;
+import org.hatrack.commons.Timeframe;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+public class CommonsStepDefinitions {
+
+    private static final Instant T0 = Instant.parse("2024-01-01T00:00:00Z");
+
+    private OHLCBar ohlc;
+    private List<OHLCBar> ohlcs;
+    private Optional<HABar> previousHa = Optional.empty();
+    private HABar computedHa;
+    private List<HABar> computedChain;
+    private Timeframe timeframe;
+    private Exception thrown;
+
+    // --- Heikin Ashi ---
+
+    @Given("an OHLC bar with open={bigdecimal}, high={bigdecimal}, low={bigdecimal}, close={bigdecimal} at time {string}")
+    public void ohlcBarAtTime(BigDecimal o, BigDecimal h, BigDecimal l, BigDecimal c, String time) {
+        ohlc = new OHLCBar(Instant.parse(time), o, h, l, c, Optional.empty());
+    }
+
+    @Given("no previous HA bar")
+    public void noPreviousHaBar() {
+        previousHa = Optional.empty();
+    }
+
+    @Given("a previous HA bar with haOpen={bigdecimal}, haHigh={bigdecimal}, haLow={bigdecimal}, haClose={bigdecimal}")
+    public void previousHaBar(BigDecimal o, BigDecimal h, BigDecimal l, BigDecimal c) {
+        previousHa = Optional.of(new HABar(T0, o, h, l, c));
+    }
+
+    @Given("the following OHLC bars:")
+    public void theFollowingOhlcBars(DataTable table) {
+        ohlcs = new ArrayList<>();
+        for (Map<String, String> row : table.asMaps()) {
+            ohlcs.add(new OHLCBar(
+                    Instant.parse(row.get("time")),
+                    new BigDecimal(row.get("open")),
+                    new BigDecimal(row.get("high")),
+                    new BigDecimal(row.get("low")),
+                    new BigDecimal(row.get("close")),
+                    Optional.empty()));
+        }
+    }
+
+    @When("I compute the HA bar")
+    public void iComputeTheHaBar() {
+        capture(() -> computedHa = HeikinAshiCalculator.compute(previousHa, ohlc));
+    }
+
+    @When("I compute the HA chain")
+    public void iComputeTheHaChain() {
+        capture(() -> computedChain = HeikinAshiCalculator.computeChain(previousHa, ohlcs));
+    }
+
+    @Then("haClose is {bigdecimal}")
+    public void haCloseIs(BigDecimal expected) {
+        assertNumericEquals(expected, computedHa.haClose(), "haClose");
+    }
+
+    @Then("haOpen is {bigdecimal}")
+    public void haOpenIs(BigDecimal expected) {
+        assertNumericEquals(expected, computedHa.haOpen(), "haOpen");
+    }
+
+    @Then("haHigh is {bigdecimal}")
+    public void haHighIs(BigDecimal expected) {
+        assertNumericEquals(expected, computedHa.haHigh(), "haHigh");
+    }
+
+    @Then("haLow is {bigdecimal}")
+    public void haLowIs(BigDecimal expected) {
+        assertNumericEquals(expected, computedHa.haLow(), "haLow");
+    }
+
+    @Then("the HA bar time is {string}")
+    public void theHaBarTimeIs(String time) {
+        assertTrue(Instant.parse(time).equals(computedHa.time()),
+                "ha bar time: expected " + time + " but was " + computedHa.time());
+    }
+
+    @Then("the HA chain has {int} bars")
+    public void theHaChainHasBars(int n) {
+        assertTrue(computedChain.size() == n,
+                "ha chain size: expected " + n + " but was " + computedChain.size());
+    }
+
+    @Then("the HA chain bars are:")
+    public void theHaChainBarsAre(DataTable table) {
+        List<Map<String, String>> rows = table.asMaps();
+        assertTrue(rows.size() == computedChain.size(),
+                "ha chain size: expected " + rows.size() + " but was " + computedChain.size());
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, String> r = rows.get(i);
+            HABar bar = computedChain.get(i);
+            assertNumericEquals(new BigDecimal(r.get("haOpen")), bar.haOpen(), "haOpen row " + i);
+            assertNumericEquals(new BigDecimal(r.get("haHigh")), bar.haHigh(), "haHigh row " + i);
+            assertNumericEquals(new BigDecimal(r.get("haLow")), bar.haLow(), "haLow row " + i);
+            assertNumericEquals(new BigDecimal(r.get("haClose")), bar.haClose(), "haClose row " + i);
+        }
+    }
+
+    // --- OHLC invariants ---
+
+    @Given("an OHLC bar with open={bigdecimal}, high={bigdecimal}, low={bigdecimal}, close={bigdecimal}")
+    public void ohlcBarNoTime(BigDecimal o, BigDecimal h, BigDecimal l, BigDecimal c) {
+        ohlc = new OHLCBar(T0, o, h, l, c, Optional.empty());
+    }
+
+    @Given("an OHLC bar with open={bigdecimal}, high={bigdecimal}, low={bigdecimal}, close={bigdecimal} and volume={bigdecimal}")
+    public void ohlcBarWithVolume(BigDecimal o, BigDecimal h, BigDecimal l, BigDecimal c, BigDecimal v) {
+        ohlc = new OHLCBar(T0, o, h, l, c, Optional.of(v));
+    }
+
+    @Given("an OHLC bar with open={bigdecimal}, high={bigdecimal}, low={bigdecimal}, close={bigdecimal} and no volume")
+    public void ohlcBarNoVolume(BigDecimal o, BigDecimal h, BigDecimal l, BigDecimal c) {
+        ohlc = new OHLCBar(T0, o, h, l, c, Optional.empty());
+    }
+
+    @When("I validate invariants")
+    public void iValidateInvariants() {
+        capture(() -> ohlc.validateInvariants());
+    }
+
+    @When("I construct an OHLC bar with open={bigdecimal}, high={bigdecimal}, low={bigdecimal}, close={bigdecimal}")
+    public void iConstructOhlcBar(BigDecimal o, BigDecimal h, BigDecimal l, BigDecimal c) {
+        capture(() -> ohlc = new OHLCBar(T0, o, h, l, c, Optional.empty()));
+    }
+
+    @When("I construct an OHLC bar with a null close")
+    public void iConstructOhlcBarWithNullClose() {
+        capture(() -> ohlc = new OHLCBar(T0, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
+                null, Optional.empty()));
+    }
+
+    @Then("an OHLCInvariantViolationException is thrown")
+    public void anOhlcInvariantViolationExceptionIsThrown() {
+        assertTrue(thrown instanceof OHLCInvariantViolationException,
+                "expected OHLCInvariantViolationException but was " + thrown);
+    }
+
+    @Then("the violated invariant is {string}")
+    public void theViolatedInvariantIs(String name) {
+        OHLCInvariantViolationException e = (OHLCInvariantViolationException) thrown;
+        assertTrue(name.equals(e.violatedInvariant()),
+                "violated invariant: expected " + name + " but was " + e.violatedInvariant());
+    }
+
+    @Then("the OHLC bar is constructed without exception")
+    public void theOhlcBarIsConstructedWithoutException() {
+        assertTrue(thrown == null, "unexpected exception: " + thrown);
+        assertTrue(ohlc != null, "OHLC bar was not constructed");
+    }
+
+    @Then("a NullPointerException is thrown")
+    public void aNullPointerExceptionIsThrown() {
+        assertTrue(thrown instanceof NullPointerException,
+                "expected NullPointerException but was " + thrown);
+    }
+
+    // --- Timeframe ---
+
+    @When("I parse the timeframe wire string {string}")
+    public void iParseTheTimeframeWireString(String wire) {
+        capture(() -> timeframe = Timeframe.fromWire(wire));
+    }
+
+    @Then("re-serializing it returns {string}")
+    public void reSerializingItReturns(String wire) {
+        assertTrue(wire.equals(timeframe.wire()),
+                "wire: expected " + wire + " but was " + timeframe.wire());
+    }
+
+    @Then("the timeframe unit is {word}")
+    public void theTimeframeUnitIs(String unit) {
+        assertTrue(unit.equals(timeframe.unit().name()),
+                "timeframe unit: expected " + unit + " but was " + timeframe.unit());
+    }
+
+    @Then("an IllegalArgumentException is thrown")
+    public void anIllegalArgumentExceptionIsThrown() {
+        assertTrue(thrown instanceof IllegalArgumentException,
+                "expected IllegalArgumentException but was " + thrown);
+    }
+
+    // --- shared ---
+
+    @Then("no exception is thrown")
+    public void noExceptionIsThrown() {
+        assertTrue(thrown == null, "unexpected exception: " + thrown);
+    }
+
+    private void capture(Runnable action) {
+        thrown = null;
+        try {
+            action.run();
+        } catch (Exception e) {
+            thrown = e;
+        }
+    }
+
+    private static void assertTrue(boolean condition, String message) {
+        if (!condition) {
+            throw new AssertionError(message);
+        }
+    }
+
+    private static void assertNumericEquals(BigDecimal expected, BigDecimal actual, String label) {
+        if (actual == null || expected.compareTo(actual) != 0) {
+            throw new AssertionError(label + ": expected " + expected + " but was " + actual);
+        }
+    }
+}
