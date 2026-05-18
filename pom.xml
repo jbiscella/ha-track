@@ -11,6 +11,7 @@
 
     <name>ha-track</name>
     <description>Heerwisch / Frau Holle / Nachtkrapp — three independent Java libraries and a shared kernel.</description>
+    <url>https://github.com/jbiscella/ha-track</url>
 
     <licenses>
         <license>
@@ -20,6 +21,19 @@
             <comments>BSD Zero Clause License</comments>
         </license>
     </licenses>
+
+    <developers>
+        <developer>
+            <name>Jacopo Biscella</name>
+            <url>https://jacopobiscella.net</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/jbiscella/ha-track.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jbiscella/ha-track.git</developerConnection>
+        <url>https://github.com/jbiscella/ha-track</url>
+    </scm>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -31,6 +45,10 @@
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <japicmp-maven-plugin.version>0.25.6</japicmp-maven-plugin.version>
         <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
     </properties>
 
     <modules>
@@ -156,5 +174,72 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- Activated only when publishing to Maven Central:  ./mvnw -Prelease deploy
+         Keeps day-to-day builds free of javadoc generation and GPG signing.
+         Requires a GPG key on the build host and a 'central' server entry
+         (Portal user token) in settings.xml. -->
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <configuration>
+                            <doclint>none</doclint>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

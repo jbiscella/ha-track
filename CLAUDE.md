@@ -218,8 +218,8 @@ The root **does not** specify:
 - Per-module behavioral scenarios (Gherkin GWT) — those live in `<module>/CLAUDE.md`
 - Per-module data model details (exact field lists, computed properties) — those live in `<module>/CLAUDE.md`
 - Test pyramid, coverage gates, test infrastructure — out of v1
-- CI/CD pipelines — out of v1
-- Versioning and release process — out of v1
+- CI behaviour beyond the committed `build & verify` workflow — a GitHub Actions workflow (`.github/workflows/ci.yml`) runs the full test suite on every push and pull request; the root does not specify CI/CD further
+- Release cadence and version-bump policy — Maven Central publishing **is** in scope (artifacts published under the `net.jacopobiscella` namespace; the machinery lives in the root POM `release` profile), but *when* releases are cut and how versions are bumped is left unspecified
 - Pivot detection (any algorithm) — out of v1; reserved for v2 when chart-structural patterns become scope
 - Compound rule DSL for pattern composition — explicitly out of v1; consumers compose primitives in their own code
 - Multi-timeframe orchestration — explicitly consumer-side, not a library concern in v1
