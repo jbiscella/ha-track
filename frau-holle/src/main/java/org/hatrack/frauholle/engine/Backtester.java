@@ -97,7 +97,9 @@ public final class Backtester {
                         }
                     }
                     case Signal.ClosePositionAtPrice explicit -> {
-                        if (explicit.fillTime().isAfter(bar.time())) {
+                        var signalBarTime = series.get(t - 1).time();
+                        if (!explicit.fillTime().isAfter(signalBarTime)
+                                || !explicit.fillTime().isBefore(bar.time())) {
                             throw new InvalidExplicitFillException(explicit.fillTime(), bar.time());
                         }
                         if (position == null) {

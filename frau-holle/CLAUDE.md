@@ -481,8 +481,8 @@ All v1.1 extensions are strictly **additive** and **non-breaking**: consumers us
 | New variant | `ClosePositionAtPrice(BigDecimal price, Instant fillTime)` added to the sealed `Signal` hierarchy in §2.4 |
 | Purpose | enables consumers (Wichtelm-app primarily) to express intrabar fills — where a stop-loss or take-profit is hit between two bar closes and the fill price equals the stop level, not the next bar open |
 | Fill price | the `price` parameter of the signal (NOT the next bar open) |
-| Fill time | the `fillTime` parameter of the signal (typically the current bar, NOT the next bar) |
-| Validation | `price` MUST be > 0; `fillTime` MUST be ≤ the time of the bar after the bar at which the signal was emitted (lookahead-safety) |
+| Fill time | the `fillTime` parameter of the signal — an intrabar instant strictly inside the gap between the signal bar and the bar immediately after it; NOT a bar boundary |
+| Validation | `price` MUST be > 0; `fillTime` MUST satisfy `signalBar.time < fillTime < nextBar.time` — strictly after the bar at which the signal was emitted and strictly before the bar immediately following it (`signalBar` and `nextBar` respectively). Both retroactive fills (`fillTime ≤ signalBar.time`) and at-or-beyond-next-bar fills (`fillTime ≥ nextBar.time`) are lookahead-safety violations. `fillTime = nextBar.time` is rejected specifically because it would collapse into the v1 fill-at-next-bar behavior that `ClosePositionAtPrice` exists to differentiate from. Violations throw `InvalidExplicitFillException`. |
 | Behavior for other variants | unchanged. `Buy`, `Sell`, `ClosePosition` continue to fill at next bar open as specified in §4 |
 | BacktestResult diagnostics | a new counter `forcedClosesAtExplicitPrice` is added to BacktestDiagnostics |
 
@@ -503,37 +503,63 @@ A consumer that needs intrabar fill behavior BEFORE v1.1 is available can run tw
 
 ### 15.5 Block 6 — explicit-price fill behavior
 
+A valid `fillTime` is an intrabar instant: `signalBar.time < fillTime < nextBar.time` (strict on both sides). The success scenarios below use such an instant; the four rejection scenarios cover the lower bound, the upper bound and both out-of-range cases.
+
 ```gherkin
 Feature: v1.1 explicit-price (intrabar) fills
 
   Scenario: ClosePositionAtPrice fills at the signal-provided price, not next bar open
     Given a backtest with a long position open
-    And the SignalGenerator returns ClosePositionAtPrice(price=150, fillTime=current bar) at bar B5
+    And the SignalGenerator returns ClosePositionAtPrice(price=150) at bar B5
+      with an intrabar fillTime strictly between B5.time and B6.time
     When I run the backtest
     Then the position is closed at exitPrice = 150 (the signal price, not B6.open)
     And a Trade record is appended to results
 
   Scenario: ClosePositionAtPrice fills at the signal-provided fillTime, not next bar time
     Given a backtest with a long position open
-    And the SignalGenerator returns ClosePositionAtPrice(price=150, fillTime=B4.time) at bar B4
+    And the SignalGenerator returns ClosePositionAtPrice at bar B4
+      with an intrabar fillTime strictly between B4.time and B5.time
     When I run the backtest
-    Then the closing Trade has exitTime = B4.time (the signal fillTime, not B5.time)
+    Then the closing Trade has exitTime equal to that intrabar instant
+      (neither B4.time nor B5.time)
 
   Scenario: ClosePositionAtPrice on no open position is a no-op
     Given no position is open
-    And the SignalGenerator returns ClosePositionAtPrice
+    And the SignalGenerator returns ClosePositionAtPrice with a valid intrabar fillTime
     When the backtester processes the bar
     Then no position state change occurs
     And no Trade is appended
     And diagnostics.noOpClosePositionSignals is incremented
     And diagnostics.forcedClosesAtExplicitPrice is NOT incremented
 
+  Scenario: ClosePositionAtPrice with fillTime equal to the signal bar time is rejected
+    Given a ClosePositionAtPrice signal emitted at bar Bt
+    And its fillTime equals Bt.time (a retroactive fill — no look-ahead margin)
+    When the backtester processes the fill
+    Then InvalidExplicitFillException is thrown
+    And the exception carries the offending fillTime and the next-bar time (barTime)
+
+  Scenario: ClosePositionAtPrice with fillTime before the signal bar time is rejected
+    Given a ClosePositionAtPrice signal emitted at bar Bt
+    And its fillTime is earlier than Bt.time
+    When the backtester processes the fill
+    Then InvalidExplicitFillException is thrown
+    And the exception carries the offending fillTime and the next-bar time (barTime)
+
+  Scenario: ClosePositionAtPrice with fillTime equal to the next bar time is rejected
+    Given a ClosePositionAtPrice signal emitted at bar Bt
+    And its fillTime equals the time of bar Bt+1
+    When the backtester processes the fill
+    Then InvalidExplicitFillException is thrown
+      (fillTime = nextBar.time would collapse into v1 fill-at-next-bar behavior)
+
   Scenario: ClosePositionAtPrice with fillTime beyond the next bar is rejected
     Given a ClosePositionAtPrice signal emitted at bar Bt
     And its fillTime is later than the time of bar Bt+1
     When the backtester processes the fill
     Then InvalidExplicitFillException is thrown
-    And the exception carries the offending fillTime and the bar time it was checked against
+    And the exception carries the offending fillTime and the next-bar time (barTime)
 
   Scenario: diagnostics.forcedClosesAtExplicitPrice counts explicit-price closes
     Given a backtest where one ClosePositionAtPrice signal successfully closes a position
