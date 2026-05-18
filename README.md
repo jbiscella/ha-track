@@ -43,6 +43,7 @@ a `CLAUDE.md` (the authoritative behavioural specification).
 | Module | Role |
 |---|---|
 | [`commons`](commons/README.md) | shared kernel — JDK-only data types and pure functions, zero external dependencies |
+| [`indicators`](indicators/README.md) | shared kernel — JDK-only technical-indicator calculators (SMA, EMA, RSI, MACD, …) |
 | [`heerwisch-api`](heerwisch-api/README.md) | plotting library — immutable chart spec types and the `ChartRenderer` port |
 | [`heerwisch-jfreechart`](heerwisch-jfreechart/README.md) | default plotting driver — renders a `ChartSpec` to a PNG/JPEG `ChartImage`, headless |
 | [`frau-holle`](frau-holle/README.md) | backtesting library — the `Backtester`, with `MarketDataSource` and `SignalGenerator` ports |

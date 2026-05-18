@@ -27,7 +27,7 @@ It is built for unattended, server-side use:
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>heerwisch-jfreechart</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.42.0-alpha</version>
 </dependency>
 ```
 
