@@ -1,8 +1,14 @@
 name: Release
 
 # Publishes every reactor module to Maven Central whenever the project
-# version in the root pom.xml changes on main (i.e. a version bump commit).
+# version in the root pom.xml changes on main (i.e. a version bump commit),
+# or on a manual "Run workflow" (workflow_dispatch) for a re-attempt.
 # SNAPSHOT versions are skipped — Maven Central only accepts release versions.
+#
+# Central verifies the GPG signatures by fetching the public key from a
+# keyserver. The public half of the key in GPG_PRIVATE_KEY MUST be uploaded
+# to keyserver.ubuntu.com — the "Show the signing key fingerprint" step
+# below prints exactly which key fingerprint CI signs with.
 #
 # Required repository secrets (Settings -> Secrets and variables -> Actions):
 #   CENTRAL_TOKEN_USERNAME  - Maven Central Portal user-token username
@@ -19,6 +25,7 @@ on:
   push:
     branches: [main]
     paths: ['pom.xml']
+  workflow_dispatch:        # manual re-attempt without a version bump
 
 permissions:
   contents: read
@@ -53,7 +60,12 @@ jobs:
           fi
           echo "old version: ${old:-<none>}"
           echo "new version: $new"
-          if [ "$new" != "$old" ] && [ -n "$new" ] && [[ "$new" != *SNAPSHOT* ]]; then
+          # Publish only from main (a manual workflow_dispatch can be aimed
+          # at any branch), and only a non-SNAPSHOT version, on a manual run
+          # or when the version changed across the pushed range.
+          if [ -n "$new" ] && [[ "$new" != *SNAPSHOT* ]] \
+              && [ "$GITHUB_REF" = "refs/heads/main" ] \
+              && { [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$new" != "$old" ]; }; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"
@@ -72,6 +84,13 @@ jobs:
           server-password: CENTRAL_TOKEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Show the signing key fingerprint
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          # The public half of THIS key must be on keyserver.ubuntu.com for
+          # Maven Central to verify the .asc signatures.
+          gpg --list-secret-keys --keyid-format=long --fingerprint
 
       - name: Build, sign and deploy to Maven Central
         if: steps.version.outputs.publish == 'true'
