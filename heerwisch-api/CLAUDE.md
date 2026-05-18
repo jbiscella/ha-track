@@ -90,12 +90,14 @@ sealed interface LayoutSpec permits AutoLayoutSpec, ExplicitLayoutSpec
 
 | Variant | Fields | Behavior |
 |---|---|---|
-| `AutoLayoutSpec` | `int widthPx` (≥ 100), `int heightPx` (≥ 100) | The driver auto-distributes pane heights: main pane 60%, the rest evenly across subplots |
-| `ExplicitLayoutSpec` | `int widthPx`, `int heightPx`, `BigDecimal mainPaneHeight`, `Map<Pane, BigDecimal> subplotHeights` | Caller controls heights; sum must equal 1.0 (within an explicit tolerance of `10^-6`) |
+| `AutoLayoutSpec` | `int widthPx` (≥ 100), `int heightPx` (≥ 100), `ImageFormat format` | The driver auto-distributes pane heights: main pane 60%, the rest evenly across subplots |
+| `ExplicitLayoutSpec` | `int widthPx`, `int heightPx`, `BigDecimal mainPaneHeight`, `Map<Pane, BigDecimal> subplotHeights`, `ImageFormat format` | Caller controls heights; sum must equal 1.0 (within an explicit tolerance of `10^-6`) |
 
-`LayoutSpec.defaults()` returns `AutoLayoutSpec(900, 500)`.
+`ImageFormat` is a closed enum (`PNG`, `JPEG`) declaring the output image format. It lives in `heerwisch-api` because it is part of the `LayoutSpec` shape; drivers consume it.
 
-`LayoutSpec.builder()` is an entry point that asks for auto or explicit and exposes the relevant fields.
+`LayoutSpec.defaults()` returns `AutoLayoutSpec(900, 500, JPEG)`. **JPEG is the default output format.**
+
+`LayoutSpec.builder()` is an entry point that asks for auto or explicit and exposes the relevant fields; the format defaults to `JPEG` when not set.
 
 ### 1.7 `ChartSpec`
 
