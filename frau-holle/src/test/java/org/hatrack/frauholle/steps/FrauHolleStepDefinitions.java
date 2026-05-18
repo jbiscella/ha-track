@@ -85,6 +85,24 @@ public class FrauHolleStepDefinitions {
         builder.withSeries(series);
     }
 
+    @Given("an OHLC series with an OHLC invariant violation")
+    public void anOhlcSeriesWithAnOhlcInvariantViolation() {
+        List<OHLCBar> bars = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            BigDecimal v = new BigDecimal(100 + i);
+            if (i == 2) {
+                // high (1) < low (200) violates the OHLC invariants
+                bars.add(new OHLCBar(BASE.plusSeconds(i * 86400L),
+                        v, BigDecimal.ONE, new BigDecimal("200"), v, java.util.Optional.empty()));
+            } else {
+                bars.add(new OHLCBar(BASE.plusSeconds(i * 86400L),
+                        v, v.add(TWO), v.subtract(TWO), v.add(BigDecimal.ONE), java.util.Optional.empty()));
+            }
+        }
+        series = bars;
+        builder.withSeries(series);
+    }
+
     @Given("initial cash {bigdecimal}")
     public void initialCash(BigDecimal cash) {
         builder.withInitialCash(cash);

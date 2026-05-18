@@ -106,9 +106,10 @@ public final class CsvBarParser {
             throw new MarketDataSchemaException(symbol,
                     "line " + lineNumber + ": invalid " + column + " value '" + value + "'", e);
         }
-        if (price.signum() < 0) {
+        if (price.signum() <= 0) {
             throw new MarketDataSchemaException(symbol,
-                    "line " + lineNumber + ": " + column + " must be non-negative, was '" + value + "'");
+                    "line " + lineNumber + ": " + column + " must be strictly positive (> 0), was '"
+                            + value + "'");
         }
         return price;
     }

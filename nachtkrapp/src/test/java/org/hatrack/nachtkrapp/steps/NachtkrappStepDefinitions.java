@@ -200,6 +200,23 @@ public class NachtkrappStepDefinitions {
         builder.withSeries(new HASeries(bars));
     }
 
+    @Given("an OHLC series with an OHLC invariant violation")
+    public void anOhlcSeriesWithAnOhlcInvariantViolation() {
+        List<OHLCBar> bars = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            BigDecimal v = new BigDecimal(100 + i);
+            if (i == 2) {
+                // high (1) < low (200) violates the OHLC invariants
+                bars.add(new OHLCBar(timeOf(i), v, BigDecimal.ONE, new BigDecimal("200"), v,
+                        Optional.empty()));
+            } else {
+                bars.add(new OHLCBar(timeOf(i), v, v, v, v, Optional.empty()));
+            }
+        }
+        ohlcBars = bars;
+        builder.withSeries(new OHLCSeries(bars));
+    }
+
     @Given("the timeframe tag {string}")
     public void theTimeframeTag(String wire) {
         timeframeTag = Timeframe.fromWire(wire);

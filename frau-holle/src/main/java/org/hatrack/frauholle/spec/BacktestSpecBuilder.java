@@ -1,6 +1,7 @@
 package org.hatrack.frauholle.spec;
 
 import org.hatrack.commons.OHLCBar;
+import org.hatrack.commons.OHLCInvariantViolationException;
 import org.hatrack.frauholle.error.InvalidBacktestSpecException;
 import org.hatrack.frauholle.internal.TimeframeInference;
 import org.hatrack.frauholle.port.SignalGenerator;
@@ -12,7 +13,7 @@ import java.util.List;
 
 /**
  * Fluent builder for {@link BacktestSpec}. {@link #build()} validates eagerly
- * (rules V1-V6) and throws {@link InvalidBacktestSpecException} on the first
+ * (rules V1-V7) and throws {@link InvalidBacktestSpecException} on the first
  * violation found.
  */
 public final class BacktestSpecBuilder {
@@ -58,6 +59,15 @@ public final class BacktestSpecBuilder {
         }
         if (TimeframeInference.periodsPerYear(times).isEmpty()) {
             throw new InvalidBacktestSpecException("V5", null);
+        }
+        for (int i = 0; i < series.size(); i++) {
+            OHLCBar bar = series.get(i);
+            try {
+                bar.validateInvariants();
+            } catch (OHLCInvariantViolationException e) {
+                throw new InvalidBacktestSpecException("V7",
+                        "bar " + i + " at " + bar.time() + ": " + e.violatedInvariant());
+            }
         }
         return new BacktestSpec(series, signalGenerator, initialCash);
     }

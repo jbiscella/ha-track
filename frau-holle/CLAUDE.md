@@ -257,6 +257,9 @@ The series in `BacktestSpec` is already loaded. `Backtester` does NOT call `Mark
 | V4 | `initialCash` MUST be > 0 | initialCash ≤ 0 |
 | V5 | series bars MUST be ordered ascending by `time` with unique times AND with a uniform spacing that maps to a known `Timeframe` (per §3.1, within 1% tolerance) | unordered, duplicate, or irregular bars |
 | V6 | series MUST have ≥ 2 bars | series of 1 bar (cannot compute returns) |
+| V7 | every `OHLCBar` in the series MUST satisfy its OHLC invariants — positive prices, `high ≥ low`, `high ≥ open/close`, `low ≤ open/close`, `volume ≥ 0` when present (the `commons` invariant set, §2 of `commons/CLAUDE.md`) | a bar with `high < low` |
+
+V7 enforces, at the spec boundary, the `OHLCBar.validateInvariants()` contract that `commons` leaves opt-in. The builder calls `validateInvariants()` for each bar; on `OHLCInvariantViolationException` it throws `InvalidBacktestSpecException` with `violatedRule = "V7"` and the offending bar's index and time in `offendingValue`.
 
 ## 8. Exception hierarchy
 
@@ -305,6 +308,12 @@ Feature: BacktestSpecBuilder eager validation
     Given a series with exactly 1 bar
     When I call build()
     Then InvalidBacktestSpecException is thrown with violatedRule = "V6"
+
+  Scenario: OHLC invariant violation in the series is rejected by the builder
+    Given a series whose bars are ordered and uniformly spaced
+    And one of those bars has high < low
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V7"
 ```
 
 ## 10. Block 2 — Fill timing

@@ -80,6 +80,22 @@ public class HeerwischApiStepDefinitions {
         builder.withSeries(new OHLCSeries(ohlcBars(n, false)));
     }
 
+    @Given("an OHLC series with an OHLC invariant violation")
+    public void anOhlcSeriesWithAnOhlcInvariantViolation() {
+        List<OHLCBar> bars = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            BigDecimal v = new BigDecimal(100 + i);
+            if (i == 2) {
+                // high (1) < low (200) violates the OHLC invariants
+                bars.add(new OHLCBar(timeOf(i), v, BigDecimal.ONE, new BigDecimal("200"), v,
+                        Optional.empty()));
+            } else {
+                bars.add(new OHLCBar(timeOf(i), v, v, v, v, Optional.empty()));
+            }
+        }
+        builder.withSeries(new OHLCSeries(bars));
+    }
+
     @Given("an HA series of {int} bars")
     public void anHaSeries(int n) {
         List<HABar> bars = new ArrayList<>();

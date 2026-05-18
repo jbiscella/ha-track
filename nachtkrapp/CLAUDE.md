@@ -194,8 +194,11 @@ All of these are rejected eagerly in `build()`. The exception carries a `String 
 | V7 | rule parameters MUST satisfy their declared constraints | `RSIThresholdRule(period=14, overbought=120, oversold=30, ...)` → overbought out of range |
 | V8 | rules list MUST be non-empty | `builder.withSeries(s).build()` |
 | V9 | duplicate rule entries are forbidden | `addRule(SMA20)` twice (same parameter tuple) |
+| V10 | when the series is an `OHLCSeries`, every `OHLCBar` MUST satisfy its OHLC invariants (the `commons` invariant set — positive prices, `high ≥ low`, `high ≥ open/close`, `low ≤ open/close`, `volume ≥ 0` when present) | a bar with `high < low` |
 
 V9 is forbidden because the same rule applied twice produces redundant matches. If a consumer wants two MAs (e.g. SMA(20) and SMA(50)) that is fine — they are distinct rules with different `period`.
+
+V10 enforces, at the spec boundary, the `OHLCBar.validateInvariants()` contract that `commons` leaves opt-in. The builder calls `validateInvariants()` for each `OHLCBar`; on `OHLCInvariantViolationException` it throws `InvalidDetectionSpecException` with `violatedRule = "V10"` and the offending bar's index and time in `offendingValue`. `HASeries` has no equivalent check — `HABar` has no documented invariant set in `commons` — so for an `HASeries` V10 is a no-op.
 
 ## 5. Exception hierarchy
 
@@ -204,7 +207,7 @@ All checked. All extend `DetectionException` (root).
 | Exception | Cause | Carrier fields |
 |---|---|---|
 | `DetectionException` (root) | abstract — never thrown directly | `String message`, `Throwable cause` |
-| `InvalidDetectionSpecException` | Spec malformed (any V1–V9 violation) | `String violatedRule`, `Object offendingValue` (may be null) |
+| `InvalidDetectionSpecException` | Spec malformed (any V1–V10 violation) | `String violatedRule`, `Object offendingValue` (may be null) |
 | `InsufficientDataException` | Data insufficient for a rule at runtime (escape hatch — preferably caught at build via V6) | `String ruleClassName`, `int requiredBars`, `int availableBars` |
 | `DetectionInternalException` | Internal error inside the detection logic | `Throwable cause` is mandatory |
 
@@ -294,6 +297,12 @@ Feature: DetectionSpecBuilder eager validation
     Given the same PriceVsMARule(SMA, 20, CLOSE) added twice
     When I call build()
     Then InvalidDetectionSpecException is thrown with violatedRule = "V9"
+
+  Scenario: OHLC invariant violation in series is rejected by builder
+    Given an OHLCSeries one of whose bars has high < low
+    And a valid PriceVsMARule
+    When I call build()
+    Then InvalidDetectionSpecException is thrown with violatedRule = "V10"
 
   Scenario: MACD with slowPeriod ≤ fastPeriod fails build
     Given an MACDSignalCrossRule(fast = 26, slow = 12, signal = 9, priceSource = CLOSE)

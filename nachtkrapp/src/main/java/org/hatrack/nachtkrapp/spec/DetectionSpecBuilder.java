@@ -3,6 +3,7 @@ package org.hatrack.nachtkrapp.spec;
 import org.hatrack.commons.HABar;
 import org.hatrack.commons.HASeries;
 import org.hatrack.commons.OHLCBar;
+import org.hatrack.commons.OHLCInvariantViolationException;
 import org.hatrack.commons.OHLCSeries;
 import org.hatrack.commons.PriceSource;
 import org.hatrack.commons.Series;
@@ -29,7 +30,7 @@ import java.util.Optional;
 
 /**
  * Fluent builder for {@link DetectionSpec}. {@link #build()} validates eagerly
- * (rules V1-V9) and throws {@link InvalidDetectionSpecException} on the first
+ * (rules V1-V10) and throws {@link InvalidDetectionSpecException} on the first
  * violation found.
  */
 public final class DetectionSpecBuilder {
@@ -77,6 +78,18 @@ public final class DetectionSpecBuilder {
             }
             if (cmp == 0) {
                 throw new InvalidDetectionSpecException("V4", times.get(i));
+            }
+        }
+        if (series instanceof OHLCSeries ohlcSeries) {
+            List<OHLCBar> bars = ohlcSeries.bars();
+            for (int i = 0; i < bars.size(); i++) {
+                OHLCBar bar = bars.get(i);
+                try {
+                    bar.validateInvariants();
+                } catch (OHLCInvariantViolationException e) {
+                    throw new InvalidDetectionSpecException("V10",
+                            "bar " + i + " at " + bar.time() + ": " + e.violatedInvariant());
+                }
             }
         }
         if (rules.isEmpty()) {

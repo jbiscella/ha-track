@@ -45,6 +45,14 @@ Feature: BacktestSpecBuilder eager validation
     When I build the backtest spec
     Then an InvalidBacktestSpecException is thrown with violatedRule "V6"
 
+  Scenario: OHLC invariant violation in the series is rejected
+    Given a backtest builder
+    And an OHLC series with an OHLC invariant violation
+    And the strategy holds every bar
+    And initial cash 10000
+    When I build the backtest spec
+    Then an InvalidBacktestSpecException is thrown with violatedRule "V7"
+
   Scenario: A well-formed spec builds successfully
     Given a backtest builder
     And an OHLC series of 10 daily bars
