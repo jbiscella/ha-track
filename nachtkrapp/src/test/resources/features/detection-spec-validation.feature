@@ -90,6 +90,13 @@ Feature: DetectionSpecBuilder eager validation
     When I build the detection spec
     Then an InvalidDetectionSpecException is thrown with violatedRule "V9"
 
+  Scenario: OHLC invariant violation in series is rejected by builder
+    Given a detection spec builder
+    And an OHLC series with an OHLC invariant violation
+    And the rule PriceVsMARule with SMA period 3 source CLOSE
+    When I build the detection spec
+    Then an InvalidDetectionSpecException is thrown with violatedRule "V10"
+
   Scenario: Valid spec builds successfully
     Given a detection spec builder
     And an OHLC series of 10 bars with close strictly increasing

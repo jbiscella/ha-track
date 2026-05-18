@@ -94,10 +94,10 @@ The driver validates structure but not semantics:
 | F1 | Header row is present and contains `time`, `open`, `high`, `low`, `close` (case-insensitive) | `MarketDataSchemaException` |
 | F2 | Each non-blank, non-comment row has at least the required columns | `MarketDataSchemaException` with line number |
 | F3 | `time` parses as ISO-8601 UTC instant | `MarketDataSchemaException` with line number and offending value |
-| F4 | `open`, `high`, `low`, `close` parse as non-negative `BigDecimal` | `MarketDataSchemaException` with line number |
-| F5 | `volume` (if column present and cell non-empty) parses as non-negative `BigDecimal` | `MarketDataSchemaException` with line number |
+| F4 | `open`, `high`, `low`, `close` parse as a strictly-positive `BigDecimal` (> 0) | `MarketDataSchemaException` with line number |
+| F5 | `volume` (if column present and cell non-empty) parses as non-negative `BigDecimal` (≥ 0; zero volume is legal) | `MarketDataSchemaException` with line number |
 
-The driver does NOT check OHLC invariants (per §3), ordering, or unique times. Those are checked by `frau-holle.BacktestSpec.builder()` at V3/V5.
+The driver does NOT check OHLC invariants (per §3), ordering, or unique times. Those are checked by `frau-holle.BacktestSpec.builder()` at V3/V5/V7. F4 is a *schema* check: a price must be a positive number. The fuller OHLC invariant set (high ≥ low, etc.) is a downstream spec-builder concern, not the CSV driver's.
 
 ## 5. Block 1 — Basic reads
 
@@ -159,6 +159,17 @@ Feature: Schema error reporting
 
   Scenario: Non-numeric price
     Given a row with open = "N/A"
+    When I fetch
+    Then MarketDataSchemaException is thrown with line number
+
+  Scenario: Zero OHLC price is rejected as a schema error
+    Given a row with open = "0" (the other prices valid)
+    When I fetch
+    Then MarketDataSchemaException is thrown with line number
+    And the message indicates the price must be strictly positive
+
+  Scenario: Negative OHLC price is rejected as a schema error
+    Given a row with open = "-5" (the other prices valid)
     When I fetch
     Then MarketDataSchemaException is thrown with line number
 

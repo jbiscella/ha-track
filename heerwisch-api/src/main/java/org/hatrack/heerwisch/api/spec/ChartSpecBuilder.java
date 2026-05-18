@@ -3,6 +3,7 @@ package org.hatrack.heerwisch.api.spec;
 import org.hatrack.commons.HABar;
 import org.hatrack.commons.HASeries;
 import org.hatrack.commons.OHLCBar;
+import org.hatrack.commons.OHLCInvariantViolationException;
 import org.hatrack.commons.OHLCSeries;
 import org.hatrack.commons.PriceSource;
 import org.hatrack.commons.Series;
@@ -76,6 +77,18 @@ public final class ChartSpecBuilder {
             }
             if (cmp == 0) {
                 throw new InvalidChartSpecException("V4", times.get(i));
+            }
+        }
+        if (series instanceof OHLCSeries ohlcSeries) {
+            List<OHLCBar> bars = ohlcSeries.bars();
+            for (int i = 0; i < bars.size(); i++) {
+                OHLCBar bar = bars.get(i);
+                try {
+                    bar.validateInvariants();
+                } catch (OHLCInvariantViolationException e) {
+                    throw new InvalidChartSpecException("V13",
+                            "bar " + i + " at " + bar.time() + ": " + e.violatedInvariant());
+                }
             }
         }
         LayoutSpec effectiveLayout = layout != null ? layout : LayoutSpec.defaults();

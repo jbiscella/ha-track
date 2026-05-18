@@ -79,6 +79,12 @@ Feature: ChartSpecBuilder eager validation
     When I build the chart spec
     Then an InvalidChartSpecException is thrown with violatedRule "V11"
 
+  Scenario: OHLC invariant violation in series fails build
+    Given a chart spec builder
+    And an OHLC series with an OHLC invariant violation
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V13"
+
   Scenario: A well-formed spec builds successfully
     Given a chart spec builder
     And an OHLC series of 30 bars

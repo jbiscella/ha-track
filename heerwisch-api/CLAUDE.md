@@ -168,8 +168,11 @@ All of these are rejected eagerly in `build()`. The exception carries a `String 
 | V10 | `ExplicitLayoutSpec` heights MUST sum to 1.0 ± 10^-6 | `mainPaneHeight + sum(subplotHeights) ≠ 1.0` |
 | V11 | every `Pane` referenced in `ExplicitLayoutSpec.subplotHeights` MUST have at least one indicator placed there | declaring a height for `SUBPLOT_3` while no indicator targets that pane |
 | V12 | indicators placed at `MAIN` MUST be overlay-compatible | `RSI` placed at `MAIN` (RSI's value range is unbounded relative to price) — driver-flexible; if a future driver supports this, the rule relaxes per-driver |
+| V13 | when the series is an `OHLCSeries`, every `OHLCBar` MUST satisfy its OHLC invariants (the `commons` invariant set — positive prices, `high ≥ low`, `high ≥ open/close`, `low ≤ open/close`, `volume ≥ 0` when present) | a bar with `high < low` |
 
 V12 is a soft rule the `heerwisch-api` documents but does not enforce universally — different drivers MAY support different mixings. The default driver `heerwisch-jfreechart` enforces V12 strictly. If a driver does NOT support a given placement, it must throw `UnsupportedFeatureException` (see §4) at render time, not pretend to render.
+
+V13 enforces, at the spec boundary, the `OHLCBar.validateInvariants()` contract that `commons` leaves opt-in. `ChartSpecBuilder.build()` calls `validateInvariants()` for each `OHLCBar`; on `OHLCInvariantViolationException` it throws `InvalidChartSpecException` with `violatedRule = "V13"` and the offending bar's index and time in `offendingValue`. (V13, not V12: V12 is the pre-existing soft overlay-compatibility identifier.) `HASeries` has no equivalent check — `HABar` has no documented invariant set in `commons`.
 
 ## 4. Exception hierarchy
 
@@ -178,7 +181,7 @@ All checked. All extend `ChartRenderException` (root).
 | Exception | Cause | Carrier fields |
 |---|---|---|
 | `ChartRenderException` (root) | abstract — never thrown directly | `String message`, `Throwable cause` |
-| `InvalidChartSpecException` | Spec malformed (any V1–V11 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
+| `InvalidChartSpecException` | Spec malformed (any V1–V11 or V13 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
 | `UnsupportedFeatureException` | Driver doesn't support a requested feature | `String featureName`, `String driverName` |
 | `InsufficientDataException` | Data insufficient for an indicator at render time (escape hatch — preferably caught at build via V6) | `String indicatorName`, `int requiredBars`, `int availableBars` |
 | `DriverInternalException` | Underlying driver internal error | `Throwable cause` is mandatory; carries the original exception |
@@ -267,6 +270,11 @@ Feature: ChartSpecBuilder eager validation
     And no indicator placed at SUBPLOT_3
     When I withLayout(layout) and build()
     Then InvalidChartSpecException is thrown with violatedRule = "V11"
+
+  Scenario: OHLC invariant violation in series fails build
+    Given an OHLCSeries one of whose bars has high < low
+    When I call build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V13"
 ```
 
 ## 7. Block 2 — Default pane assignment

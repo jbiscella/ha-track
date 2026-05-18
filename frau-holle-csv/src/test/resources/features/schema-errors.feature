@@ -38,6 +38,31 @@ Feature: Schema error reporting
     Then a MarketDataSchemaException is thrown
     And the exception message mentions "line 2"
 
+  Scenario: Zero OHLC price is rejected as a schema error
+    Given a base directory
+    And a CSV file "AAPL_1d.csv" with content:
+      """
+      time,open,high,low,close
+      2024-01-02T00:00:00Z,0,2,0.5,1.5
+      """
+    And a CSV data source with the default pattern
+    When I fetch history for "AAPL" "1d" over the full range
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "line 2"
+    And the exception message mentions "strictly positive"
+
+  Scenario: Negative OHLC price is rejected as a schema error
+    Given a base directory
+    And a CSV file "AAPL_1d.csv" with content:
+      """
+      time,open,high,low,close
+      2024-01-02T00:00:00Z,-5,2,0.5,1.5
+      """
+    And a CSV data source with the default pattern
+    When I fetch history for "AAPL" "1d" over the full range
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "line 2"
+
   Scenario: Comment lines are ignored
     Given a base directory
     And a CSV file "AAPL_1d.csv" with content:
