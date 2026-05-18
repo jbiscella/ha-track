@@ -101,11 +101,17 @@ Files.write(Path.of("chart.jpg"), image.bytes());
 ## Validation and errors
 
 `ChartSpecBuilder.build()` rejects malformed specs eagerly with
-`InvalidChartSpecException`, whose `violatedRule` names the broken rule
-(**V1–V13**): unset/empty/unordered series, priceSource/series-type mismatch,
-too few bars for an indicator, a highlight on a non-existent bar, explicit
-layout heights not summing to 1, OHLC invariant violations, and more.
+`InvalidChartSpecException`, whose `violatedRule` names the broken rule —
+**V1–V11 and V13**: unset/empty/unordered series, priceSource/series-type
+mismatch, too few bars for an indicator, a highlight on a non-existent bar,
+explicit layout heights not summing to 1, OHLC invariant violations, and more.
 `LayoutSpecBuilder.build()` adds **V14**.
+
+Rule **V12** (oscillators on the `MAIN` pane) is *not* a `build()` rule — it is
+a **soft, driver-specific** rule. `heerwisch-api` does not reject it at spec
+construction; a driver may, failing later at render time with
+`UnsupportedFeatureException` (the default driver, `heerwisch-jfreechart`,
+enforces it strictly).
 
 The full hierarchy (all checked, rooted at `ChartRenderException`):
 
