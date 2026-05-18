@@ -28,12 +28,11 @@ strategy are pluggable:
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle</artifactId>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>0.42.0-alpha</version>
 </dependency>
 ```
 
-> `frau-holle` is at **1.1.0**-SNAPSHOT (it carries the v1.1 `ClosePositionAtPrice`
-> extension); the other modules are at 1.0.0-SNAPSHOT.
+> All ha-track modules share a single version — currently `0.42.0-alpha`.
 
 Packages: `port`, `model`, `spec`, `result`, `engine`, `error` under
 `org.hatrack.frauholle`.

@@ -1,0 +1,75 @@
+name: Release
+
+# Publishes every reactor module to Maven Central whenever the project
+# version in the root pom.xml changes on main (i.e. a version bump commit).
+# SNAPSHOT versions are skipped — Maven Central only accepts release versions.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   CENTRAL_TOKEN_USERNAME  - Maven Central Portal user-token username
+#   CENTRAL_TOKEN_PASSWORD  - Maven Central Portal user-token password
+#   GPG_PRIVATE_KEY         - ASCII-armored GPG private key used to sign artifacts
+#   GPG_PASSPHRASE          - passphrase for that GPG key
+#
+# One-time manual prerequisite (cannot be automated): the `net.jacopobiscella`
+# namespace must be verified in the Central Portal. With autoPublish=false in
+# the root pom `release` profile, this workflow uploads a deployment that is
+# then released manually from the Central Portal UI.
+
+on:
+  push:
+    branches: [main]
+    paths: ['pom.xml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish to Maven Central
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect a version bump
+        id: version
+        run: |
+          extract() { grep -m1 '<version>' "$1" | sed -E 's/.*<version>(.+)<\/version>.*/\1/'; }
+          new=$(extract pom.xml)
+          old=$(git show HEAD~1:pom.xml 2>/dev/null | grep -m1 '<version>' \
+                | sed -E 's/.*<version>(.+)<\/version>.*/\1/' || true)
+          echo "old version: ${old:-<none>}"
+          echo "new version: $new"
+          if [ "$new" != "$old" ] && [ -n "$new" ] && [[ "$new" != *SNAPSHOT* ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "No release version change — skipping publish."
+          fi
+
+      - name: Set up JDK 25 (Amazon Corretto)
+        if: steps.version.outputs.publish == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '25'
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Build, sign and deploy to Maven Central
+        if: steps.version.outputs.publish == 'true'
+        run: ./mvnw -Prelease --batch-mode --no-transfer-progress deploy
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
