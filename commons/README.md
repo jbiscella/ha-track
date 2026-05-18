@@ -23,7 +23,7 @@ belong in your own code, not here.
 
 ```xml
 <dependency>
-    <groupId>org.hatrack</groupId>
+    <groupId>net.jacopobiscella</groupId>
     <artifactId>commons</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>

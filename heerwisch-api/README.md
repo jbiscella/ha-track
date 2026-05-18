@@ -20,7 +20,7 @@ vector engine tomorrow, without changing how you describe charts.
 
 ```xml
 <dependency>
-    <groupId>org.hatrack</groupId>
+    <groupId>net.jacopobiscella</groupId>
     <artifactId>heerwisch-api</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
