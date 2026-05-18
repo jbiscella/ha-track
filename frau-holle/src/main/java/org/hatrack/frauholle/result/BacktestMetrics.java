@@ -30,7 +30,9 @@ public record BacktestMetrics(BigDecimal totalReturn, BigDecimal winRate, int nu
      * factor cannot be represented as {@code BigDecimal}). Consumers MUST
      * interpret 0 as undefined and NOT as "zero profit factor" — a true zero
      * would require winning trades summing to zero, which is impossible for a
-     * trade where {@code pnl &gt; 0}. See frau-holle/CLAUDE.md §3 for the
+     * trade where {@code pnl &gt; 0}. It also returns {@code BigDecimal.ZERO}
+     * when there are no winning trades: the numerator is then zero, so the
+     * quotient is genuinely zero. See frau-holle/CLAUDE.md §3 for the
      * canonical specification.
      */
     public BigDecimal profitFactor() {
