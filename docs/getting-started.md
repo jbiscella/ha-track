@@ -152,7 +152,7 @@ What this shows:
 
 ## 5. Maven coordinates
 
-All artifacts share the `org.hatrack` group id.
+All artifacts share the `net.jacopobiscella` group id.
 
 | Artifact | Version | Depends on |
 |---|---|---|

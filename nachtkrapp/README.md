@@ -20,7 +20,7 @@ detection engine all live here.
 
 ```xml
 <dependency>
-    <groupId>org.hatrack</groupId>
+    <groupId>net.jacopobiscella</groupId>
     <artifactId>nachtkrapp</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>

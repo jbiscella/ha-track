@@ -16,7 +16,7 @@ endpoint — historical end-of-day bars — and maps the JSON response into
 
 ```xml
 <dependency>
-    <groupId>org.hatrack</groupId>
+    <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle-eodhd</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>

@@ -24,7 +24,7 @@ strategy are pluggable:
 
 ```xml
 <dependency>
-    <groupId>org.hatrack</groupId>
+    <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle</artifactId>
     <version>1.1.0-SNAPSHOT</version>
 </dependency>

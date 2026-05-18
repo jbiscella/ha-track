@@ -25,7 +25,7 @@ It is built for unattended, server-side use:
 
 ```xml
 <dependency>
-    <groupId>org.hatrack</groupId>
+    <groupId>net.jacopobiscella</groupId>
     <artifactId>heerwisch-jfreechart</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
