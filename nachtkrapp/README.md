@@ -1,3 +1,5 @@
+<img src="../nachtkrapp-logo.png" alt="nachtkrapp" height="90">
+
 # nachtkrapp
 
 The **pattern-detection** library. You give it a series and a set of rules; it

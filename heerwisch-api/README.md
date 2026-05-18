@@ -1,3 +1,5 @@
+<img src="../heerwisch-logo.png" alt="heerwisch" height="90">
+
 # heerwisch-api
 
 The **plotting library** — the part that defines *what a chart is*. Immutable

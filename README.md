@@ -17,6 +17,14 @@ ha-track is a set of **libraries**, not an application, and is deliberately
 framework-agnostic (no DI container). The end-user product is a separate
 consumer application.
 
+<p align="center">
+  <img src="heerwisch-logo.png" alt="heerwisch" height="72">
+  &nbsp;&nbsp;&nbsp;
+  <img src="nachtkrapp-logo.png" alt="nachtkrapp" height="72">
+  &nbsp;&nbsp;&nbsp;
+  <img src="frau-holle-logo.png" alt="frau-holle" height="72">
+</p>
+
 ## Documentation
 
 | Start here | For |
