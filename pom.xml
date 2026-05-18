@@ -132,7 +132,10 @@
                     </executions>
                 </plugin>
                 <!-- Third-party license enumeration. Run manually to regenerate
-                     THIRD_PARTY_LICENSES.txt:  ./mvnw license:aggregate-add-third-party -->
+                     THIRD_PARTY_LICENSES.txt:  ./mvnw license:aggregate-add-third-party
+                     The notice documents the full license closure of the
+                     published artifacts, so the sibling reactor modules (0BSD)
+                     are intentionally included as transitive dependencies. -->
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>license-maven-plugin</artifactId>
@@ -141,7 +144,6 @@
                         <outputDirectory>${maven.multiModuleProjectDirectory}</outputDirectory>
                         <thirdPartyFilename>THIRD_PARTY_LICENSES.txt</thirdPartyFilename>
                         <includeTransitiveDependencies>true</includeTransitiveDependencies>
-                        <excludedGroups>^net\.jacopobiscella$</excludedGroups>
                         <sortArtifactByName>true</sortArtifactByName>
                     </configuration>
                 </plugin>
