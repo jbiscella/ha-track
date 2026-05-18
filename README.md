@@ -29,15 +29,18 @@ consumer application.
 
 ## Modules
 
+Each module has its own `README.md` (human-friendly guide, with API usage) and
+a `CLAUDE.md` (the authoritative behavioural specification).
+
 | Module | Role |
 |---|---|
-| [`commons`](commons/CLAUDE.md) | shared kernel — JDK-only data types and pure functions, zero external dependencies |
-| [`heerwisch-api`](heerwisch-api/CLAUDE.md) | plotting library — immutable chart spec types and the `ChartRenderer` port |
-| [`heerwisch-jfreechart`](heerwisch-jfreechart/CLAUDE.md) | default plotting driver — renders a `ChartSpec` to a PNG/JPEG `ChartImage`, headless |
-| [`frau-holle`](frau-holle/CLAUDE.md) | backtesting library — the `Backtester`, with `MarketDataSource` and `SignalGenerator` ports |
-| [`frau-holle-csv`](frau-holle-csv/CLAUDE.md) | reference data driver — reads OHLC bars from local CSV files |
-| [`frau-holle-eodhd`](frau-holle-eodhd/CLAUDE.md) | reference data driver — fetches bars from the EODHD End-of-Day API |
-| [`nachtkrapp`](nachtkrapp/CLAUDE.md) | pattern detection library — Heikin Ashi patterns plus MA/RSI/MACD primitives |
+| [`commons`](commons/README.md) | shared kernel — JDK-only data types and pure functions, zero external dependencies |
+| [`heerwisch-api`](heerwisch-api/README.md) | plotting library — immutable chart spec types and the `ChartRenderer` port |
+| [`heerwisch-jfreechart`](heerwisch-jfreechart/README.md) | default plotting driver — renders a `ChartSpec` to a PNG/JPEG `ChartImage`, headless |
+| [`frau-holle`](frau-holle/README.md) | backtesting library — the `Backtester`, with `MarketDataSource` and `SignalGenerator` ports |
+| [`frau-holle-csv`](frau-holle-csv/README.md) | reference data driver — reads OHLC bars from local CSV files |
+| [`frau-holle-eodhd`](frau-holle-eodhd/README.md) | reference data driver — fetches bars from the EODHD End-of-Day API |
+| [`nachtkrapp`](nachtkrapp/README.md) | pattern detection library — Heikin Ashi patterns plus MA/RSI/MACD primitives |
 
 ## Build
 
