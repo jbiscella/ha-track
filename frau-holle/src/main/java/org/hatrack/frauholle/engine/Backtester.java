@@ -3,6 +3,7 @@ package org.hatrack.frauholle.engine;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.frauholle.error.BacktestException;
 import org.hatrack.frauholle.error.BacktestInternalException;
+import org.hatrack.frauholle.error.InvalidAddToPositionDirectionException;
 import org.hatrack.frauholle.error.InvalidExplicitFillException;
 import org.hatrack.frauholle.error.SignalGenerationException;
 import org.hatrack.frauholle.internal.MetricsCalculator;
@@ -33,6 +34,11 @@ import java.util.Optional;
  * <p>v1.1: a {@code ClosePositionAtPrice} signal closes the open position at
  * the explicit price and time it carries, rather than at the next bar open.
  * All v1 signal variants behave exactly as before.
+ *
+ * <p>v1.2: an {@code AddToPosition} signal accumulates quantity into an open
+ * position of the matching direction, filling at the next bar open and
+ * re-pricing the position to the quantity-weighted average entry price. All
+ * v1/v1.1 signal variants behave exactly as before.
  */
 public final class Backtester {
 
@@ -61,6 +67,8 @@ public final class Backtester {
         int noOpCloses = 0;
         int unfilledAtEnd = 0;
         int forcedClosesAtExplicitPrice = 0;
+        int addToPositionFills = 0;
+        int addToPositionsOnNoPosition = 0;
 
         Signal pending = null;
 
@@ -111,6 +119,17 @@ public final class Backtester {
                             forcedClosesAtExplicitPrice++;
                         }
                     }
+                    case Signal.AddToPosition add -> {
+                        if (position == null) {
+                            addToPositionsOnNoPosition++;
+                        } else if (position.direction() != add.direction()) {
+                            throw new InvalidAddToPositionDirectionException(
+                                    t, bar.time(), position.direction(), add.direction());
+                        } else {
+                            position = accumulate(position, add.quantity(), bar.open());
+                            addToPositionFills++;
+                        }
+                    }
                 }
                 pending = null;
             }
@@ -150,9 +169,26 @@ public final class Backtester {
                 series.stream().map(OHLCBar::time).toList()).orElseThrow();
         BacktestMetrics metrics = MetricsCalculator.compute(equityCurve, trades, periodsPerYear);
         BacktestDiagnostics diagnostics = new BacktestDiagnostics(
-                ignoredBuys, ignoredSells, noOpCloses, unfilledAtEnd, forcedClosesAtExplicitPrice);
+                ignoredBuys, ignoredSells, noOpCloses, unfilledAtEnd, forcedClosesAtExplicitPrice,
+                addToPositionFills, addToPositionsOnNoPosition);
         return new BacktestResult(metrics, trades, equityCurve,
                 Optional.ofNullable(position), diagnostics);
+    }
+
+    /**
+     * Accumulates {@code addQuantity} filled at {@code addPrice} into an open
+     * position of the same direction. The result keeps the original direction
+     * and entry time; the entry price becomes the quantity-weighted average of
+     * the prior position and the add.
+     */
+    private static Position accumulate(Position position, BigDecimal addQuantity,
+                                       BigDecimal addPrice) {
+        BigDecimal newQuantity = position.quantity().add(addQuantity, MC);
+        BigDecimal weightedEntryPrice = position.quantity().multiply(position.entryPrice(), MC)
+                .add(addQuantity.multiply(addPrice, MC), MC)
+                .divide(newQuantity, MC);
+        return new Position(position.direction(), newQuantity,
+                position.entryTime(), weightedEntryPrice);
     }
 
     private static BigDecimal positionValue(Position position, BigDecimal price) {

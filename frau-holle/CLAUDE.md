@@ -632,7 +632,132 @@ Feature: v1.1 explicit-price (intrabar) fills
     And no range check is applied (a stop level may sit outside the bar)
 ```
 
-## 16. Implementation delegation to Claude Code
+## 16. v1.2 additive extensions
+
+> **Status: IMPLEMENTED in frau-holle 1.2.0.** This section documents the v1.2 extension: the `AddToPosition` signal variant (position accumulation / pyramiding), its two diagnostics counters and the `InvalidAddToPositionDirectionException`. It was added for the Wichtelm-app consumer, which needs to model strategies that scale into a winning position.
+
+All v1.2 extensions are strictly **additive** and **non-breaking**: consumers using only v1 and v1.1 `Signal` variants (`Hold`/`Buy`/`Sell`/`ClosePosition`/`ClosePositionAtPrice`) continue to work bit-identically. The bar-loop order, fill timing of existing variants, metrics and `BacktestResult` shape are unchanged apart from the two additive diagnostics counters.
+
+### 16.1 New Signal variant: AddToPosition
+
+| Aspect | v1.2 specification |
+|---|---|
+| New variant | `AddToPosition(BigDecimal quantity, Direction direction)` added to the sealed `Signal` hierarchy |
+| Purpose | accumulate quantity into an already-open position (pyramiding) — express strategies that scale into a position rather than opening it in one shot |
+| Fields | `quantity` MUST be non-null and `> 0`; `direction` MUST be non-null. Both validated in the canonical constructor |
+| Direction | `AddToPosition` carries an explicit `Direction` (the `org.hatrack.frauholle.model.Direction` enum, `LONG`/`SHORT`, the same enum carried by `Position` and `Trade`). This makes the signal self-documenting and the opposite-direction error case reachable, mirroring the way `Buy`/`Sell` implicitly encode direction |
+| Fill timing | the next bar open, exactly as `Buy`/`Sell` (§4). A signal at bar `t` fills at the open of bar `t+1` |
+| Behavior — matching direction | when a position is open whose direction equals the signal's `direction`: the `quantity` is added to the position; the position's `entryPrice` becomes the **quantity-weighted average** of the prior position and the add — `(oldQuantity × oldEntryPrice + addQuantity × fillPrice) / (oldQuantity + addQuantity)`; the position's `entryTime` stays the **original** first-open time (the weighted-average applies to price only, not time); the direction is unchanged |
+| Behavior — no open position | no-op; the `addToPositionOnNoPositionCount` diagnostics counter is incremented |
+| Behavior — opposite direction | when a position is open whose direction is the **opposite** of the signal's `direction`, the backtester throws `InvalidAddToPositionDirectionException`. This is intentionally strict in v1.2 — reversing a position via `AddToPosition` has ambiguous semantics; v1.3 may relax it if a use case emerges |
+| Behavior for other variants | unchanged. `Hold`, `Buy`, `Sell`, `ClosePosition`, `ClosePositionAtPrice` behave exactly as in v1/v1.1 |
+
+### 16.2 New diagnostics counters
+
+Two counters are added to `BacktestDiagnostics` (§2.10):
+
+| Accessor | Type | Meaning |
+|---|---|---|
+| `addToPositionCount()` | `int` | count of `AddToPosition` signals that were successfully filled (an open position grew) |
+| `addToPositionOnNoPositionCount()` | `int` | count of `AddToPosition` signals emitted while no position was open (no-op case) |
+
+Both default to 0. A backtest using only v1/v1.1 signal variants leaves both at 0, so a pre-v1.2 result is reproduced unchanged.
+
+### 16.3 New exception: InvalidAddToPositionDirectionException
+
+`InvalidAddToPositionDirectionException` is added to the sealed `BacktestException` hierarchy (§8). It is thrown from `Backtester.run()` when an `AddToPosition` signal is filled against an open position of the opposite direction.
+
+| Carrier field | Type | Meaning |
+|---|---|---|
+| `barIndex()` | `int` | index of the fill bar at which the mismatch was detected |
+| `barTime()` | `Instant` | time of the fill bar at which the mismatch was detected |
+| `openPositionDirection()` | `Direction` | direction of the position that is currently open |
+| `signalDirection()` | `Direction` | direction carried by the offending `AddToPosition` signal |
+
+The exception has no cause (the mismatch is a strategy-logic error, not a wrapped failure).
+
+### 16.4 Behavioral scenarios
+
+The v1.2 behavior is covered by the Gherkin scenarios in §16.5 (Block 7).
+
+### 16.5 Block 7 — AddToPosition (pyramiding) behavior
+
+```gherkin
+Feature: v1.2 AddToPosition (pyramiding)
+
+  Scenario: AddToPosition on an open long position accumulates at the weighted-average entry price
+    Given a long position of quantity 10 opened at entryPrice 101
+    And the SignalGenerator returns AddToPosition(quantity=5, direction=LONG)
+      while that position is open
+    When the add fills at the next bar open of 104
+    Then the position quantity becomes 15
+    And the position entryPrice becomes (10×101 + 5×104) / 15 = 102
+    And the position entryTime is unchanged
+
+  Scenario: AddToPosition on an open short position accumulates at the weighted-average entry price
+    Given a short position of quantity 10 opened at entryPrice 101
+    And the SignalGenerator returns AddToPosition(quantity=5, direction=SHORT)
+      while that position is open
+    When the add fills at the next bar open of 104
+    Then the position quantity becomes 15
+    And the position entryPrice becomes 102 (symmetric to the long case)
+
+  Scenario: AddToPosition fills at the next bar open, like Buy/Sell
+    Given a long position is open
+    And the SignalGenerator returns AddToPosition at bar t
+    When the backtest runs
+    Then the add fills at the open of bar t+1, not at the signal bar
+
+  Scenario: Position entryTime after AddToPosition remains the original entry time
+    Given a position opened at bar B3
+    And an AddToPosition that fills several bars later
+    When the backtest runs
+    Then the position entryTime still equals B3.time
+      (the weighted-average applies to price only, not to time)
+
+  Scenario: AddToPosition with no open position is a no-op
+    Given no position is open
+    And the SignalGenerator returns AddToPosition
+    When the backtester processes the fill
+    Then no position is opened and no Trade is appended
+    And diagnostics.addToPositionOnNoPositionCount is incremented
+    And diagnostics.addToPositionCount is NOT incremented
+
+  Scenario: AddToPosition on an opposite-direction position throws InvalidAddToPositionDirectionException
+    Given a SHORT position is open
+    And the SignalGenerator returns AddToPosition(direction=LONG)
+    When the backtester processes the fill
+    Then InvalidAddToPositionDirectionException is thrown
+    And the exception carries the fill bar index and time,
+      openPositionDirection = SHORT and signalDirection = LONG
+
+  Scenario: diagnostics.addToPositionCount increments on a successful fill
+    Given a backtest where one AddToPosition signal successfully grows a position
+    When the backtest completes
+    Then diagnostics.addToPositionCount = 1
+
+  Scenario: Mixing AddToPosition with Buy, ClosePosition and ClosePositionAtPrice in one backtest
+    Given a backtest that issues Buy, AddToPosition, ClosePosition, Buy, then ClosePositionAtPrice
+    When I run the backtest
+    Then both round trips produce Trade records
+    And diagnostics.addToPositionCount = 1
+    And diagnostics.forcedClosesAtExplicitPrice = 1
+
+  Scenario: Multiple consecutive AddToPosition signals compound the weighted-average entry price
+    Given a long position and two successive AddToPosition signals
+    When the backtest runs
+    Then the entry price is the weighted average compounded across both additions
+    And diagnostics.addToPositionCount = 2
+
+  Scenario: A v1/v1.1-only backtest is unaffected by the v1.2 extension
+    Given a backtest using only v1/v1.1 Signal variants (no AddToPosition)
+    When I run the backtest
+    Then the results are identical to pre-v1.2 behavior
+    And diagnostics.addToPositionCount = 0
+    And diagnostics.addToPositionOnNoPositionCount = 0
+```
+
+## 17. Implementation delegation to Claude Code
 
 Claude Code is responsible for:
 

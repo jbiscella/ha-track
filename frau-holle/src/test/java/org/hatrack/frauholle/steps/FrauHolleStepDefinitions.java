@@ -6,6 +6,7 @@ import io.cucumber.java.en.When;
 
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.frauholle.engine.Backtester;
+import org.hatrack.frauholle.error.InvalidAddToPositionDirectionException;
 import org.hatrack.frauholle.error.InvalidBacktestSpecException;
 import org.hatrack.frauholle.error.InvalidExplicitFillException;
 import org.hatrack.frauholle.error.SignalGenerationException;
@@ -194,6 +195,13 @@ public class FrauHolleStepDefinitions {
         builder.withSignalGenerator(scheduledGenerator);
     }
 
+    @Given("the strategy adds {int} {word} at bar {int}")
+    public void theStrategyAddsAtBar(int quantity, String direction, int bar) {
+        schedule.put(bar, new Signal.AddToPosition(new BigDecimal(quantity),
+                Direction.valueOf(direction)));
+        builder.withSignalGenerator(scheduledGenerator);
+    }
+
     @Given("the strategy throws at bar {int}")
     public void theStrategyThrowsAtBar(int bar) {
         builder.withSignalGenerator(context -> {
@@ -375,6 +383,9 @@ public class FrauHolleStepDefinitions {
             case "noOpClosePositionSignals" -> result.diagnostics().noOpClosePositionSignals();
             case "unfilledSignalsAtEndOfSeries" -> result.diagnostics().unfilledSignalsAtEndOfSeries();
             case "forcedClosesAtExplicitPrice" -> result.diagnostics().forcedClosesAtExplicitPrice();
+            case "addToPositionCount" -> result.diagnostics().addToPositionCount();
+            case "addToPositionOnNoPositionCount" ->
+                    result.diagnostics().addToPositionOnNoPositionCount();
             default -> throw new IllegalArgumentException("unknown diagnostic: " + field);
         };
         assertTrue(actual == expected, field + ": expected " + expected + " but was " + actual);
@@ -436,6 +447,41 @@ public class FrauHolleStepDefinitions {
     public void theExceptionBarIndexIs(int barIndex) {
         int actual = ((SignalGenerationException) thrown).barIndex();
         assertTrue(actual == barIndex, "barIndex: expected " + barIndex + " but was " + actual);
+    }
+
+    @Then("an InvalidAddToPositionDirectionException is thrown")
+    public void anInvalidAddToPositionDirectionExceptionIsThrown() {
+        assertTrue(thrown instanceof InvalidAddToPositionDirectionException,
+                "expected InvalidAddToPositionDirectionException but was " + thrown);
+    }
+
+    @Then("the AddToPosition exception barIndex is {int}")
+    public void theAddToPositionExceptionBarIndexIs(int barIndex) {
+        var e = (InvalidAddToPositionDirectionException) thrown;
+        assertTrue(e.barIndex() == barIndex,
+                "barIndex: expected " + barIndex + " but was " + e.barIndex());
+    }
+
+    @Then("the AddToPosition exception barTime is bar {int}")
+    public void theAddToPositionExceptionBarTimeIsBar(int barIndex) {
+        var e = (InvalidAddToPositionDirectionException) thrown;
+        assertTrue(e.barTime().equals(series.get(barIndex).time()),
+                "barTime: expected bar " + barIndex + " but was " + e.barTime());
+    }
+
+    @Then("the AddToPosition exception openPositionDirection is {word}")
+    public void theAddToPositionExceptionOpenPositionDirectionIs(String direction) {
+        var e = (InvalidAddToPositionDirectionException) thrown;
+        assertTrue(e.openPositionDirection() == Direction.valueOf(direction),
+                "openPositionDirection: expected " + direction
+                        + " but was " + e.openPositionDirection());
+    }
+
+    @Then("the AddToPosition exception signalDirection is {word}")
+    public void theAddToPositionExceptionSignalDirectionIs(String direction) {
+        var e = (InvalidAddToPositionDirectionException) thrown;
+        assertTrue(e.signalDirection() == Direction.valueOf(direction),
+                "signalDirection: expected " + direction + " but was " + e.signalDirection());
     }
 
     @Then("both backtest results are equal")
