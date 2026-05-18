@@ -20,8 +20,8 @@ Dependencies: `heerwisch-api`, `commons`, JFreeChart 1.5.x, an embedded font ass
 
 | Format | Content type | When used |
 |---|---|---|
-| PNG | `image/png` | Default. Lossless, supports transparency. Required for the consumer's existing email-attachment use case |
-| JPEG | `image/jpeg` | Smaller payload when transparency is not needed. Compression level fixed at quality 0.9 |
+| PNG | `image/png` | Lossless, supports transparency. Available for the consumer's email-attachment use case |
+| JPEG | `image/jpeg` | Default. Smaller payload when transparency is not needed. Compression level fixed at quality 0.9 |
 
 The format is selected via a new optional field in `ChartSpec` — see §2.
 
@@ -33,12 +33,12 @@ Since `heerwisch-api` declares `ChartImage` with a `contentType` field but does 
 
 | Item | Behavior |
 |---|---|
-| Where format is declared | The `LayoutSpec` records (`AutoLayoutSpec`, `ExplicitLayoutSpec`) gain an additional field `ImageFormat format` |
-| Enum `ImageFormat` | `PNG`, `JPEG` |
-| Default | `PNG` (preserved when callers use `LayoutSpec.defaults()`) |
-| Backward compatibility with `heerwisch-api` v1 | The `LayoutSpec` sealed hierarchy adds `format` as an optional-with-default field. A consumer who never specifies it gets PNG |
+| Where format is declared | The `LayoutSpec` records (`AutoLayoutSpec`, `ExplicitLayoutSpec`) carry an `ImageFormat format` field (declared in `heerwisch-api`) |
+| Enum `ImageFormat` | `PNG`, `JPEG` — declared in `heerwisch-api` |
+| Default | `JPEG` (preserved when callers use `LayoutSpec.defaults()`) |
+| Consumer who never specifies it | gets `JPEG` |
 
-This means `heerwisch-api`'s `LayoutSpec` MUST be updated to expose this field, with `PNG` as the default value. The field is shared across both layout variants because it's not pane-specific.
+The `ImageFormat` enum and the `format` field live in `heerwisch-api`'s `LayoutSpec` (see `heerwisch-api/CLAUDE.md` §1.6). The default format is `JPEG`. The field is shared across both layout variants because it's not pane-specific.
 
 ## 3. Font strategy — deterministic rendering
 
@@ -198,11 +198,11 @@ For a previous-period bar with high H, low L, close C:
 ```gherkin
 Feature: Output format selection
 
-  Scenario: Default LayoutSpec produces PNG
+  Scenario: Default LayoutSpec produces JPEG
     Given a ChartSpec using LayoutSpec.defaults()
     When I call render(spec)
-    Then ChartImage.contentType = "image/png"
-    And ChartImage.bytes is a valid PNG (magic bytes 0x89 0x50 0x4E 0x47)
+    Then ChartImage.contentType = "image/jpeg"
+    And ChartImage.bytes is a valid JPEG (magic bytes 0xFF 0xD8 0xFF)
 
   Scenario: Explicit PNG format
     Given an ExplicitLayoutSpec with format = PNG
