@@ -457,7 +457,40 @@ Feature: Backtester contract
 - Margin / leverage simulation — reserved for v2
 - Tax modeling — reserved indefinitely
 
-## 15. Implementation delegation to Claude Code
+## 15. Planned v1.1 additive extensions
+
+The following extensions are PLANNED for frau-holle v1.1 to support the Wichtelm-app consumer (an end-user backtesting application that interprets a Gherkin-alike DSL). They are documented here so the spec records the agreed direction. None of them is part of v1 and Claude Code MUST NOT implement them in the v1 implementation session.
+
+All v1.1 extensions are strictly **additive** and **non-breaking**: consumers using only v1 Signal variants continue to work unchanged.
+
+### 15.1 New Signal variant: ClosePositionAtPrice
+
+| Aspect | v1.1 specification |
+|---|---|
+| New variant | `ClosePositionAtPrice(BigDecimal price, Instant fillTime)` added to the sealed `Signal` hierarchy in §2.4 |
+| Purpose | enables consumers (Wichtelm-app primarily) to express intrabar fills — where a stop-loss or take-profit is hit between two bar closes and the fill price equals the stop level, not the next bar open |
+| Fill price | the `price` parameter of the signal (NOT the next bar open) |
+| Fill time | the `fillTime` parameter of the signal (typically the current bar, NOT the next bar) |
+| Validation | `price` MUST be > 0; `fillTime` MUST be ≤ the time of the bar after the bar at which the signal was emitted (lookahead-safety) |
+| Behavior for other variants | unchanged. `Buy`, `Sell`, `ClosePosition` continue to fill at next bar open as specified in §4 |
+| BacktestResult diagnostics | a new counter `forcedClosesAtExplicitPrice` is added to BacktestDiagnostics |
+
+### 15.2 Why v1.1 and not v1
+
+The v1 specification of frau-holle was finalized before the Wichtelm-app DSL design surfaced the need for intrabar fill prices. Rather than retrofit v1, the extension is captured as v1.1 to keep v1 stable, focused, and shippable. Wichtelm-app is built against v1.1.
+
+### 15.3 What this means for Claude Code
+
+| Phase | Action |
+|---|---|
+| v1 implementation (current) | implement frau-holle v1 exactly as specified in §1-§14. Do NOT add ClosePositionAtPrice. Do NOT add forcedClosesAtExplicitPrice. Do NOT modify the Signal sealed hierarchy beyond v1. Treat this §15 as forward-looking documentation only |
+| v1.1 implementation (future) | when this is opened, the spec change above is the authoritative source. Implementation will be a separate session with explicit v1.1 scope |
+
+### 15.4 Consumer-side workaround availability
+
+A consumer that needs intrabar fill behavior BEFORE v1.1 is available can run two parallel "books of truth" (one from frau-holle BacktestResult, one consumer-internal), but this is anti-architectural and is explicitly NOT the chosen path. The chosen path is v1.1 extension when the consumer arrives.
+
+## 16. Implementation delegation to Claude Code
 
 Claude Code is responsible for:
 
