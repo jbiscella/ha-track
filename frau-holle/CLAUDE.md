@@ -457,9 +457,11 @@ Feature: Backtester contract
 - Margin / leverage simulation — reserved for v2
 - Tax modeling — reserved indefinitely
 
-## 15. Planned v1.1 additive extensions
+## 15. v1.1 additive extensions
 
-The following extensions are PLANNED for frau-holle v1.1 to support the Wichtelm-app consumer (an end-user backtesting application that interprets a Gherkin-alike DSL). They are documented here so the spec records the agreed direction. None of them is part of v1 and Claude Code MUST NOT implement them in the v1 implementation session.
+> **Status: IMPLEMENTED in frau-holle 1.1.0.** This section was originally written as forward-looking design documentation while v1.1 was only planned; the `ClosePositionAtPrice` signal variant, the `forcedClosesAtExplicitPrice` diagnostics counter and the `InvalidExplicitFillException` are now part of the shipped implementation. The content below is retained as the authoritative design record; §15.5 adds the behavioral scenarios (Block 6).
+
+The following extensions were PLANNED for frau-holle v1.1 to support the Wichtelm-app consumer (an end-user backtesting application that interprets a Gherkin-alike DSL). They are documented here so the spec records the agreed direction. None of them was part of v1.
 
 All v1.1 extensions are strictly **additive** and **non-breaking**: consumers using only v1 Signal variants continue to work unchanged.
 
@@ -489,6 +491,58 @@ The v1 specification of frau-holle was finalized before the Wichtelm-app DSL des
 ### 15.4 Consumer-side workaround availability
 
 A consumer that needs intrabar fill behavior BEFORE v1.1 is available can run two parallel "books of truth" (one from frau-holle BacktestResult, one consumer-internal), but this is anti-architectural and is explicitly NOT the chosen path. The chosen path is v1.1 extension when the consumer arrives.
+
+### 15.5 Block 6 — explicit-price fill behavior
+
+```gherkin
+Feature: v1.1 explicit-price (intrabar) fills
+
+  Scenario: ClosePositionAtPrice fills at the signal-provided price, not next bar open
+    Given a backtest with a long position open
+    And the SignalGenerator returns ClosePositionAtPrice(price=150, fillTime=current bar) at bar B5
+    When I run the backtest
+    Then the position is closed at exitPrice = 150 (the signal price, not B6.open)
+    And a Trade record is appended to results
+
+  Scenario: ClosePositionAtPrice fills at the signal-provided fillTime, not next bar time
+    Given a backtest with a long position open
+    And the SignalGenerator returns ClosePositionAtPrice(price=150, fillTime=B4.time) at bar B4
+    When I run the backtest
+    Then the closing Trade has exitTime = B4.time (the signal fillTime, not B5.time)
+
+  Scenario: ClosePositionAtPrice on no open position is a no-op
+    Given no position is open
+    And the SignalGenerator returns ClosePositionAtPrice
+    When the backtester processes the bar
+    Then no position state change occurs
+    And no Trade is appended
+    And diagnostics.noOpClosePositionSignals is incremented
+    And diagnostics.forcedClosesAtExplicitPrice is NOT incremented
+
+  Scenario: ClosePositionAtPrice with fillTime beyond the next bar is rejected
+    Given a ClosePositionAtPrice signal emitted at bar Bt
+    And its fillTime is later than the time of bar Bt+1
+    When the backtester processes the fill
+    Then InvalidExplicitFillException is thrown
+    And the exception carries the offending fillTime and the bar time it was checked against
+
+  Scenario: diagnostics.forcedClosesAtExplicitPrice counts explicit-price closes
+    Given a backtest where one ClosePositionAtPrice signal successfully closes a position
+    When the backtest completes
+    Then diagnostics.forcedClosesAtExplicitPrice = 1
+
+  Scenario: Mixing ClosePositionAtPrice with regular signals in the same backtest
+    Given a backtest that issues Buy, then ClosePositionAtPrice, then Buy, then ClosePosition
+    When I run the backtest
+    Then both round trips produce Trade records
+    And diagnostics.forcedClosesAtExplicitPrice = 1
+
+  Scenario: A v1-only backtest is unaffected by the v1.1 extension
+    Given a backtest using only v1 Signal variants (Hold/Buy/Sell/ClosePosition)
+    When I run the backtest
+    Then the results are identical to v1 behavior
+    And diagnostics.forcedClosesAtExplicitPrice = 0
+```
 
 ## 16. Implementation delegation to Claude Code
 

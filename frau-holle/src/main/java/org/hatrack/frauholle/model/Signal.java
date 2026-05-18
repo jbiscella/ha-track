@@ -1,6 +1,7 @@
 package org.hatrack.frauholle.model;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Objects;
 
 /**
@@ -30,5 +31,22 @@ public sealed interface Signal {
     }
 
     record ClosePosition() implements Signal {
+    }
+
+    /**
+     * v1.1 additive variant: closes any open position at an explicit intrabar
+     * price and time, rather than at the next bar open. {@code fillTime} must
+     * not reach beyond the bar after the bar at which the signal was emitted
+     * (lookahead-safety, enforced by the backtester).
+     */
+    record ClosePositionAtPrice(BigDecimal price, Instant fillTime) implements Signal {
+        public ClosePositionAtPrice {
+            Objects.requireNonNull(price, "price");
+            Objects.requireNonNull(fillTime, "fillTime");
+            if (price.signum() <= 0) {
+                throw new IllegalArgumentException(
+                        "ClosePositionAtPrice price must be > 0, was " + price);
+            }
+        }
     }
 }
