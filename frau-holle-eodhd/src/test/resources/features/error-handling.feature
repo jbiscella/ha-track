@@ -1,0 +1,58 @@
+Feature: Error mapping
+  Maps frau-holle-eodhd/CLAUDE.md section 9 (Block 3).
+
+  Scenario: HTTP 404 maps to MarketDataNotFoundException
+    Given an EODHD data source
+    And the endpoint responds with HTTP status 404
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataNotFoundException is thrown
+    And the exception message mentions "AAPL.US"
+
+  Scenario Outline: HTTP 401 and 403 map to MarketDataUnavailableException
+    Given an EODHD data source
+    And the endpoint responds with HTTP status <status>
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataUnavailableException is thrown
+    And the exception message mentions "authentication"
+
+    Examples:
+      | status |
+      | 401    |
+      | 403    |
+
+  Scenario: HTTP 429 maps to MarketDataUnavailableException with a rate-limit hint
+    Given an EODHD data source
+    And the endpoint responds with HTTP status 429
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataUnavailableException is thrown
+    And the exception message mentions "rate limit"
+
+  Scenario: HTTP 503 maps to MarketDataUnavailableException
+    Given an EODHD data source
+    And the endpoint responds with HTTP status 503
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataUnavailableException is thrown
+
+  Scenario: Malformed JSON maps to MarketDataSchemaException
+    Given an EODHD data source
+    And the endpoint returns the JSON body:
+      """
+      not valid json at all
+      """
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataSchemaException is thrown
+    And the exception cause is a JsonParseException
+
+  Scenario: Network timeout maps to MarketDataUnavailableException
+    Given an EODHD data source
+    And the endpoint times out
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataUnavailableException is thrown
+    And the exception cause is the timeout exception
+
+  Scenario: No automatic retry on a 503
+    Given an EODHD data source
+    And the endpoint responds with HTTP status 503
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataUnavailableException is thrown
+    And exactly 1 HTTP request was made
