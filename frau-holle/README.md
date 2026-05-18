@@ -1,3 +1,5 @@
+<img src="../frau-holle-logo.png" alt="frau-holle" height="90">
+
 # frau-holle
 
 The **backtesting library**. Replay a trading strategy over historical price
