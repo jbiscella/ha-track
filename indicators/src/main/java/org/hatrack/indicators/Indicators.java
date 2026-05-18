@@ -1,32 +1,46 @@
-package org.hatrack.heerwisch.jfreechart.internal;
+package org.hatrack.indicators;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.List;
+import java.util.Objects;
 
 /**
- * Indicator calculators for the JFreeChart driver, using the canonical
- * formulas (heerwisch-jfreechart/CLAUDE.md section 7; duplicated per the
- * repo-wide v1 acknowledgement of indicator duplication). All arithmetic is
- * {@code BigDecimal} with {@code MathContext.DECIMAL64}; results are converted
- * to {@code double} only at the JFreeChart dataset boundary.
+ * Stateless technical-indicator calculators shared across the ha-track
+ * repository. Extracted from the formerly-duplicated {@code internal}
+ * calculators of {@code nachtkrapp} and {@code heerwisch-jfreechart}; the
+ * arithmetic is unchanged.
  *
- * <p>Each method returns an array indexed by bar; entries are {@code null}
- * before the indicator's warm-up window or when data is insufficient.
+ * <p>All arithmetic is {@code BigDecimal} with {@code MathContext.DECIMAL64}.
+ * No {@code double}, no {@code float}. Every method is a pure function: no
+ * I/O, no clock, no mutable state. Each batch method recomputes the whole
+ * series on every call (there is no incremental-update API in v1).
+ *
+ * <p>Each calculator returns an array indexed by bar; entries are
+ * {@code null} for bars before the indicator's warm-up window or when the
+ * input is too short to produce a value.
+ *
+ * <p>Arguments are validated eagerly: source lists must be non-null and every
+ * period argument must be {@code >= 1}, otherwise an
+ * {@code IllegalArgumentException} (or {@code NullPointerException} for a null
+ * list) is thrown before any computation.
  */
-public final class IndicatorCalculators {
+public final class Indicators {
 
     private static final MathContext MC = MathContext.DECIMAL64;
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
-    private IndicatorCalculators() {
+    private Indicators() {
     }
 
+    /** Simple moving average; null before index {@code period - 1}. */
     public static BigDecimal[] sma(List<BigDecimal> src, int period) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(period, "period");
         int n = src.size();
         BigDecimal[] out = new BigDecimal[n];
         BigDecimal divisor = new BigDecimal(period);
-        for (int i = period - 1; i >= 0 && i < n; i++) {
+        for (int i = period - 1; i < n; i++) {
             BigDecimal sum = BigDecimal.ZERO;
             for (int j = i - period + 1; j <= i; j++) {
                 sum = sum.add(src.get(j), MC);
@@ -36,7 +50,10 @@ public final class IndicatorCalculators {
         return out;
     }
 
+    /** Exponential moving average; seed = SMA of the first {@code period} values. */
     public static BigDecimal[] ema(List<BigDecimal> src, int period) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(period, "period");
         int n = src.size();
         BigDecimal[] out = new BigDecimal[n];
         if (n < period) {
@@ -57,7 +74,10 @@ public final class IndicatorCalculators {
         return out;
     }
 
+    /** Wilder-smoothed RSI; null before index {@code period}. */
     public static BigDecimal[] rsi(List<BigDecimal> src, int period) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(period, "period");
         int n = src.size();
         BigDecimal[] out = new BigDecimal[n];
         if (n <= period) {
@@ -97,8 +117,12 @@ public final class IndicatorCalculators {
         return HUNDRED.subtract(HUNDRED.divide(BigDecimal.ONE.add(rs, MC), MC), MC);
     }
 
-    /** Returns {macdLine, signalLine}. */
-    public static BigDecimal[][] macd(List<BigDecimal> src, int fast, int slow, int signal) {
+    /** MACD line, signal line and histogram per the canonical formula. */
+    public static MacdResult macd(List<BigDecimal> src, int fast, int slow, int signal) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(fast, "fast");
+        requirePeriod(slow, "slow");
+        requirePeriod(signal, "signal");
         int n = src.size();
         BigDecimal[] emaFast = ema(src, fast);
         BigDecimal[] emaSlow = ema(src, slow);
@@ -124,17 +148,26 @@ public final class IndicatorCalculators {
                 signalLine[i] = prev;
             }
         }
-        return new BigDecimal[][] {macdLine, signalLine};
+        BigDecimal[] histogram = new BigDecimal[n];
+        for (int i = 0; i < n; i++) {
+            if (macdLine[i] != null && signalLine[i] != null) {
+                histogram[i] = macdLine[i].subtract(signalLine[i], MC);
+            }
+        }
+        return new MacdResult(macdLine, signalLine, histogram);
     }
 
-    /** Returns {upperBand, middleBand, lowerBand}. */
-    public static BigDecimal[][] bollinger(List<BigDecimal> src, int period, BigDecimal multiplier) {
+    /** Bollinger Bands; middle = SMA, bands = middle +/- multiplier * population stddev. */
+    public static BollingerBands bollinger(List<BigDecimal> src, int period, BigDecimal multiplier) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(period, "period");
+        Objects.requireNonNull(multiplier, "multiplier");
         int n = src.size();
         BigDecimal[] middle = sma(src, period);
         BigDecimal[] upper = new BigDecimal[n];
         BigDecimal[] lower = new BigDecimal[n];
         BigDecimal divisor = new BigDecimal(period);
-        for (int i = period - 1; i >= 0 && i < n; i++) {
+        for (int i = period - 1; i < n; i++) {
             BigDecimal mean = middle[i];
             BigDecimal sumSq = BigDecimal.ZERO;
             for (int j = i - period + 1; j <= i; j++) {
@@ -146,11 +179,16 @@ public final class IndicatorCalculators {
             upper[i] = mean.add(offset, MC);
             lower[i] = mean.subtract(offset, MC);
         }
-        return new BigDecimal[][] {upper, middle, lower};
+        return new BollingerBands(upper, middle, lower);
     }
 
+    /** Wilder-smoothed Average True Range; null before index {@code period - 1}. */
     public static BigDecimal[] atr(List<BigDecimal> high, List<BigDecimal> low,
                                    List<BigDecimal> close, int period) {
+        Objects.requireNonNull(high, "high");
+        Objects.requireNonNull(low, "low");
+        Objects.requireNonNull(close, "close");
+        requirePeriod(period, "period");
         int n = high.size();
         BigDecimal[] out = new BigDecimal[n];
         if (n < period) {
@@ -172,13 +210,19 @@ public final class IndicatorCalculators {
         return out;
     }
 
-    /** Returns {percentK, percentD}. */
-    public static BigDecimal[][] stochastic(List<BigDecimal> high, List<BigDecimal> low,
-                                            List<BigDecimal> close, int kPeriod, int dPeriod,
-                                            int smoothing) {
+    /** Stochastic Oscillator; %K smoothed over {@code smoothing}, %D = SMA of %K. */
+    public static StochasticResult stochastic(List<BigDecimal> high, List<BigDecimal> low,
+                                              List<BigDecimal> close, int kPeriod, int dPeriod,
+                                              int smoothing) {
+        Objects.requireNonNull(high, "high");
+        Objects.requireNonNull(low, "low");
+        Objects.requireNonNull(close, "close");
+        requirePeriod(kPeriod, "kPeriod");
+        requirePeriod(dPeriod, "dPeriod");
+        requirePeriod(smoothing, "smoothing");
         int n = high.size();
         BigDecimal[] rawK = new BigDecimal[n];
-        for (int i = kPeriod - 1; i >= 0 && i < n; i++) {
+        for (int i = kPeriod - 1; i < n; i++) {
             BigDecimal hi = high.get(i);
             BigDecimal lo = low.get(i);
             for (int j = i - kPeriod + 1; j <= i; j++) {
@@ -192,11 +236,16 @@ public final class IndicatorCalculators {
         }
         BigDecimal[] percentK = smaOfArray(rawK, smoothing);
         BigDecimal[] percentD = smaOfArray(percentK, dPeriod);
-        return new BigDecimal[][] {percentK, percentD};
+        return new StochasticResult(percentK, percentD);
     }
 
+    /** Wilder's Average Directional Index; needs at least {@code 2 * period + 1} bars. */
     public static BigDecimal[] adx(List<BigDecimal> high, List<BigDecimal> low,
                                    List<BigDecimal> close, int period) {
+        Objects.requireNonNull(high, "high");
+        Objects.requireNonNull(low, "low");
+        Objects.requireNonNull(close, "close");
+        requirePeriod(period, "period");
         int n = high.size();
         BigDecimal[] out = new BigDecimal[n];
         if (n < 2 * period + 1) {
@@ -299,5 +348,11 @@ public final class IndicatorCalculators {
             }
         }
         return -1;
+    }
+
+    private static void requirePeriod(int value, String name) {
+        if (value < 1) {
+            throw new IllegalArgumentException(name + " must be >= 1, got " + value);
+        }
     }
 }

@@ -19,8 +19,11 @@ import org.hatrack.heerwisch.api.spec.IndicatorPlacement;
 import org.hatrack.heerwisch.api.spec.LayoutSpec;
 import org.hatrack.heerwisch.api.spec.LevelStyle;
 import org.hatrack.heerwisch.api.spec.Pane;
-import org.hatrack.heerwisch.jfreechart.internal.IndicatorCalculators;
 import org.hatrack.heerwisch.jfreechart.theme.ThemeConstants;
+import org.hatrack.indicators.BollingerBands;
+import org.hatrack.indicators.Indicators;
+import org.hatrack.indicators.MacdResult;
+import org.hatrack.indicators.StochasticResult;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.annotations.XYTextAnnotation;
 import org.jfree.chart.axis.DateAxis;
@@ -223,46 +226,46 @@ public final class JFreeChartRenderer implements ChartRenderer {
         switch (indicator) {
             case Indicator.SMA sma -> {
                 return addLine(plot, index, "SMA", times,
-                        IndicatorCalculators.sma(prices(series, sma.priceSource()), sma.period()),
+                        Indicators.sma(prices(series, sma.priceSource()), sma.period()),
                         ThemeConstants.SMA_LINE);
             }
             case Indicator.EMA ema -> {
                 return addLine(plot, index, "EMA", times,
-                        IndicatorCalculators.ema(prices(series, ema.priceSource()), ema.period()),
+                        Indicators.ema(prices(series, ema.priceSource()), ema.period()),
                         ThemeConstants.EMA_LINE);
             }
             case Indicator.BollingerBands bb -> {
-                BigDecimal[][] bands = IndicatorCalculators.bollinger(
+                BollingerBands bands = Indicators.bollinger(
                         prices(series, bb.priceSource()), bb.period(), bb.stdDevMultiplier());
-                int next = addLine(plot, index, "BB upper", times, bands[0], ThemeConstants.BB_BAND);
-                next = addLine(plot, next, "BB middle", times, bands[1], ThemeConstants.BB_BAND);
-                return addLine(plot, next, "BB lower", times, bands[2], ThemeConstants.BB_BAND);
+                int next = addLine(plot, index, "BB upper", times, bands.upper(), ThemeConstants.BB_BAND);
+                next = addLine(plot, next, "BB middle", times, bands.middle(), ThemeConstants.BB_BAND);
+                return addLine(plot, next, "BB lower", times, bands.lower(), ThemeConstants.BB_BAND);
             }
             case Indicator.MACD macd -> {
-                BigDecimal[][] lines = IndicatorCalculators.macd(prices(series, macd.priceSource()),
+                MacdResult lines = Indicators.macd(prices(series, macd.priceSource()),
                         macd.fastPeriod(), macd.slowPeriod(), macd.signalPeriod());
-                int next = addLine(plot, index, "MACD", times, lines[0], ThemeConstants.MACD_LINE);
-                return addLine(plot, next, "Signal", times, lines[1], ThemeConstants.MACD_SIGNAL);
+                int next = addLine(plot, index, "MACD", times, lines.macdLine(), ThemeConstants.MACD_LINE);
+                return addLine(plot, next, "Signal", times, lines.signalLine(), ThemeConstants.MACD_SIGNAL);
             }
             case Indicator.RSI rsi -> {
                 return addLine(plot, index, "RSI", times,
-                        IndicatorCalculators.rsi(prices(series, rsi.priceSource()), rsi.period()),
+                        Indicators.rsi(prices(series, rsi.priceSource()), rsi.period()),
                         ThemeConstants.RSI_LINE);
             }
             case Indicator.ADX adx -> {
                 return addLine(plot, index, "ADX", times,
-                        IndicatorCalculators.adx(highs(series), lows(series), closes(series), adx.period()),
+                        Indicators.adx(highs(series), lows(series), closes(series), adx.period()),
                         ThemeConstants.ADX_LINE);
             }
             case Indicator.Stochastic stoch -> {
-                BigDecimal[][] lines = IndicatorCalculators.stochastic(highs(series), lows(series),
+                StochasticResult lines = Indicators.stochastic(highs(series), lows(series),
                         closes(series), stoch.kPeriod(), stoch.dPeriod(), stoch.smoothing());
-                int next = addLine(plot, index, "%K", times, lines[0], ThemeConstants.STOCHASTIC_K);
-                return addLine(plot, next, "%D", times, lines[1], ThemeConstants.STOCHASTIC_D);
+                int next = addLine(plot, index, "%K", times, lines.percentK(), ThemeConstants.STOCHASTIC_K);
+                return addLine(plot, next, "%D", times, lines.percentD(), ThemeConstants.STOCHASTIC_D);
             }
             case Indicator.ATR atr -> {
                 return addLine(plot, index, "ATR", times,
-                        IndicatorCalculators.atr(highs(series), lows(series), closes(series), atr.period()),
+                        Indicators.atr(highs(series), lows(series), closes(series), atr.period()),
                         ThemeConstants.ATR_LINE);
             }
             case Indicator.VolumePane ignored -> {
