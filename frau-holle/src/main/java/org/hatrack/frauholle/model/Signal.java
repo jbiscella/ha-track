@@ -52,4 +52,25 @@ public sealed interface Signal {
             }
         }
     }
+
+    /**
+     * v1.2 additive variant: accumulates {@code quantity} into an already-open
+     * position (pyramiding). {@code direction} MUST match the open position's
+     * direction — the backtester rejects a mismatch with
+     * {@code InvalidAddToPositionDirectionException}. With no open position the
+     * signal is a no-op. The add fills at the next bar open, exactly like
+     * {@code Buy}/{@code Sell}; the position's entry price becomes the
+     * quantity-weighted average of the prior position and the add, while the
+     * entry time stays the original first-open time.
+     */
+    record AddToPosition(BigDecimal quantity, Direction direction) implements Signal {
+        public AddToPosition {
+            Objects.requireNonNull(quantity, "quantity");
+            Objects.requireNonNull(direction, "direction");
+            if (quantity.signum() <= 0) {
+                throw new IllegalArgumentException(
+                        "AddToPosition quantity must be > 0, was " + quantity);
+            }
+        }
+    }
 }

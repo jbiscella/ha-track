@@ -6,7 +6,8 @@ package org.hatrack.frauholle.error;
  */
 public abstract sealed class BacktestException extends Exception
         permits InvalidBacktestSpecException, MarketDataException,
-        SignalGenerationException, BacktestInternalException, InvalidExplicitFillException {
+        SignalGenerationException, BacktestInternalException, InvalidExplicitFillException,
+        InvalidAddToPositionDirectionException {
 
     protected BacktestException(String message) {
         super(message);
