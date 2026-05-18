@@ -60,9 +60,11 @@ jobs:
           fi
           echo "old version: ${old:-<none>}"
           echo "new version: $new"
-          # Publish a non-SNAPSHOT version on a manual run, or when the
-          # version changed across the pushed range.
+          # Publish only from main (a manual workflow_dispatch can be aimed
+          # at any branch), and only a non-SNAPSHOT version, on a manual run
+          # or when the version changed across the pushed range.
           if [ -n "$new" ] && [[ "$new" != *SNAPSHOT* ]] \
+              && [ "$GITHUB_REF" = "refs/heads/main" ] \
               && { [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$new" != "$old" ]; }; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
