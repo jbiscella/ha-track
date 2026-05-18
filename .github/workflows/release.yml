@@ -35,15 +35,22 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Detect a version bump
         id: version
+        env:
+          BEFORE: ${{ github.event.before }}
         run: |
-          extract() { grep -m1 '<version>' "$1" | sed -E 's/.*<version>(.+)<\/version>.*/\1/'; }
-          new=$(extract pom.xml)
-          old=$(git show HEAD~1:pom.xml 2>/dev/null | grep -m1 '<version>' \
-                | sed -E 's/.*<version>(.+)<\/version>.*/\1/' || true)
+          # Compare the root POM version across the whole pushed range
+          # (push base -> tip), not just HEAD~1 — a multi-commit push whose
+          # tip commit leaves pom.xml untouched must still be detected.
+          version_of() { grep -m1 '<version>' | sed -E 's/.*<version>(.+)<\/version>.*/\1/'; }
+          new=$(version_of < pom.xml)
+          old=""
+          if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            old=$(git show "${BEFORE}:pom.xml" 2>/dev/null | version_of || true)
+          fi
           echo "old version: ${old:-<none>}"
           echo "new version: $new"
           if [ "$new" != "$old" ] && [ -n "$new" ] && [[ "$new" != *SNAPSHOT* ]]; then
