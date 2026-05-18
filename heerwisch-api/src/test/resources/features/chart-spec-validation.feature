@@ -85,6 +85,12 @@ Feature: ChartSpecBuilder eager validation
     When I build the chart spec
     Then an InvalidChartSpecException is thrown with violatedRule "V13"
 
+  Scenario: Subplot heights without a main pane height is rejected as a domain error, not NPE
+    Given a layout builder with a subplot height but no main pane height
+    When I build the layout
+    Then an InvalidChartSpecException is thrown with violatedRule "V14"
+    And no NullPointerException is thrown
+
   Scenario: A well-formed spec builds successfully
     Given a chart spec builder
     And an OHLC series of 30 bars

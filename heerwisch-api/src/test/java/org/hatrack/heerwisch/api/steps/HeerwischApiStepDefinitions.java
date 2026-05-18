@@ -19,6 +19,7 @@ import org.hatrack.heerwisch.api.spec.ChartSpec;
 import org.hatrack.heerwisch.api.spec.ChartSpecBuilder;
 import org.hatrack.heerwisch.api.spec.Indicator;
 import org.hatrack.heerwisch.api.spec.LayoutSpec;
+import org.hatrack.heerwisch.api.spec.LayoutSpecBuilder;
 import org.hatrack.heerwisch.api.spec.LevelStyle;
 import org.hatrack.heerwisch.api.spec.Pane;
 
@@ -35,6 +36,7 @@ public class HeerwischApiStepDefinitions {
     private static final Instant BASE = Instant.parse("2024-01-01T00:00:00Z");
 
     private ChartSpecBuilder builder;
+    private LayoutSpecBuilder layoutBuilder;
     private ChartSpec spec;
     private LayoutSpec defaultLayout;
     private ChartImage image;
@@ -191,6 +193,28 @@ public class HeerwischApiStepDefinitions {
         } catch (Exception e) {
             thrown = e;
         }
+    }
+
+    @Given("a layout builder with a subplot height but no main pane height")
+    public void aLayoutBuilderWithASubplotHeightButNoMainPaneHeight() {
+        layoutBuilder = LayoutSpec.builder()
+                .addSubplotHeight(Pane.SUBPLOT_1, new BigDecimal("0.4"));
+    }
+
+    @When("I build the layout")
+    public void iBuildTheLayout() {
+        thrown = null;
+        try {
+            layoutBuilder.build();
+        } catch (Exception e) {
+            thrown = e;
+        }
+    }
+
+    @Then("no NullPointerException is thrown")
+    public void noNullPointerExceptionIsThrown() {
+        assertTrue(!(thrown instanceof NullPointerException),
+                "a NullPointerException was thrown: " + thrown);
     }
 
     @When("I get the default layout")

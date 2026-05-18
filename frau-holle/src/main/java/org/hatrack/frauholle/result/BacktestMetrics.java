@@ -20,4 +20,20 @@ public record BacktestMetrics(BigDecimal totalReturn, BigDecimal winRate, int nu
         Objects.requireNonNull(avgLoss, "avgLoss");
         Objects.requireNonNull(calmarRatio, "calmarRatio");
     }
+
+    /**
+     * The profit factor: the sum of winning trade PnL divided by the absolute
+     * sum of losing trade PnL.
+     *
+     * <p>Returns {@code BigDecimal.ZERO} when there are no losing trades. This
+     * is a deliberate sentinel value meaning "undefined" (infinite profit
+     * factor cannot be represented as {@code BigDecimal}). Consumers MUST
+     * interpret 0 as undefined and NOT as "zero profit factor" — a true zero
+     * would require winning trades summing to zero, which is impossible for a
+     * trade where {@code pnl &gt; 0}. See frau-holle/CLAUDE.md §3 for the
+     * canonical specification.
+     */
+    public BigDecimal profitFactor() {
+        return profitFactor;
+    }
 }

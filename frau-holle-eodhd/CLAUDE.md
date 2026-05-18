@@ -264,5 +264,5 @@ What Claude Code MUST NOT do unilaterally:
 - Bring in a specific HTTP client or JSON library (depends only on the injected interfaces; JDK-only default impl)
 - Add reflective bean wiring or DI annotations
 - Hardcode the API token (must be configured)
-- Log the API token at any level (security concern)
+- Log the API token at any level, OR log the full request URL at INFO+ or equivalent (the URL contains the `api_token` query parameter; logging the URL is equivalent to logging the token). EODHD requires the token in the query string — it has no header-based auth — so the URL is token-bearing by construction; if a URL must be logged, the `api_token` value MUST be redacted first (security concern)
 - Add intraday timeframe support without scope change

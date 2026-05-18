@@ -1,5 +1,7 @@
 package org.hatrack.heerwisch.api.spec;
 
+import org.hatrack.heerwisch.api.error.InvalidChartSpecException;
+
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -40,7 +42,16 @@ public final class LayoutSpecBuilder {
         return this;
     }
 
-    public LayoutSpec build() {
+    /**
+     * Builds the {@link LayoutSpec}. Validates eagerly (rule V14): subplot
+     * heights set without a main-pane height is a domain error reported as
+     * {@link InvalidChartSpecException}, not a {@code NullPointerException}.
+     */
+    public LayoutSpec build() throws InvalidChartSpecException {
+        if (!subplotHeights.isEmpty() && mainPaneHeight == null) {
+            throw new InvalidChartSpecException("V14",
+                    "explicit subplot heights were set without a main-pane height");
+        }
         if (mainPaneHeight != null || !subplotHeights.isEmpty()) {
             return new LayoutSpec.ExplicitLayoutSpec(widthPx, heightPx, mainPaneHeight,
                     subplotHeights, format);
