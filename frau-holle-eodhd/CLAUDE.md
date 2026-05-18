@@ -44,7 +44,9 @@ The HTTP client and JSON mapper abstractions are exposed as small interfaces in 
 | Timeframe mapping | `1d → d`, `1w → w`, `1M → m`. Other timeframes throw `MarketDataSchemaException` with explanation |
 | Date filtering | `since` and `until` are converted to `YYYY-MM-DD` strings (UTC date) and passed as `from` and `to` query parameters |
 | Bar `time` reconstruction | Each response row has a `date` field; the driver maps to `Instant.parse("YYYY-MM-DDT00:00:00Z")` (midnight UTC) |
-| Ordering | EODHD returns bars in ascending date order; the driver does NOT re-sort but verifies and throws `MarketDataSchemaException` if out of order (defensive) |
+| Ordering | EODHD returns bars in ascending date order; the driver does NOT re-sort but verifies **strict** ascending order (each `date` strictly after the previous) and throws `MarketDataSchemaException` — carrying the offending row index and date — if a row is out of order OR shares a date with the previous row. Strictness upholds the `MarketDataSource` port contract that output `time()` values are unique (`frau-holle/CLAUDE.md` §2.1) |
+| Missing required field | a bar object missing `date`, `open`, `high`, `low` or `close` throws `MarketDataSchemaException` naming the absent field |
+| Top-level JSON not an array | a response whose top-level JSON value is an object (or anything other than an array) throws `MarketDataSchemaException` with a `JsonParseException` cause |
 | `volume` field | mapped to `Optional<BigDecimal>`; if the field is absent or null in the response, becomes `Optional.empty()` |
 | Failed HTTP request | `MarketDataUnavailableException` (transient) |
 | Auth failure (401, 403) | `MarketDataUnavailableException` — treated as transient since token may be regenerable |
@@ -207,6 +209,24 @@ Feature: Error mapping
     When I fetch
     Then MarketDataSchemaException is thrown
     And the message states the bars are not in ascending date order
+
+  Scenario: Duplicate consecutive dates
+    Given a JSON response with two rows sharing the same date
+    When I fetch
+    Then MarketDataSchemaException is thrown
+    (strict ascending order — equal dates violate the unique-time port contract)
+
+  Scenario: Record missing the date field
+    Given a JSON row with no "date" field
+    When I fetch
+    Then MarketDataSchemaException is thrown
+    And the message names the missing field
+
+  Scenario: Top-level JSON is an object, not an array
+    Given a response body that is a JSON object
+    When I fetch
+    Then MarketDataSchemaException is thrown
+    And the cause is a JsonParseException
 ```
 
 ## 10. Block 4 — Configuration validation

@@ -153,14 +153,17 @@ public final class EodhdMarketDataSource implements MarketDataSource {
         }
         List<OHLCBar> bars = new ArrayList<>(rows.size());
         Instant previous = null;
+        int index = 0;
         for (Map<String, String> row : rows) {
             OHLCBar bar = mapRow(row, symbol);
-            if (previous != null && bar.time().isBefore(previous)) {
+            if (previous != null && !bar.time().isAfter(previous)) {
                 throw new MarketDataSchemaException(symbol,
-                        "EODHD bars are not in ascending date order");
+                        "EODHD bars are not in strict ascending date order: row " + index
+                                + " has date " + bar.time() + " which is not after the previous bar");
             }
             previous = bar.time();
             bars.add(bar);
+            index++;
         }
         return List.copyOf(bars);
     }

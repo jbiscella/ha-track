@@ -60,6 +60,13 @@ Feature: BacktestMetrics computation
     When I compute the metrics
     Then metrics profitFactor is 0
 
+  Scenario: profitFactor is zero when there are no winning trades
+    Given an equity curve 10000, 10000
+    And trades with pnls -50, -50, -50
+    And periodsPerYear is 252
+    When I compute the metrics
+    Then metrics profitFactor is 0
+
   Scenario: maxDrawdown is zero for a monotonically rising equity curve
     Given an equity curve 1000, 1010, 1020, 1030
     And periodsPerYear is 252

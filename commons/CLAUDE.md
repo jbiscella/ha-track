@@ -277,7 +277,20 @@ Feature: Timeframe wire format
     Given the wire string "5x"
     When I parse it via fromWire()
     Then an IllegalArgumentException is thrown
+
+  Scenario: Reject a null wire string
+    Given a null wire string
+    When I parse it via fromWire()
+    Then a NullPointerException is thrown
+
+  Scenario: Reject a blank, whitespace-padded, or otherwise malformed wire string
+    Given a wire string that is empty, whitespace-only, whitespace-padded
+      (e.g. "  1d  "), or does not match "<integer>[smhdwMy]" (e.g. "d1", "1.5d")
+    When I parse it via fromWire()
+    Then an IllegalArgumentException is thrown
 ```
+
+`fromWire` is strict: the wire format is not trimmed. A leading or trailing space makes the string invalid. `null` is a programmer error and surfaces as `NullPointerException`; every other malformed input throws `IllegalArgumentException`.
 
 ## 6. Out of scope for `commons`
 

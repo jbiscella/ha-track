@@ -185,7 +185,7 @@ Immutable record:
 | `maxDrawdown` | `BigDecimal` | maximum peak-to-trough decline of the equity curve, as a fraction of the peak. Always ≤ 0, expressed as a non-negative value (so 0.30 = -30% drawdown) |
 | `sharpeRatio` | `BigDecimal` | `mean(returns) / stddev(returns) × sqrt(periodsPerYear)`. `returns` are bar-to-bar percentage changes of equity. `periodsPerYear` is inferred from the series timeframe (see §3.1). Risk-free rate = 0. `BigDecimal.ZERO` if stddev = 0 or < 2 bars |
 | `sortinoRatio` | `BigDecimal` | same as Sharpe but with downside-only stddev (only negative `returns` contribute to the denominator). `BigDecimal.ZERO` if no negative returns or < 2 bars |
-| `profitFactor` | `BigDecimal` | sum of all positive trade PnLs divided by absolute sum of all negative trade PnLs. `BigDecimal.ZERO` if no losing trades (consumer interprets) |
+| `profitFactor` | `BigDecimal` | sum of all positive trade PnLs divided by absolute sum of all negative trade PnLs. `BigDecimal.ZERO` if no losing trades (consumer interprets). Also `BigDecimal.ZERO` when there are no winning trades — the positive numerator is zero, so the quotient is zero |
 | `avgWin` | `BigDecimal` | mean `pnl` across winning trades. `BigDecimal.ZERO` if no winning trades |
 | `avgLoss` | `BigDecimal` | mean `pnl` across losing trades (a negative number). `BigDecimal.ZERO` if no losing trades |
 | `calmarRatio` | `BigDecimal` | `annualizedReturn / maxDrawdown`. `annualizedReturn = totalReturn / yearsCovered`. `BigDecimal.ZERO` if `maxDrawdown = 0` |
@@ -424,6 +424,10 @@ Feature: BacktestMetrics computation
 
   Scenario: profitFactor is zero when there are no losing trades
     Given a trade list whose every trade has pnl > 0
+    Then metrics.profitFactor = 0
+
+  Scenario: profitFactor is zero when there are no winning trades
+    Given a trade list whose every trade has pnl < 0
     Then metrics.profitFactor = 0
 
   Scenario: totalReturn reflects an open position marked-to-market

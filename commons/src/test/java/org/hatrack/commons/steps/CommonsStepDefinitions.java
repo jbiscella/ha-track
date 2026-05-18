@@ -189,6 +189,21 @@ public class CommonsStepDefinitions {
         capture(() -> timeframe = Timeframe.fromWire(wire));
     }
 
+    @When("I parse a null timeframe wire string")
+    public void iParseANullTimeframeWireString() {
+        capture(() -> timeframe = Timeframe.fromWire(null));
+    }
+
+    @When("I parse a blank timeframe wire string")
+    public void iParseABlankTimeframeWireString() {
+        capture(() -> timeframe = Timeframe.fromWire("   "));
+    }
+
+    @When("I parse a whitespace-padded timeframe wire string")
+    public void iParseAWhitespacePaddedTimeframeWireString() {
+        capture(() -> timeframe = Timeframe.fromWire("  1d  "));
+    }
+
     @Then("re-serializing it returns {string}")
     public void reSerializingItReturns(String wire) {
         assertTrue(wire.equals(timeframe.wire()),

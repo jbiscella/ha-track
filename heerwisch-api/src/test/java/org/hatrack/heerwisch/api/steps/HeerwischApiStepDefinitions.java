@@ -189,6 +189,12 @@ public class HeerwischApiStepDefinitions {
                 Map.of(Pane.valueOf(pane), subplotHeight), org.hatrack.heerwisch.api.spec.ImageFormat.JPEG));
     }
 
+    @Given("an explicit layout with mainPaneHeight {bigdecimal} and no subplot heights")
+    public void anExplicitLayoutWithNoSubplotHeights(BigDecimal mainHeight) {
+        builder.withLayout(new LayoutSpec.ExplicitLayoutSpec(900, 500, mainHeight,
+                Map.of(), org.hatrack.heerwisch.api.spec.ImageFormat.JPEG));
+    }
+
     // --- actions ---
 
     @When("I build the chart spec")

@@ -39,3 +39,25 @@ Feature: Timeframe wire format
   Scenario: Unknown unit suffix is rejected
     When I parse the timeframe wire string "5x"
     Then an IllegalArgumentException is thrown
+
+  Scenario: A null wire string is rejected
+    When I parse a null timeframe wire string
+    Then a NullPointerException is thrown
+
+  Scenario: A blank wire string is rejected
+    When I parse a blank timeframe wire string
+    Then an IllegalArgumentException is thrown
+
+  Scenario: A whitespace-padded wire string is rejected
+    When I parse a whitespace-padded timeframe wire string
+    Then an IllegalArgumentException is thrown
+
+  Scenario Outline: Malformed wire strings are rejected
+    When I parse the timeframe wire string "<wire>"
+    Then an IllegalArgumentException is thrown
+
+    Examples:
+      | wire |
+      |      |
+      | d1   |
+      | 1.5d |

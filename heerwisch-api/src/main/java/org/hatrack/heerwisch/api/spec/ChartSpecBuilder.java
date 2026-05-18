@@ -168,6 +168,12 @@ public final class ChartSpecBuilder {
                 throw new InvalidChartSpecException("V11", pane);
             }
         }
+        for (IndicatorPlacement placement : placements) {
+            Pane pane = placement.pane();
+            if (pane != Pane.MAIN && !layout.subplotHeights().containsKey(pane)) {
+                throw new InvalidChartSpecException("V15", pane);
+            }
+        }
     }
 
     private static boolean isHaSource(PriceSource source) {
