@@ -91,6 +91,20 @@ Feature: ChartSpecBuilder eager validation
     Then an InvalidChartSpecException is thrown with violatedRule "V14"
     And no NullPointerException is thrown
 
+  Scenario: A HorizontalLevel at a non-positive price fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a HorizontalLevel annotation at price -5
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V8"
+
+  Scenario: A FibRetracement with a non-positive swing price fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a FibRetracement annotation with swingHigh -10 and swingLow 5
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V8"
+
   Scenario: A well-formed spec builds successfully
     Given a chart spec builder
     And an OHLC series of 30 bars

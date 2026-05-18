@@ -24,6 +24,15 @@ Feature: Backtester contract
     Then a SignalGenerationException is thrown
     And the exception barIndex is 5
 
+  Scenario: A null Signal from the strategy is reported as a generation failure
+    Given a backtest builder
+    And an OHLC series of 10 daily bars
+    And initial cash 10000
+    And the strategy returns a null signal at bar 5
+    When I run the backtest
+    Then a SignalGenerationException is thrown
+    And the exception barIndex is 5
+
   Scenario: Determinism with a stateless SignalGenerator
     Given a backtest builder
     And an OHLC series of 10 daily bars

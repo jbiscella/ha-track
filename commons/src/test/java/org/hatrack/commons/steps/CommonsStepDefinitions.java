@@ -257,6 +257,23 @@ public class CommonsStepDefinitions {
         capture(() -> haSeries = new HASeries(null));
     }
 
+    @When("I construct an OHLCSeries from a list containing a null bar")
+    public void iConstructAnOhlcSeriesFromAListContainingANullBar() {
+        List<OHLCBar> list = new ArrayList<>();
+        list.add(new OHLCBar(T0, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN,
+                BigDecimal.TEN, Optional.empty()));
+        list.add(null);
+        capture(() -> ohlcSeries = new OHLCSeries(list));
+    }
+
+    @When("I construct an HASeries from a list containing a null bar")
+    public void iConstructAnHaSeriesFromAListContainingANullBar() {
+        List<HABar> list = new ArrayList<>();
+        list.add(new HABar(T0, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN));
+        list.add(null);
+        capture(() -> haSeries = new HASeries(list));
+    }
+
     @Then("the OHLCSeries still has {int} bars")
     public void theOhlcSeriesStillHasBars(int n) {
         assertTrue(ohlcSeries.bars().size() == n,

@@ -173,6 +173,16 @@ Feature: Schema error reporting
     When I fetch
     Then MarketDataSchemaException is thrown with line number
 
+  Scenario: Row with too few columns is rejected (F2)
+    Given a data row with fewer cells than the header requires
+    When I fetch
+    Then MarketDataSchemaException is thrown with line number
+
+  Scenario: Non-numeric or negative volume cell is rejected (F5)
+    Given the volume column is present and a row's volume cell is "N/A" or "-100"
+    When I fetch
+    Then MarketDataSchemaException is thrown with line number
+
   Scenario: Comment line ignored
     Given a CSV with lines starting with "#"
     When I fetch

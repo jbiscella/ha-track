@@ -53,6 +53,46 @@ Feature: BacktestSpecBuilder eager validation
     When I build the backtest spec
     Then an InvalidBacktestSpecException is thrown with violatedRule "V7"
 
+  Scenario: Bars out of chronological order fail build
+    Given a backtest builder
+    And an OHLC series with bars out of chronological order
+    And the strategy holds every bar
+    And initial cash 10000
+    When I build the backtest spec
+    Then an InvalidBacktestSpecException is thrown with violatedRule "V5"
+
+  Scenario: Duplicate bar timestamps fail build
+    Given a backtest builder
+    And an OHLC series with a duplicate timestamp
+    And the strategy holds every bar
+    And initial cash 10000
+    When I build the backtest spec
+    Then an InvalidBacktestSpecException is thrown with violatedRule "V5"
+
+  Scenario: A bar whose open exceeds its high is rejected
+    Given a backtest builder
+    And an OHLC series with a bar whose open exceeds its high
+    And the strategy holds every bar
+    And initial cash 10000
+    When I build the backtest spec
+    Then an InvalidBacktestSpecException is thrown with violatedRule "V7"
+
+  Scenario: A bar whose close is below its low is rejected
+    Given a backtest builder
+    And an OHLC series with a bar whose close is below its low
+    And the strategy holds every bar
+    And initial cash 10000
+    When I build the backtest spec
+    Then an InvalidBacktestSpecException is thrown with violatedRule "V7"
+
+  Scenario: A bar with negative volume is rejected
+    Given a backtest builder
+    And an OHLC series with a bar whose volume is negative
+    And the strategy holds every bar
+    And initial cash 10000
+    When I build the backtest spec
+    Then an InvalidBacktestSpecException is thrown with violatedRule "V7"
+
   Scenario: A well-formed spec builds successfully
     Given a backtest builder
     And an OHLC series of 10 daily bars

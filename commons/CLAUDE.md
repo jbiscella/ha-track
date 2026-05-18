@@ -95,7 +95,7 @@ sealed interface Series permits OHLCSeries, HASeries
 
 Behavior:
 
-- The canonical constructor performs null-check only on the list reference, then replaces it with `List.copyOf(...)`. A caller's later mutation of their original list MUST NOT affect the record.
+- The canonical constructor performs null-check only on the list reference, then replaces it with `List.copyOf(...)`. A caller's later mutation of their original list MUST NOT affect the record. A list that itself contains a `null` element is rejected with `NullPointerException` (a consequence of `List.copyOf`).
 - `commons` does NOT enforce ordering, uniqueness, or non-emptiness of the bars. Those are domain rules validated by the consuming library's spec builder (e.g. `heerwisch-api` V2–V4, `nachtkrapp` V2–V4).
 
 ## 2. OHLC invariants
@@ -194,6 +194,12 @@ Feature: Heikin Ashi calculation
     Given any OHLC bar with time T
     When the HA bar for that OHLC is computed
     Then its time equals T exactly
+
+  Scenario: Previous HA bar dominates the current bar's raw high/low
+    Given a previous HA bar whose haOpen and haClose are both above the current bar's high
+    When the running HA bar is computed
+    Then haHigh = max(high, haOpen, haClose) is the previous-derived haOpen, not the raw high
+    And symmetrically a previous HA bar below the raw low makes haLow the previous-derived value
 ```
 
 ## 4. OHLC invariant enforcement behavior

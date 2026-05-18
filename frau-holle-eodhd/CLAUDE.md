@@ -201,6 +201,12 @@ Feature: Error mapping
     When I fetch
     Then exactly one HTTP request is made
     And MarketDataUnavailableException is thrown immediately
+
+  Scenario: Bars out of ascending date order
+    Given a JSON response whose rows are not in ascending date order
+    When I fetch
+    Then MarketDataSchemaException is thrown
+    And the message states the bars are not in ascending date order
 ```
 
 ## 10. Block 4 — Configuration validation

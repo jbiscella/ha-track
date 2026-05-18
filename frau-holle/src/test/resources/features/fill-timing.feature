@@ -43,6 +43,16 @@ Feature: Fill at next bar open
     Then diagnostics ignoredBuySignals is 1
     And the open position quantity is 10
 
+  Scenario: Sell when a position is already open is ignored
+    Given a backtest builder
+    And an OHLC series of 10 daily bars
+    And initial cash 10000
+    And the strategy buys 10 at bar 0
+    And the strategy sells 5 at bar 2
+    When I run the backtest
+    Then diagnostics ignoredSellSignals is 1
+    And the open position quantity is 10
+
   Scenario: ClosePosition when no position is open is a no-op
     Given a backtest builder
     And an OHLC series of 10 daily bars

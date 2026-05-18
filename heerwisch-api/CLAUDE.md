@@ -257,6 +257,11 @@ Feature: ChartSpecBuilder eager validation
     When I addAnnotation(highlight) and build()
     Then InvalidChartSpecException is thrown with violatedRule = "V7"
 
+  Scenario: Non-positive annotation price fails build
+    Given a HorizontalLevel with price ≤ 0, or a FibRetracement with a swing price ≤ 0
+    When I addAnnotation(annotation) and build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V8"
+
   Scenario: VolumePane on series without volume fails build
     Given an OHLCSeries whose bars all have volume = Optional.empty()
     And a VolumePane indicator

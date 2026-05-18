@@ -52,3 +52,32 @@ Feature: BacktestMetrics computation
     And periodsPerYear is 252
     When I compute the metrics
     Then metrics calmarRatio is 0
+
+  Scenario: profitFactor is zero when there are no losing trades
+    Given an equity curve 10000, 10000
+    And trades with pnls 100, 50, 75
+    And periodsPerYear is 252
+    When I compute the metrics
+    Then metrics profitFactor is 0
+
+  Scenario: maxDrawdown is zero for a monotonically rising equity curve
+    Given an equity curve 1000, 1010, 1020, 1030
+    And periodsPerYear is 252
+    When I compute the metrics
+    Then metrics maxDrawdown is 0
+
+  Scenario: maxDrawdown for a monotonically falling equity curve
+    Given an equity curve 1000, 900, 800
+    And periodsPerYear is 252
+    When I compute the metrics
+    Then metrics maxDrawdown is 0.2
+
+  Scenario: totalReturn reflects an open position marked-to-market with no closed trades
+    Given a backtest builder
+    And an OHLC series of 10 daily bars
+    And initial cash 10000
+    And the strategy buys 10 at bar 0
+    When I run the backtest
+    Then the result has 0 trades
+    And an open position remains at the end
+    And metrics totalReturn is 0.009

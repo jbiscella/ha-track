@@ -175,6 +175,12 @@ public class HeerwischApiStepDefinitions {
         builder.addAnnotation(new Annotation.HorizontalLevel(price, "", LevelStyle.SOLID));
     }
 
+    @Given("a FibRetracement annotation with swingHigh {bigdecimal} and swingLow {bigdecimal}")
+    public void fibRetracementAnnotation(BigDecimal swingHigh, BigDecimal swingLow) {
+        builder.addAnnotation(new Annotation.FibRetracement(swingHigh, swingLow,
+                Annotation.FibRetracement.STANDARD_LEVELS));
+    }
+
     // --- layout ---
 
     @Given("an explicit layout with mainPaneHeight {bigdecimal} and subplot {word} height {bigdecimal}")

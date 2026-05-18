@@ -66,7 +66,7 @@ Contract:
 | Aspect | Required behavior |
 |---|---|
 | Input | `BarContext` non-null. Null input throws `NullPointerException` |
-| Output | `Signal` non-null |
+| Output | `Signal` non-null. If an implementation returns `null`, the backtester treats it as a strategy contract breach and throws `SignalGenerationException` carrying the offending `barIndex` (the cause is a `NullPointerException`) |
 | Statelessness | NOT required. Implementations MAY hold internal state across calls (e.g. memory of recent bars, internal indicators, references to additional series the consumer has loaded out-of-band) |
 | Thread-safety | NOT required. The backtester calls `generate` sequentially on a single thread |
 | Lookahead-safety | Implementations MUST NOT consult bars at times `> context.currentBar().time()`. This is a contractual promise of the strategy; the backtester does not police it. Violations corrupt the backtest |
@@ -269,10 +269,11 @@ V7 enforces, at the spec boundary, the `OHLCBar.validateInvariants()` contract t
 | `InvalidBacktestSpecException` | Spec malformed | `String violatedRule`, `Object offendingValue` |
 | `MarketDataException` | Data fetch failed (thrown by `MarketDataSource` implementations) | `String symbol`, `Throwable cause` |
 | `MarketDataException` subclasses | `MarketDataNotFoundException` (symbol unknown), `MarketDataUnavailableException` (transient: timeout, 5xx, auth), `MarketDataSchemaException` (parse failure) | typed per subclass |
-| `SignalGenerationException` | The `SignalGenerator` itself threw (consumer bug) | `int barIndex`, `Throwable cause` |
+| `SignalGenerationException` | The `SignalGenerator` threw, or returned a `null` Signal (consumer bug) | `int barIndex`, `Throwable cause` |
 | `BacktestInternalException` | Internal error inside the backtester loop | `Throwable cause` is mandatory |
+| `InvalidExplicitFillException` | A v1.1 `ClosePositionAtPrice` carries a `fillTime` outside the valid intrabar window (see §15.1) | `Instant fillTime`, `Instant barTime` |
 
-`InvalidBacktestSpecException` thrown from `build()`. `MarketDataException` thrown from `MarketDataSource` implementations. `SignalGenerationException` and `BacktestInternalException` thrown from `Backtester.run()`.
+`InvalidBacktestSpecException` thrown from `build()`. `MarketDataException` thrown from `MarketDataSource` implementations. `SignalGenerationException`, `BacktestInternalException` and `InvalidExplicitFillException` thrown from `Backtester.run()`.
 
 ## 9. Block 1 — Builder validation
 
@@ -309,9 +310,19 @@ Feature: BacktestSpecBuilder eager validation
     When I call build()
     Then InvalidBacktestSpecException is thrown with violatedRule = "V6"
 
+  Scenario: Unordered bars are rejected by the builder
+    Given a series whose bars are not ascending by time
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V5"
+
+  Scenario: Duplicate bar timestamps are rejected by the builder
+    Given a series with two bars sharing the same time
+    When I call build()
+    Then InvalidBacktestSpecException is thrown with violatedRule = "V5"
+
   Scenario: OHLC invariant violation in the series is rejected by the builder
     Given a series whose bars are ordered and uniformly spaced
-    And one of those bars has high < low
+    And one of those bars violates an OHLC invariant (high < low, open > high, close < low, or volume < 0)
     When I call build()
     Then InvalidBacktestSpecException is thrown with violatedRule = "V7"
 ```
@@ -355,6 +366,13 @@ Feature: Fill at next bar open
     When the backtester processes the bar
     Then no position state change
     And diagnostics.noOpClosePositionSignals is incremented
+
+  Scenario: Sell when a position is already open is ignored
+    Given a position is open
+    And the SignalGenerator returns Sell
+    When the backtester processes the bar
+    Then the existing position is unchanged
+    And diagnostics.ignoredSellSignals is incremented
 ```
 
 ## 11. Block 3 — End-of-series handling
@@ -396,6 +414,23 @@ Feature: BacktestMetrics computation
     Given an equity curve that peaks at 12000 and troughs at 9000 before recovering
     Then metrics.maxDrawdown = (12000 - 9000) / 12000 = 0.25
 
+  Scenario: maxDrawdown is zero for a monotonically rising equity curve
+    Given an equity curve that never declines
+    Then metrics.maxDrawdown = 0
+
+  Scenario: maxDrawdown for a monotonically falling equity curve
+    Given an equity curve that declines from its first point to its last
+    Then metrics.maxDrawdown = (firstEquity - lastEquity) / firstEquity
+
+  Scenario: profitFactor is zero when there are no losing trades
+    Given a trade list whose every trade has pnl > 0
+    Then metrics.profitFactor = 0
+
+  Scenario: totalReturn reflects an open position marked-to-market
+    Given a backtest that opens a position and never closes it
+    Then metrics.totalReturn = (finalEquity - initialCash) / initialCash
+    And finalEquity includes the open position marked at the last bar close
+
   Scenario: Sharpe ratio annualized for daily timeframe
     Given a series with timeframe "1d"
     And bar-to-bar equity returns with mean = 0.001 and stddev = 0.01
@@ -431,6 +466,12 @@ Feature: Backtester contract
   Scenario: Null spec is a programmer error
     When I call backtester.run(null)
     Then NullPointerException is thrown
+
+  Scenario: A null Signal from the strategy is a generation failure
+    Given a SignalGenerator that returns null at bar B5
+    When I call backtester.run(spec)
+    Then SignalGenerationException is thrown
+    And exception.barIndex = 5
 
   Scenario: SignalGenerator exception is wrapped
     Given a SignalGenerator that throws RuntimeException at bar B5
@@ -480,7 +521,7 @@ All v1.1 extensions are strictly **additive** and **non-breaking**: consumers us
 |---|---|
 | New variant | `ClosePositionAtPrice(BigDecimal price, Instant fillTime)` added to the sealed `Signal` hierarchy in §2.4 |
 | Purpose | enables consumers (Wichtelm-app primarily) to express intrabar fills — where a stop-loss or take-profit is hit between two bar closes and the fill price equals the stop level, not the next bar open |
-| Fill price | the `price` parameter of the signal (NOT the next bar open) |
+| Fill price | the `price` parameter of the signal (NOT the next bar open). The backtester does NOT range-check `price` against the next bar's high/low: a stop-loss or take-profit level may legitimately sit outside the bar that follows the signal, so any `price > 0` is accepted |
 | Fill time | the `fillTime` parameter of the signal — an intrabar instant strictly inside the gap between the signal bar and the bar immediately after it; NOT a bar boundary |
 | Validation | `price` MUST be > 0; `fillTime` MUST satisfy `signalBar.time < fillTime < nextBar.time` — strictly after the bar at which the signal was emitted and strictly before the bar immediately following it (`signalBar` and `nextBar` respectively). Both retroactive fills (`fillTime ≤ signalBar.time`) and at-or-beyond-next-bar fills (`fillTime ≥ nextBar.time`) are lookahead-safety violations. `fillTime = nextBar.time` is rejected specifically because it would collapse into the v1 fill-at-next-bar behavior that `ClosePositionAtPrice` exists to differentiate from. Violations throw `InvalidExplicitFillException`. |
 | Behavior for other variants | unchanged. `Buy`, `Sell`, `ClosePosition` continue to fill at next bar open as specified in §4 |
@@ -577,6 +618,14 @@ Feature: v1.1 explicit-price (intrabar) fills
     When I run the backtest
     Then the results are identical to v1 behavior
     And diagnostics.forcedClosesAtExplicitPrice = 0
+
+  Scenario: ClosePositionAtPrice fills at a price outside the next bar's range
+    Given a backtest with a long position open
+    And the SignalGenerator returns ClosePositionAtPrice with a price above the
+      next bar's high and a valid intrabar fillTime
+    When I run the backtest
+    Then the position is closed at exitPrice = the signal price
+    And no range check is applied (a stop level may sit outside the bar)
 ```
 
 ## 16. Implementation delegation to Claude Code

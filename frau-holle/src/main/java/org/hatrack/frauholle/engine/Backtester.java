@@ -128,7 +128,10 @@ public final class Backtester {
             } catch (RuntimeException e) {
                 throw new SignalGenerationException(t, e);
             }
-            Objects.requireNonNull(signal, "signal");
+            if (signal == null) {
+                throw new SignalGenerationException(t,
+                        new NullPointerException("SignalGenerator returned a null Signal"));
+            }
 
             // 3. record the equity point for bar t (position marked at the close)
             BigDecimal positionValue = positionValue(position, bar.close());
