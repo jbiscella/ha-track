@@ -12,6 +12,15 @@
     <name>ha-track</name>
     <description>Heerwisch / Frau Holle / Nachtkrapp — three independent Java libraries and a shared kernel.</description>
 
+    <licenses>
+        <license>
+            <name>0BSD</name>
+            <url>https://opensource.org/license/0bsd</url>
+            <distribution>repo</distribution>
+            <comments>BSD Zero Clause License</comments>
+        </license>
+    </licenses>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
@@ -20,6 +29,8 @@
         <jfreechart.version>1.5.6</jfreechart.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <japicmp-maven-plugin.version>0.25.6</japicmp-maven-plugin.version>
+        <license-maven-plugin.version>2.7.1</license-maven-plugin.version>
     </properties>
 
     <modules>
@@ -88,8 +99,60 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                 </plugin>
+                <!-- Semantic-versioning enforcement: compares each module's API
+                     against its last released artifact and fails the build if the
+                     version bump does not match the API change. No-op until the
+                     first non-SNAPSHOT release exists as a baseline. -->
+                <plugin>
+                    <groupId>com.github.siom79.japicmp</groupId>
+                    <artifactId>japicmp-maven-plugin</artifactId>
+                    <version>${japicmp-maven-plugin.version}</version>
+                    <configuration>
+                        <oldVersion>
+                            <dependency>
+                                <groupId>${project.groupId}</groupId>
+                                <artifactId>${project.artifactId}</artifactId>
+                                <version>RELEASE</version>
+                                <type>${project.packaging}</type>
+                            </dependency>
+                        </oldVersion>
+                        <parameter>
+                            <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
+                            <ignoreMissingOldVersion>true</ignoreMissingOldVersion>
+                            <onlyModified>true</onlyModified>
+                        </parameter>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>cmp</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- Third-party license enumeration. Run manually to regenerate
+                     THIRD_PARTY_LICENSES.txt:  ./mvnw license:aggregate-add-third-party -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>${license-maven-plugin.version}</version>
+                    <configuration>
+                        <outputDirectory>${maven.multiModuleProjectDirectory}</outputDirectory>
+                        <thirdPartyFilename>THIRD_PARTY_LICENSES.txt</thirdPartyFilename>
+                        <includeTransitiveDependencies>true</includeTransitiveDependencies>
+                        <excludedGroups>^net\.jacopobiscella$</excludedGroups>
+                        <sortArtifactByName>true</sortArtifactByName>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>com.github.siom79.japicmp</groupId>
+                <artifactId>japicmp-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 
 </project>
