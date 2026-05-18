@@ -35,9 +35,12 @@ public sealed interface Signal {
 
     /**
      * v1.1 additive variant: closes any open position at an explicit intrabar
-     * price and time, rather than at the next bar open. {@code fillTime} must
-     * not reach beyond the bar after the bar at which the signal was emitted
-     * (lookahead-safety, enforced by the backtester).
+     * price and time, rather than at the next bar open. {@code fillTime} must be
+     * an intrabar instant — strictly after the bar at which the signal was
+     * emitted and strictly before the bar immediately following it
+     * ({@code signalBar.time < fillTime < nextBar.time}). The backtester
+     * enforces this; a retroactive or at/beyond-next-bar fillTime is a
+     * lookahead-safety violation.
      */
     record ClosePositionAtPrice(BigDecimal price, Instant fillTime) implements Signal {
         public ClosePositionAtPrice {

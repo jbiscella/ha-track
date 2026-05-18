@@ -4,8 +4,11 @@ import java.time.Instant;
 
 /**
  * v1.1: thrown by the backtester when a {@code ClosePositionAtPrice} signal
- * carries a {@code fillTime} that reaches beyond the bar after the bar at
- * which the signal was emitted (a lookahead-safety violation).
+ * carries a {@code fillTime} that is not a valid intrabar instant. A valid
+ * fill time satisfies {@code signalBar.time < fillTime < nextBar.time} (strict
+ * on both sides); a retroactive fill ({@code fillTime <= signalBar.time}) or an
+ * at/beyond-next-bar fill ({@code fillTime >= nextBar.time}) is a
+ * lookahead-safety violation.
  */
 public final class InvalidExplicitFillException extends BacktestException {
 
@@ -14,8 +17,8 @@ public final class InvalidExplicitFillException extends BacktestException {
 
     public InvalidExplicitFillException(Instant fillTime, Instant barTime) {
         super("ClosePositionAtPrice fillTime " + fillTime
-                + " reaches beyond the next bar at " + barTime
-                + " — explicit fills may not look ahead past the bar after the signal");
+                + " is not a valid intrabar instant — it must fall strictly after the signal bar"
+                + " and strictly before the next bar at " + barTime);
         this.fillTime = fillTime;
         this.barTime = barTime;
     }
@@ -25,7 +28,10 @@ public final class InvalidExplicitFillException extends BacktestException {
         return fillTime;
     }
 
-    /** The time of the bar after the signal bar, against which the fill time was checked. */
+    /**
+     * The time of the bar immediately after the signal bar — the exclusive
+     * upper bound the fill time was checked against.
+     */
     public Instant barTime() {
         return barTime;
     }

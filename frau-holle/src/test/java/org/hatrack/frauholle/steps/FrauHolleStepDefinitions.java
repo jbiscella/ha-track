@@ -137,6 +137,13 @@ public class FrauHolleStepDefinitions {
         builder.withSignalGenerator(scheduledGenerator);
     }
 
+    @Given("the strategy closes at price {bigdecimal} intrabar after bar {int}")
+    public void theStrategyClosesIntrabarAfterBar(BigDecimal price, int signalBar) {
+        Instant fillTime = series.get(signalBar).time().plusSeconds(43200);
+        schedule.put(signalBar, new Signal.ClosePositionAtPrice(price, fillTime));
+        builder.withSignalGenerator(scheduledGenerator);
+    }
+
     @Given("the strategy throws at bar {int}")
     public void theStrategyThrowsAtBar(int bar) {
         builder.withSignalGenerator(context -> {
@@ -294,6 +301,16 @@ public class FrauHolleStepDefinitions {
                 "exitTime mismatch");
     }
 
+    @Then("trade {int} exitTime is intrabar after bar {int}")
+    public void tradeExitTimeIsIntrabarAfterBar(int index, int barIndex) {
+        requireResult();
+        Instant expected = series.get(barIndex).time().plusSeconds(43200);
+        Instant actual = result.trades().get(index).exitTime();
+        assertTrue(actual.equals(expected),
+                "trade " + index + " exitTime: expected intrabar instant " + expected
+                        + " but was " + actual);
+    }
+
     @Then("diagnostics {word} is {int}")
     public void diagnosticsIs(String field, int expected) {
         requireResult();
@@ -344,6 +361,20 @@ public class FrauHolleStepDefinitions {
     public void anInvalidExplicitFillExceptionIsThrown() {
         assertTrue(thrown instanceof InvalidExplicitFillException,
                 "expected InvalidExplicitFillException but was " + thrown);
+    }
+
+    @Then("the exception fillTime is bar {int}")
+    public void theExceptionFillTimeIsBar(int barIndex) {
+        InvalidExplicitFillException e = (InvalidExplicitFillException) thrown;
+        assertTrue(e.fillTime().equals(series.get(barIndex).time()),
+                "exception fillTime: expected bar " + barIndex + " but was " + e.fillTime());
+    }
+
+    @Then("the exception barTime is bar {int}")
+    public void theExceptionBarTimeIsBar(int barIndex) {
+        InvalidExplicitFillException e = (InvalidExplicitFillException) thrown;
+        assertTrue(e.barTime().equals(series.get(barIndex).time()),
+                "exception barTime: expected bar " + barIndex + " but was " + e.barTime());
     }
 
     @Then("the exception barIndex is {int}")
