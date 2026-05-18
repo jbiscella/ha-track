@@ -11,29 +11,13 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>heerwisch-jfreechart</artifactId>
+    <artifactId>indicators</artifactId>
     <packaging>jar</packaging>
 
-    <name>heerwisch-jfreechart</name>
-    <description>Default plotting driver. Consumes ChartSpec, produces ChartImage (PNG or JPEG). Headless.</description>
+    <name>indicators</name>
+    <description>Shared technical-indicator calculators. Stateless pure functions. Zero external dependencies (JDK only).</description>
 
     <dependencies>
-        <dependency>
-            <groupId>net.jacopobiscella</groupId>
-            <artifactId>heerwisch-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.jacopobiscella</groupId>
-            <artifactId>commons</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.jacopobiscella</groupId>
-            <artifactId>indicators</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jfree</groupId>
-            <artifactId>jfreechart</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>

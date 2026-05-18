@@ -7,7 +7,8 @@ import org.hatrack.commons.OHLCSeries;
 import org.hatrack.commons.PriceSource;
 import org.hatrack.commons.Series;
 import org.hatrack.commons.Timeframe;
-import org.hatrack.nachtkrapp.internal.Indicators.Macd;
+import org.hatrack.indicators.Indicators;
+import org.hatrack.indicators.MacdResult;
 import org.hatrack.nachtkrapp.match.PatternMatch;
 import org.hatrack.nachtkrapp.match.PatternMatch.HABearishReversal;
 import org.hatrack.nachtkrapp.match.PatternMatch.HABearishStrong;
@@ -247,7 +248,7 @@ public final class DetectionEngine {
                                         List<PatternMatch> out) {
         List<BigDecimal> prices = prices(series, r.priceSource());
         List<Instant> times = times(series);
-        Macd macd = Indicators.macd(prices, r.fastPeriod(), r.slowPeriod(), r.signalPeriod());
+        MacdResult macd = Indicators.macd(prices, r.fastPeriod(), r.slowPeriod(), r.signalPeriod());
         BigDecimal[] hist = macd.histogram();
         for (int t = 1; t < hist.length; t++) {
             if (hist[t - 1] == null || hist[t] == null) {
@@ -267,7 +268,7 @@ public final class DetectionEngine {
                                       List<PatternMatch> out) {
         List<BigDecimal> prices = prices(series, r.priceSource());
         List<Instant> times = times(series);
-        Macd macd = Indicators.macd(prices, r.fastPeriod(), r.slowPeriod(), r.signalPeriod());
+        MacdResult macd = Indicators.macd(prices, r.fastPeriod(), r.slowPeriod(), r.signalPeriod());
         BigDecimal[] line = macd.macdLine();
         for (int t = 1; t < line.length; t++) {
             if (line[t - 1] == null || line[t] == null) {

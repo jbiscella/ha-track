@@ -14,7 +14,7 @@ This is the nested spec for the `heerwisch-jfreechart` module. The repo-wide rul
 
 Out of scope: SVG / PDF output, theme customization, font customization, interactive charts (no Swing components, no event handlers).
 
-Dependencies: `heerwisch-api`, `commons`, JFreeChart 1.5.x, an embedded font asset bundled in the JAR.
+Dependencies: `heerwisch-api`, `commons`, `indicators`, JFreeChart 1.5.x, an embedded font asset bundled in the JAR. The indicator calculators were extracted into the shared `indicators` module in v1.1; this driver now consumes them rather than carrying its own copy (see root `CLAUDE.md` §6).
 
 ## 1. Supported output formats
 
@@ -147,7 +147,7 @@ Subplots are stacked vertically below the main pane, ordered by `Pane` enum natu
 
 ## 7. Concrete behavior per indicator
 
-The driver computes each indicator using the canonical formulas declared in `nachtkrapp/CLAUDE.md` §13. The formulas are duplicated in this module's internal package (per the repo-wide acknowledgement of v1 duplication — see root §6, future indicator extraction).
+The driver computes each indicator via the shared `indicators` module (`org.hatrack.indicators.Indicators`). The canonical formulas are documented in `indicators/CLAUDE.md` §3. Until v1.1 these formulas were duplicated in this module's `internal` package; that duplication is now resolved (see root `CLAUDE.md` §6).
 
 | Indicator | Render strategy |
 |---|---|
@@ -335,7 +335,7 @@ Feature: ThemeConstants read-only access
 
 Claude Code is responsible for:
 
-- Package layout (suggested: `<group>.heerwisch.jfreechart` with subpackages `internal` for indicator calculators, `theme` for `ThemeConstants`, the driver class at the root)
+- Package layout (suggested: `<group>.heerwisch.jfreechart` with subpackages `internal` for driver-private helpers, `theme` for `ThemeConstants`, the driver class at the root; the indicator calculators live in the shared `indicators` module)
 - Loading the embedded DejaVu Sans font from `/heerwisch-fonts/DejaVuSans.ttf` at driver construction
 - Mapping each `Series` variant to the appropriate JFreeChart data structure (`OHLCSeriesCollection` for OHLC, custom dataset for HA)
 - Setting up `CombinedDomainXYPlot` for the multi-pane layout
@@ -355,5 +355,6 @@ What Claude Code MUST NOT do unilaterally:
 - Expose `ThemeConstants` as mutable
 - Add static mutable state beyond the documented font cache
 - Use `double` or `float` anywhere a `BigDecimal` is specified in indicator calculations
+- Re-introduce a local copy of the indicator calculators (they live in the shared `indicators` module)
 - Bundle a font other than DejaVu Sans
 - Bundle font assets larger than ~2MB (DejaVu Sans Regular is ~750KB)

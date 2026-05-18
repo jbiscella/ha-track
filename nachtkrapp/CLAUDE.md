@@ -18,7 +18,7 @@ This is the nested spec for the `nachtkrapp` module. The repo-wide rules (archit
 
 Out of scope: any I/O, any DI annotations, any compound rule DSL (consumers compose primitive matches in Java), any audit/persistence of emitted matches, multi-timeframe orchestration (consumer-side per repo-wide principle).
 
-Dependencies: only `commons` and JDK.
+Dependencies: `commons`, `indicators`, and JDK. The indicator calculators (SMA, EMA, RSI, MACD) were extracted into the shared `indicators` module in v1.1; `nachtkrapp` now consumes them rather than carrying its own copy (see root `CLAUDE.md` §6).
 
 ## 1. Scope of v1 detection
 
@@ -497,7 +497,7 @@ Feature: PatternDetector contract
 
 ## 13. Detection logic — canonical formulas
 
-The implementation MUST use these canonical formulas. No variations.
+The indicator calculators (SMA, EMA, RSI, MACD) live in the shared `indicators` module as of v1.1; `nachtkrapp` consumes `org.hatrack.indicators.Indicators`. The canonical formulas are now authoritatively documented in `indicators/CLAUDE.md` §3. They are reproduced here for the detection logic that builds on them. The implementation MUST use these canonical formulas. No variations.
 
 | Indicator | Formula |
 |---|---|
@@ -538,11 +538,11 @@ When `haHigh = haLow` (a bar of zero range — degenerate), the bar is ignored f
 
 Claude Code is responsible for:
 
-- Package layout (suggested: `<group>.nachtkrapp` with subpackages `rule`, `match`, `spec`, `detector`, `error`, `internal` where `internal` holds the indicator calculators and the detection logic)
+- Package layout (suggested: `<group>.nachtkrapp` with subpackages `rule`, `match`, `spec`, `detector`, `error`, `internal` where `internal` holds the detection logic; the indicator calculators live in the shared `indicators` module)
 - Writing canonical constructors with `Objects.requireNonNull` and field-level range checks
 - Implementing defensive copies of collections in `record` canonical constructors and accessors
 - Implementing `DetectionSpecBuilder.build()` with the V1–V9 validation rules
-- Implementing the indicator calculators (SMA, EMA, RSI, MACD) using the canonical formulas in §13 and `MathContext.DECIMAL64`
+- Consuming the indicator calculators (SMA, EMA, RSI, MACD) from the shared `indicators` module; the canonical formulas in §13 are implemented there
 - Implementing the detection logic for each rule type as specified in §13–§14
 - Implementing the `PatternDetector` interface with a single concrete class
 - Test infrastructure for the Gherkin scenarios above (Cucumber for Java, executed via JUnit Platform; feature files under src/test/resources/features/, step definitions under src/test/java/)
@@ -559,4 +559,4 @@ What Claude Code MUST NOT do unilaterally:
 - Add a compound-rule type or DSL
 - Add reflective bean wiring, DI annotations, or static mutable state
 - Relax the thread-safety contract documented in §6
-- Expose any internal indicator calculator as a public API (consumer should not import from `internal`)
+- Re-introduce a local copy of the indicator calculators (they live in the shared `indicators` module)
