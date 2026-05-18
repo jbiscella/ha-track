@@ -84,8 +84,8 @@ These are conventions that an AI reviewer might flag as defects but are correct 
 - Do NOT suggest replacing the Cucumber test infrastructure with pure JUnit. The BDD/Gherkin approach is deliberate.
 - Do NOT suggest adding a DI framework to the library modules.
 - Do NOT suggest splitting the modules differently. The 7-module structure was deliberated and documented.
-- Do NOT suggest adding CI/CD pipeline files unless explicitly asked.
-- Do NOT suggest releasing or publishing the artifacts. v1/v1.1 are SNAPSHOT and the release process is out of scope.
+- A GitHub Actions `build & verify` workflow exists (`.github/workflows/ci.yml`). Do NOT suggest additional CI/CD pipeline files unless explicitly asked.
+- Maven Central publishing under the `net.jacopobiscella` namespace is in scope; the root POM `release` profile carries the setup (source/javadoc jars, GPG signing, `central-publishing-maven-plugin`). The modules are still SNAPSHOT — do NOT flip versions to a release or actually publish artifacts unless explicitly asked.
 - Do NOT suggest implementing planned future features (anything labeled “reserved for future enhancement” or in module §15 “Planned extensions”) as part of a PR review. Flag only if the current PR claims to implement them and does so incompletely.
 
 ## Severity legend used by this project
