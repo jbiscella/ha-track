@@ -90,3 +90,39 @@ Feature: Schema error reporting
     When I fetch history for "AAPL" "1d" over the full range
     Then the result has 2 bars
     And no exception is thrown
+
+  Scenario: A row with too few columns is rejected as a schema error
+    Given a base directory
+    And a CSV file "AAPL_1d.csv" with content:
+      """
+      time,open,high,low,close
+      2024-01-02T00:00:00Z,1,2,0.5
+      """
+    And a CSV data source with the default pattern
+    When I fetch history for "AAPL" "1d" over the full range
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "line 2"
+
+  Scenario: A non-numeric volume cell is rejected as a schema error
+    Given a base directory
+    And a CSV file "AAPL_1d.csv" with content:
+      """
+      time,open,high,low,close,volume
+      2024-01-02T00:00:00Z,1,2,0.5,1.5,N/A
+      """
+    And a CSV data source with the default pattern
+    When I fetch history for "AAPL" "1d" over the full range
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "line 2"
+
+  Scenario: A negative volume cell is rejected as a schema error
+    Given a base directory
+    And a CSV file "AAPL_1d.csv" with content:
+      """
+      time,open,high,low,close,volume
+      2024-01-02T00:00:00Z,1,2,0.5,1.5,-100
+      """
+    And a CSV data source with the default pattern
+    When I fetch history for "AAPL" "1d" over the full range
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "line 2"

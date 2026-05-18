@@ -20,3 +20,11 @@ Feature: Series defensive immutability
   Scenario: HASeries rejects a null bar list
     When I construct an HASeries with a null bar list
     Then a NullPointerException is thrown
+
+  Scenario: OHLCSeries rejects a list containing a null bar
+    When I construct an OHLCSeries from a list containing a null bar
+    Then a NullPointerException is thrown
+
+  Scenario: HASeries rejects a list containing a null bar
+    When I construct an HASeries from a list containing a null bar
+    Then a NullPointerException is thrown

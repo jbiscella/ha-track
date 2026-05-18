@@ -189,6 +189,21 @@ public class CommonsStepDefinitions {
         capture(() -> timeframe = Timeframe.fromWire(wire));
     }
 
+    @When("I parse a null timeframe wire string")
+    public void iParseANullTimeframeWireString() {
+        capture(() -> timeframe = Timeframe.fromWire(null));
+    }
+
+    @When("I parse a blank timeframe wire string")
+    public void iParseABlankTimeframeWireString() {
+        capture(() -> timeframe = Timeframe.fromWire("   "));
+    }
+
+    @When("I parse a whitespace-padded timeframe wire string")
+    public void iParseAWhitespacePaddedTimeframeWireString() {
+        capture(() -> timeframe = Timeframe.fromWire("  1d  "));
+    }
+
     @Then("re-serializing it returns {string}")
     public void reSerializingItReturns(String wire) {
         assertTrue(wire.equals(timeframe.wire()),
@@ -255,6 +270,23 @@ public class CommonsStepDefinitions {
     @When("I construct an HASeries with a null bar list")
     public void iConstructAnHaSeriesWithANullBarList() {
         capture(() -> haSeries = new HASeries(null));
+    }
+
+    @When("I construct an OHLCSeries from a list containing a null bar")
+    public void iConstructAnOhlcSeriesFromAListContainingANullBar() {
+        List<OHLCBar> list = new ArrayList<>();
+        list.add(new OHLCBar(T0, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN,
+                BigDecimal.TEN, Optional.empty()));
+        list.add(null);
+        capture(() -> ohlcSeries = new OHLCSeries(list));
+    }
+
+    @When("I construct an HASeries from a list containing a null bar")
+    public void iConstructAnHaSeriesFromAListContainingANullBar() {
+        List<HABar> list = new ArrayList<>();
+        list.add(new HABar(T0, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN));
+        list.add(null);
+        capture(() -> haSeries = new HASeries(list));
     }
 
     @Then("the OHLCSeries still has {int} bars")

@@ -20,6 +20,24 @@ Feature: Heikin Ashi calculation
     And haHigh is 13
     And haLow is 10.5
 
+  Scenario: Previous HA bar lifts haHigh above the current bar's raw high
+    Given a previous HA bar with haOpen=20, haHigh=20, haLow=20, haClose=20
+    And an OHLC bar with open=11, high=13, low=10, close=12 at time "2024-01-02T00:00:00Z"
+    When I compute the HA bar
+    Then haClose is 11.5
+    And haOpen is 20
+    And haHigh is 20
+    And haLow is 10
+
+  Scenario: Previous HA bar pulls haLow below the current bar's raw low
+    Given a previous HA bar with haOpen=5, haHigh=5, haLow=5, haClose=5
+    And an OHLC bar with open=11, high=13, low=10, close=12 at time "2024-01-02T00:00:00Z"
+    When I compute the HA bar
+    Then haClose is 11.5
+    And haOpen is 5
+    And haHigh is 13
+    And haLow is 5
+
   Scenario: Time of the HA bar equals the time of the source OHLC
     Given an OHLC bar with open=10, high=12, low=9, close=11 at time "2024-06-15T13:30:00Z"
     And no previous HA bar

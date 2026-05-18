@@ -170,12 +170,15 @@ All of these are rejected eagerly in `build()`. The exception carries a `String 
 | V12 | indicators placed at `MAIN` MUST be overlay-compatible | `RSI` placed at `MAIN` (RSI's value range is unbounded relative to price) — driver-flexible; if a future driver supports this, the rule relaxes per-driver |
 | V13 | when the series is an `OHLCSeries`, every `OHLCBar` MUST satisfy its OHLC invariants (the `commons` invariant set — positive prices, `high ≥ low`, `high ≥ open/close`, `low ≤ open/close`, `volume ≥ 0` when present) | a bar with `high < low` |
 | V14 | a `LayoutSpecBuilder` with one or more subplot heights set MUST also have a main-pane height set | `LayoutSpec.builder().addSubplotHeight(SUBPLOT_1, 0.4).build()` with no `withMainPaneHeight(...)` |
+| V15 | with an `ExplicitLayoutSpec`, every non-`MAIN` `Pane` targeted by an indicator MUST have an entry in `subplotHeights` | an indicator placed at `SUBPLOT_1` while `subplotHeights` has no `SUBPLOT_1` key |
 
 V12 is a soft rule the `heerwisch-api` documents but does not enforce universally — different drivers MAY support different mixings. The default driver `heerwisch-jfreechart` enforces V12 strictly. If a driver does NOT support a given placement, it must throw `UnsupportedFeatureException` (see §4) at render time, not pretend to render.
 
 V13 enforces, at the spec boundary, the `OHLCBar.validateInvariants()` contract that `commons` leaves opt-in. `ChartSpecBuilder.build()` calls `validateInvariants()` for each `OHLCBar`; on `OHLCInvariantViolationException` it throws `InvalidChartSpecException` with `violatedRule = "V13"` and the offending bar's index and time in `offendingValue`. (V13, not V12: V12 is the pre-existing soft overlay-compatibility identifier.) `HASeries` has no equivalent check — `HABar` has no documented invariant set in `commons`.
 
 V14 is enforced by `LayoutSpecBuilder.build()` (not `ChartSpecBuilder.build()`). An `ExplicitLayoutSpec` requires a non-null `mainPaneHeight`; when subplot heights are present but no main-pane height was set, `build()` throws `InvalidChartSpecException` with `violatedRule = "V14"` rather than letting the record's canonical constructor raise a raw `NullPointerException` — keeping layout construction inside the spec-validation error model.
+
+V15 is the converse of V11. V11 rejects a `subplotHeights` entry for a pane no indicator uses; V15 rejects an indicator placed at a non-`MAIN` pane that `subplotHeights` does not size. Together they require an `ExplicitLayoutSpec` to declare a height for exactly the set of non-`MAIN` panes the indicators occupy. `MAIN` is exempt — its height is the dedicated `mainPaneHeight` field, not a `subplotHeights` entry. V15 is enforced by `ChartSpecBuilder.build()` (in the explicit-layout check), so a spec that would be unrenderable for lack of a pane height fails at `build()` rather than at render time.
 
 ## 4. Exception hierarchy
 
@@ -184,12 +187,12 @@ All checked. All extend `ChartRenderException` (root).
 | Exception | Cause | Carrier fields |
 |---|---|---|
 | `ChartRenderException` (root) | abstract — never thrown directly | `String message`, `Throwable cause` |
-| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13 or V14 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
+| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13, V14 or V15 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
 | `UnsupportedFeatureException` | Driver doesn't support a requested feature | `String featureName`, `String driverName` |
 | `InsufficientDataException` | Data insufficient for an indicator at render time (escape hatch — preferably caught at build via V6) | `String indicatorName`, `int requiredBars`, `int availableBars` |
 | `DriverInternalException` | Underlying driver internal error | `Throwable cause` is mandatory; carries the original exception |
 
-`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
+`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13, V15) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
 
 ## 5. Port: `ChartRenderer`
 
@@ -257,6 +260,11 @@ Feature: ChartSpecBuilder eager validation
     When I addAnnotation(highlight) and build()
     Then InvalidChartSpecException is thrown with violatedRule = "V7"
 
+  Scenario: Non-positive annotation price fails build
+    Given a HorizontalLevel with price ≤ 0, or a FibRetracement with a swing price ≤ 0
+    When I addAnnotation(annotation) and build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V8"
+
   Scenario: VolumePane on series without volume fails build
     Given an OHLCSeries whose bars all have volume = Optional.empty()
     And a VolumePane indicator
@@ -284,6 +292,12 @@ Feature: ChartSpecBuilder eager validation
     When I call build()
     Then InvalidChartSpecException is thrown with violatedRule = "V14"
     And no NullPointerException is thrown
+
+  Scenario: Indicator at a pane with no declared height fails build
+    Given an ExplicitLayoutSpec whose subplotHeights does not size SUBPLOT_1
+    And an indicator placed at SUBPLOT_1
+    When I withLayout(layout) and build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V15"
 ```
 
 ## 7. Block 2 — Default pane assignment

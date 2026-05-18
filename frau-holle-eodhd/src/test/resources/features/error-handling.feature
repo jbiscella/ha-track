@@ -56,3 +56,49 @@ Feature: Error mapping
     When I fetch history for "AAPL.US" as "1d"
     Then a MarketDataUnavailableException is thrown
     And exactly 1 HTTP request was made
+
+  Scenario: Bars out of ascending date order map to MarketDataSchemaException
+    Given an EODHD data source
+    And the endpoint returns the JSON body:
+      """
+      [
+        {"date":"2024-01-04","open":1,"high":2,"low":0.5,"close":1.5,"volume":100},
+        {"date":"2024-01-02","open":1,"high":2,"low":0.5,"close":1.5,"volume":100}
+      ]
+      """
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "ascending date order"
+
+  Scenario: Duplicate consecutive dates map to MarketDataSchemaException
+    Given an EODHD data source
+    And the endpoint returns the JSON body:
+      """
+      [
+        {"date":"2024-01-02","open":1,"high":2,"low":0.5,"close":1.5,"volume":100},
+        {"date":"2024-01-02","open":1,"high":2,"low":0.5,"close":1.5,"volume":100}
+      ]
+      """
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "ascending date order"
+
+  Scenario: A record missing the date field maps to MarketDataSchemaException
+    Given an EODHD data source
+    And the endpoint returns the JSON body:
+      """
+      [{"open":1,"high":2,"low":0.5,"close":1.5,"volume":100}]
+      """
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "date"
+
+  Scenario: A top-level JSON object instead of an array maps to MarketDataSchemaException
+    Given an EODHD data source
+    And the endpoint returns the JSON body:
+      """
+      {"date":"2024-01-02","open":1,"high":2,"low":0.5,"close":1.5}
+      """
+    When I fetch history for "AAPL.US" as "1d"
+    Then a MarketDataSchemaException is thrown
+    And the exception cause is a JsonParseException

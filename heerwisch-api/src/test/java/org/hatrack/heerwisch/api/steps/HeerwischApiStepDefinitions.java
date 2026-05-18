@@ -175,12 +175,24 @@ public class HeerwischApiStepDefinitions {
         builder.addAnnotation(new Annotation.HorizontalLevel(price, "", LevelStyle.SOLID));
     }
 
+    @Given("a FibRetracement annotation with swingHigh {bigdecimal} and swingLow {bigdecimal}")
+    public void fibRetracementAnnotation(BigDecimal swingHigh, BigDecimal swingLow) {
+        builder.addAnnotation(new Annotation.FibRetracement(swingHigh, swingLow,
+                Annotation.FibRetracement.STANDARD_LEVELS));
+    }
+
     // --- layout ---
 
     @Given("an explicit layout with mainPaneHeight {bigdecimal} and subplot {word} height {bigdecimal}")
     public void anExplicitLayout(BigDecimal mainHeight, String pane, BigDecimal subplotHeight) {
         builder.withLayout(new LayoutSpec.ExplicitLayoutSpec(900, 500, mainHeight,
                 Map.of(Pane.valueOf(pane), subplotHeight), org.hatrack.heerwisch.api.spec.ImageFormat.JPEG));
+    }
+
+    @Given("an explicit layout with mainPaneHeight {bigdecimal} and no subplot heights")
+    public void anExplicitLayoutWithNoSubplotHeights(BigDecimal mainHeight) {
+        builder.withLayout(new LayoutSpec.ExplicitLayoutSpec(900, 500, mainHeight,
+                Map.of(), org.hatrack.heerwisch.api.spec.ImageFormat.JPEG));
     }
 
     // --- actions ---

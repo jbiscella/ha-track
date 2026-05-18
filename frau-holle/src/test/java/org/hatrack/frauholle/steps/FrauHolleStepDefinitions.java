@@ -103,6 +103,56 @@ public class FrauHolleStepDefinitions {
         builder.withSeries(series);
     }
 
+    @Given("an OHLC series with bars out of chronological order")
+    public void anOhlcSeriesWithBarsOutOfOrder() {
+        List<OHLCBar> bars = dailyBars(5);
+        // swap bars 2 and 3 so the series is no longer ascending by time
+        OHLCBar b2 = bars.get(2);
+        OHLCBar b3 = bars.get(3);
+        bars.set(2, new OHLCBar(b3.time(), b2.open(), b2.high(), b2.low(), b2.close(), b2.volume()));
+        bars.set(3, new OHLCBar(b2.time(), b3.open(), b3.high(), b3.low(), b3.close(), b3.volume()));
+        series = bars;
+        builder.withSeries(series);
+    }
+
+    @Given("an OHLC series with a duplicate timestamp")
+    public void anOhlcSeriesWithADuplicateTimestamp() {
+        List<OHLCBar> bars = dailyBars(5);
+        OHLCBar b3 = bars.get(3);
+        bars.set(3, new OHLCBar(bars.get(2).time(),
+                b3.open(), b3.high(), b3.low(), b3.close(), b3.volume()));
+        series = bars;
+        builder.withSeries(series);
+    }
+
+    @Given("an OHLC series with a bar whose open exceeds its high")
+    public void anOhlcSeriesWithOpenExceedingHigh() {
+        seriesWithViolatingBar(new OHLCBar(BASE.plusSeconds(2 * 86400L),
+                new BigDecimal("200"), new BigDecimal("102"), new BigDecimal("98"),
+                new BigDecimal("100"), java.util.Optional.empty()));
+    }
+
+    @Given("an OHLC series with a bar whose close is below its low")
+    public void anOhlcSeriesWithCloseBelowLow() {
+        seriesWithViolatingBar(new OHLCBar(BASE.plusSeconds(2 * 86400L),
+                new BigDecimal("100"), new BigDecimal("102"), new BigDecimal("98"),
+                new BigDecimal("50"), java.util.Optional.empty()));
+    }
+
+    @Given("an OHLC series with a bar whose volume is negative")
+    public void anOhlcSeriesWithNegativeVolume() {
+        seriesWithViolatingBar(new OHLCBar(BASE.plusSeconds(2 * 86400L),
+                new BigDecimal("100"), new BigDecimal("102"), new BigDecimal("98"),
+                new BigDecimal("100"), java.util.Optional.of(new BigDecimal("-1"))));
+    }
+
+    private void seriesWithViolatingBar(OHLCBar violating) {
+        List<OHLCBar> bars = dailyBars(5);
+        bars.set(2, violating);
+        series = bars;
+        builder.withSeries(series);
+    }
+
     @Given("initial cash {bigdecimal}")
     public void initialCash(BigDecimal cash) {
         builder.withInitialCash(cash);
@@ -152,6 +202,11 @@ public class FrauHolleStepDefinitions {
             }
             return HOLD;
         });
+    }
+
+    @Given("the strategy returns a null signal at bar {int}")
+    public void theStrategyReturnsANullSignalAtBar(int bar) {
+        builder.withSignalGenerator(context -> context.barIndex() == bar ? null : HOLD);
     }
 
     // --- given: metrics inputs ---

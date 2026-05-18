@@ -107,3 +107,14 @@ Feature: v1.1 explicit-price (intrabar) fills
     Then the result has 1 trade
     And trade 0 exitPrice is 106
     And diagnostics forcedClosesAtExplicitPrice is 0
+
+  Scenario: ClosePositionAtPrice fills at a price outside the next bar's range
+    Given a backtest builder
+    And an OHLC series of 10 daily bars
+    And initial cash 10000
+    And the strategy buys 10 at bar 0
+    And the strategy closes at price 999 intrabar after bar 5
+    When I run the backtest
+    Then the result has 1 trade
+    And trade 0 exitPrice is 999
+    And diagnostics forcedClosesAtExplicitPrice is 1
