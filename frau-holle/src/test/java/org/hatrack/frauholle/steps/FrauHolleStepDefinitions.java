@@ -7,6 +7,7 @@ import io.cucumber.java.en.When;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.frauholle.engine.Backtester;
 import org.hatrack.frauholle.error.InvalidBacktestSpecException;
+import org.hatrack.frauholle.error.InvalidExplicitFillException;
 import org.hatrack.frauholle.error.SignalGenerationException;
 import org.hatrack.frauholle.internal.MetricsCalculator;
 import org.hatrack.frauholle.model.Direction;
@@ -109,6 +110,12 @@ public class FrauHolleStepDefinitions {
     @Given("the strategy closes the position at bar {int}")
     public void theStrategyClosesThePositionAtBar(int bar) {
         schedule.put(bar, new Signal.ClosePosition());
+        builder.withSignalGenerator(scheduledGenerator);
+    }
+
+    @Given("the strategy closes at price {bigdecimal} as of bar {int} at bar {int}")
+    public void theStrategyClosesAtPrice(BigDecimal price, int fillBar, int signalBar) {
+        schedule.put(signalBar, new Signal.ClosePositionAtPrice(price, series.get(fillBar).time()));
         builder.withSignalGenerator(scheduledGenerator);
     }
 
@@ -277,6 +284,7 @@ public class FrauHolleStepDefinitions {
             case "ignoredSellSignals" -> result.diagnostics().ignoredSellSignals();
             case "noOpClosePositionSignals" -> result.diagnostics().noOpClosePositionSignals();
             case "unfilledSignalsAtEndOfSeries" -> result.diagnostics().unfilledSignalsAtEndOfSeries();
+            case "forcedClosesAtExplicitPrice" -> result.diagnostics().forcedClosesAtExplicitPrice();
             default -> throw new IllegalArgumentException("unknown diagnostic: " + field);
         };
         assertTrue(actual == expected, field + ": expected " + expected + " but was " + actual);
@@ -312,6 +320,12 @@ public class FrauHolleStepDefinitions {
     public void aSignalGenerationExceptionIsThrown() {
         assertTrue(thrown instanceof SignalGenerationException,
                 "expected SignalGenerationException but was " + thrown);
+    }
+
+    @Then("an InvalidExplicitFillException is thrown")
+    public void anInvalidExplicitFillExceptionIsThrown() {
+        assertTrue(thrown instanceof InvalidExplicitFillException,
+                "expected InvalidExplicitFillException but was " + thrown);
     }
 
     @Then("the exception barIndex is {int}")

@@ -3,6 +3,7 @@ package org.hatrack.frauholle.engine;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.frauholle.error.BacktestException;
 import org.hatrack.frauholle.error.BacktestInternalException;
+import org.hatrack.frauholle.error.InvalidExplicitFillException;
 import org.hatrack.frauholle.error.SignalGenerationException;
 import org.hatrack.frauholle.internal.MetricsCalculator;
 import org.hatrack.frauholle.internal.TimeframeInference;
@@ -27,7 +28,11 @@ import java.util.Optional;
 /**
  * Event-driven, single-threaded backtester. A signal generated at bar t is
  * filled at the open of bar t+1; an open position at the last bar is
- * marked-to-market, never force-closed. Frictionless (v1).
+ * marked-to-market, never force-closed. Frictionless.
+ *
+ * <p>v1.1: a {@code ClosePositionAtPrice} signal closes the open position at
+ * the explicit price and time it carries, rather than at the next bar open.
+ * All v1 signal variants behave exactly as before.
  */
 public final class Backtester {
 
@@ -55,6 +60,7 @@ public final class Backtester {
         int ignoredSells = 0;
         int noOpCloses = 0;
         int unfilledAtEnd = 0;
+        int forcedClosesAtExplicitPrice = 0;
 
         Signal pending = null;
 
@@ -88,6 +94,19 @@ public final class Backtester {
                             trades.add(closeTrade(position, bar.time(), bar.open()));
                             cash = cash.add(positionValue(position, bar.open()), MC);
                             position = null;
+                        }
+                    }
+                    case Signal.ClosePositionAtPrice explicit -> {
+                        if (explicit.fillTime().isAfter(bar.time())) {
+                            throw new InvalidExplicitFillException(explicit.fillTime(), bar.time());
+                        }
+                        if (position == null) {
+                            noOpCloses++;
+                        } else {
+                            trades.add(closeTrade(position, explicit.fillTime(), explicit.price()));
+                            cash = cash.add(positionValue(position, explicit.price()), MC);
+                            position = null;
+                            forcedClosesAtExplicitPrice++;
                         }
                     }
                 }
@@ -126,7 +145,7 @@ public final class Backtester {
                 series.stream().map(OHLCBar::time).toList()).orElseThrow();
         BacktestMetrics metrics = MetricsCalculator.compute(equityCurve, trades, periodsPerYear);
         BacktestDiagnostics diagnostics = new BacktestDiagnostics(
-                ignoredBuys, ignoredSells, noOpCloses, unfilledAtEnd);
+                ignoredBuys, ignoredSells, noOpCloses, unfilledAtEnd, forcedClosesAtExplicitPrice);
         return new BacktestResult(metrics, trades, equityCurve,
                 Optional.ofNullable(position), diagnostics);
     }
