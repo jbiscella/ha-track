@@ -6,7 +6,7 @@
 
     <groupId>net.jacopobiscella</groupId>
     <artifactId>ha-track</artifactId>
-    <version>0.42.0-alpha</version>
+    <version>0.43.0-alpha</version>
     <packaging>pom</packaging>
 
     <name>ha-track</name>
@@ -68,22 +68,22 @@
             <dependency>
                 <groupId>net.jacopobiscella</groupId>
                 <artifactId>commons</artifactId>
-                <version>0.42.0-alpha</version>
+                <version>0.43.0-alpha</version>
             </dependency>
             <dependency>
                 <groupId>net.jacopobiscella</groupId>
                 <artifactId>indicators</artifactId>
-                <version>0.42.0-alpha</version>
+                <version>0.43.0-alpha</version>
             </dependency>
             <dependency>
                 <groupId>net.jacopobiscella</groupId>
                 <artifactId>heerwisch-api</artifactId>
-                <version>0.42.0-alpha</version>
+                <version>0.43.0-alpha</version>
             </dependency>
             <dependency>
                 <groupId>net.jacopobiscella</groupId>
                 <artifactId>frau-holle</artifactId>
-                <version>0.42.0-alpha</version>
+                <version>0.43.0-alpha</version>
             </dependency>
 
             <!-- External libraries -->
@@ -178,11 +178,30 @@
                 <groupId>com.github.siom79.japicmp</groupId>
                 <artifactId>japicmp-maven-plugin</artifactId>
             </plugin>
+            <!-- Source jars are cheap to generate and are published to Maven
+                 Central on every deploy so consumers get IDE-readable API.
+                 Javadoc + GPG signing remain in the 'release' profile. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
     <!-- Activated only when publishing to Maven Central:  ./mvnw -Prelease deploy
-         Keeps day-to-day builds free of javadoc generation and GPG signing.
+         Plugins requiring deploy-time artifact attachment (javadoc, GPG
+         signing) and infrequent execution live here. Source jar generation
+         moved to the default build (cheap, and consumers get sources on
+         every published artifact).
          Requires a GPG key on the build host and a 'central' server entry
          (Portal user token) in settings.xml. -->
     <profiles>
@@ -190,19 +209,6 @@
             <id>release</id>
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>${maven-source-plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>

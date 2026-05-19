@@ -61,6 +61,18 @@ Requires **JDK 25**. A Maven Wrapper is committed, so a system Maven
 installation is optional. See [docs/getting-started.md](docs/getting-started.md)
 for details.
 
+The default build attaches a `-sources.jar` to every module. Publishing to
+Maven Central additionally requires the `release` profile, which attaches the
+`-javadoc.jar` and GPG-signs all artifacts:
+
+```bash
+./mvnw -Prelease deploy
+```
+
+Deploying **must** use `-Prelease` — a plain `mvn deploy` would omit the
+javadoc jar and the signatures. The release CI workflow already passes the
+flag; manual deploys must include it.
+
 ## Disclaimer
 
 This software is a tool for **historical analysis only**.
