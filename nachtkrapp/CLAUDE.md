@@ -20,6 +20,8 @@ Out of scope: any I/O, any DI annotations, any compound rule DSL (consumers comp
 
 Dependencies: `commons`, `indicators`, and JDK. The indicator calculators (SMA, EMA, RSI, MACD) were extracted into the shared `indicators` module in v1.1; `nachtkrapp` now consumes them rather than carrying its own copy (see root `CLAUDE.md` §6).
 
+Published artifacts: every Maven Central deploy ships `nachtkrapp-<version>-sources.jar` alongside the main jar, so consumers get IDE-readable API and can see the sealed `PatternMatch` hierarchy directly. `nachtkrapp-<version>-javadoc.jar` is attached on tagged releases via the root POM `release` profile. The source jar is built in the default build; javadoc + GPG signing remain release-profile-only (see root `pom.xml`).
+
 ## 1. Scope of v1 detection
 
 The detection scope is **HA patterns + MA / RSI / MACD primitives**. These are the building blocks the consumer combines with Java boolean logic to compose accuracy-improving notification rules (e.g. "BullishReversal AND PriceAboveMA(50) AND NOT RSIOverbought" → alert).
@@ -89,6 +91,10 @@ sealed interface PatternMatch permits
     MACDBullishCross, MACDBearishCross,
     MACDCrossedAboveZero, MACDCrossedBelowZero
 ```
+
+The `permits` clause is stated **explicitly** in the source (`match/PatternMatch.java`). It is semantically identical to the clause the compiler would infer from the nested records, but makes the closed set visible at the declaration and in the generated javadoc. `match/PatternMatch.java` is the authoritative list of permitted subtypes.
+
+**Direction is type-encoded, not a field.** There is no `direction` enum on `PatternMatch`. A consumer filters bullish vs bearish (or above vs below, overbought vs oversold) by *which subtype* a match is — e.g. `HABullishReversal` vs `HABearishReversal`, `MACDBullishCross` vs `MACDBearishCross`. Because the hierarchy is sealed, an exhaustive `switch` over the subtypes is compile-time-checked: a consumer that handles every variant will fail to compile if a future minor version adds a 20th subtype, rather than silently dropping it. External code MUST NOT implement `PatternMatch` directly — the closed set is authored by this module; new variants are requested by adding them to the `permits` clause here.
 
 Every match carries:
 

@@ -12,8 +12,32 @@ import java.util.Optional;
  * Closed hierarchy of pattern matches. Every variant carries the common
  * accessors {@code time()}, {@code flavor()} and {@code timeframe()} plus a
  * variant-specific diagnostic payload. Variants are nested records.
+ *
+ * <p>The {@code permits} clause is stated explicitly. It is semantically
+ * identical to the implicit clause the compiler infers from the nested
+ * records, but makes the closed set visible at the declaration and in the
+ * generated javadoc. Consumers may rely on it for exhaustive {@code switch}.
  */
-public sealed interface PatternMatch {
+public sealed interface PatternMatch
+        permits PatternMatch.HABullishReversal,
+                PatternMatch.HABearishReversal,
+                PatternMatch.HABullishStrong,
+                PatternMatch.HABearishStrong,
+                PatternMatch.HADoji,
+                PatternMatch.PriceAboveMA,
+                PatternMatch.PriceBelowMA,
+                PatternMatch.PriceCrossedAboveMA,
+                PatternMatch.PriceCrossedBelowMA,
+                PatternMatch.RSIOverbought,
+                PatternMatch.RSIOversold,
+                PatternMatch.RSIExitedOverbought,
+                PatternMatch.RSIExitedOversold,
+                PatternMatch.RSICrossedAbove50,
+                PatternMatch.RSICrossedBelow50,
+                PatternMatch.MACDBullishCross,
+                PatternMatch.MACDBearishCross,
+                PatternMatch.MACDCrossedAboveZero,
+                PatternMatch.MACDCrossedBelowZero {
 
     /** Time of the bar that triggered the match. */
     Instant time();
