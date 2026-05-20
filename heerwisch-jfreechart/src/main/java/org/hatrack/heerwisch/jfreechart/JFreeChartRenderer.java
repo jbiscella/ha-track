@@ -395,12 +395,16 @@ public final class JFreeChartRenderer implements ChartRenderer {
         if (dy <= 0) {
             dy = 1.0;
         }
-        double shaft = dx / 2.0;            // shaft half-width for ARROW_* glyphs;
-                                            // dx/2 (not dx/3) so the arrow's
-                                            // filled area matches the triangle's
-                                            // (shaft 2·shaft·dy + chevron dx·dy
-                                            // = 2·dx·dy, identical to the
-                                            // triangle's 0.5·2dx·2dy).
+        // ARROW_* glyphs: a thin shaft topped (or bottomed) with a wider
+        // chevron. Geometry chosen for clear arrow-like silhouette while
+        // preserving equal filled area with the matching triangle:
+        //   chevron area = 0.5 · 2·chevronHalf · dy = chevronHalf · dy
+        //   shaft   area = 2·shaft · dy
+        //   total        = (chevronHalf + 2·shaft) · dy = 2·dx·dy
+        // with chevronHalf = 1.5·dx and shaft = dx/4, total = 2·dx·dy,
+        // exactly the triangle's filled area (0.5 · 2dx · 2dy).
+        double chevronHalf = 1.5 * dx;
+        double shaft = dx / 4.0;
         Path2D.Double p = new Path2D.Double();
         switch (style) {
             case UP_TRIANGLE -> {
@@ -413,25 +417,23 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 p.lineTo(x - dx, y + dy);
                 p.lineTo(x + dx, y + dy);
             }
-            // ARROW_* glyphs: a rectangular shaft tipped with a wider
-            // chevron — visually distinct from the simple triangles.
             case ARROW_UP -> {
-                p.moveTo(x - shaft, y - dy);
-                p.lineTo(x + shaft, y - dy);
-                p.lineTo(x + shaft, y);
-                p.lineTo(x + dx,    y);
-                p.lineTo(x,         y + dy);
-                p.lineTo(x - dx,    y);
-                p.lineTo(x - shaft, y);
+                p.moveTo(x - shaft,       y - dy);
+                p.lineTo(x + shaft,       y - dy);
+                p.lineTo(x + shaft,       y);
+                p.lineTo(x + chevronHalf, y);
+                p.lineTo(x,               y + dy);
+                p.lineTo(x - chevronHalf, y);
+                p.lineTo(x - shaft,       y);
             }
             case ARROW_DOWN -> {
-                p.moveTo(x - shaft, y + dy);
-                p.lineTo(x + shaft, y + dy);
-                p.lineTo(x + shaft, y);
-                p.lineTo(x + dx,    y);
-                p.lineTo(x,         y - dy);
-                p.lineTo(x - dx,    y);
-                p.lineTo(x - shaft, y);
+                p.moveTo(x - shaft,       y + dy);
+                p.lineTo(x + shaft,       y + dy);
+                p.lineTo(x + shaft,       y);
+                p.lineTo(x + chevronHalf, y);
+                p.lineTo(x,               y - dy);
+                p.lineTo(x - chevronHalf, y);
+                p.lineTo(x - shaft,       y);
             }
         }
         p.closePath();

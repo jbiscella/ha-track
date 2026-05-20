@@ -48,3 +48,21 @@ Feature: EntryExitMarker and TimeRangeHighlight rendering
     And an EntryExitMarker at bar 25 with direction LONG_EXIT and glyph DOWN_TRIANGLE
     When I render the chart
     Then rendering succeeds
+
+  Scenario: Scheduled-vs-forced semantic — consumer wires triangles for scenario exits, arrows for stop-loss
+    # Documents the consumer-side mapping codified by GlyphStyle's semantic
+    # contract (heerwisch-api/CLAUDE.md section 1.3.1): the scenario-driven
+    # long exit is plotted with DOWN_TRIANGLE; the stop-loss-driven long
+    # exit on a second hypothetical trade is plotted with ARROW_DOWN. The
+    # renderer treats both inputs identically (it has no knowledge of why
+    # the consumer picked one shape over the other); the test verifies
+    # only that the documented combination renders without error and that
+    # the API does not constrain the consumer's choice of glyph beyond
+    # shape correctness.
+    Given a chart with an OHLC series of 60 bars
+    And an EntryExitMarker at bar 10 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    And an EntryExitMarker at bar 20 with direction LONG_EXIT and glyph DOWN_TRIANGLE
+    And an EntryExitMarker at bar 30 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    And an EntryExitMarker at bar 38 with direction LONG_EXIT and glyph ARROW_DOWN
+    When I render the chart
+    Then rendering succeeds

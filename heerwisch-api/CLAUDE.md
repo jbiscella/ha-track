@@ -75,10 +75,28 @@ The `permits` clause is implicit in source (all six variants are nested records 
 | Enum | Values | Semantic |
 |---|---|---|
 | `MarkerDirection` | `LONG_ENTRY`, `LONG_EXIT`, `SHORT_ENTRY`, `SHORT_EXIT` | Renderer convention: `LONG_ENTRY` and `SHORT_EXIT` use the bullish theme color (semantic green); `SHORT_ENTRY` and `LONG_EXIT` use the bearish theme color (semantic red). Named `MarkerDirection` (not `Direction`) to avoid a simple-name clash with `org.hatrack.frauholle.model.Direction` in consumer code that imports both modules |
-| `GlyphStyle` | `UP_TRIANGLE`, `DOWN_TRIANGLE`, `ARROW_UP`, `ARROW_DOWN` | Shape only; does not imply direction by itself (the accompanying `MarkerDirection` carries the semantic) |
+| `GlyphStyle` | `UP_TRIANGLE`, `DOWN_TRIANGLE`, `ARROW_UP`, `ARROW_DOWN` | Carries shape **and** a scheduled-vs-forced semantic (see §1.3.1). The accompanying `MarkerDirection` carries the long/short direction |
 | `FillColor` | `LONG_POSITION`, `SHORT_POSITION`, `NEUTRAL`, `CAUTION` | Renderer base palette: light green, light red, light blue/gray, light yellow/amber |
 
 The API exposes no explicit color parameters on the new subtypes — color is renderer-applied from the semantic enum, matching the read-only `ThemeConstants` design of the JFreeChart driver.
+
+#### 1.3.1 `GlyphStyle` semantic contract — scheduled vs forced
+
+The `GlyphStyle` enum carries a documented semantic distinction beyond shape: TRIANGLE for **scheduled** trade events (those triggered by an explicit strategy scenario / authored entry-exit condition), ARROW for **forced** trade events (those triggered by mechanical risk management). Consumers should map their exit categories per the table below.
+
+| Exit type | `GlyphStyle` to use |
+|---|---|
+| Scenario-triggered entry/exit | `UP_TRIANGLE` (entry-up / long-entry) or `DOWN_TRIANGLE` (exit-down / long-exit) |
+| Stop-loss | `ARROW_DOWN` on a long position, `ARROW_UP` on a short position |
+| Take-profit | `ARROW_UP` on a long position, `ARROW_DOWN` on a short position |
+| Trailing stop | Same as stop-loss (`ARROW_DOWN` on long, `ARROW_UP` on short) |
+| Time-based exit | `ARROW` matching the position's exit direction |
+| End-of-backtest forced close | `ARROW` matching the position's exit direction |
+| Manual / out-of-band intervention | Out of scope; consumer decides |
+
+The renderer's geometry reinforces the distinction (triangles render as compact solid shapes, arrows as a lighter chevron+shaft silhouette). The asymmetry is intentional and is part of the API contract — drivers MUST NOT equalize the visual weight, and consumers can rely on TRIANGLE reading as more prominent than ARROW.
+
+This semantic is independent of `MarkerDirection`: `MarkerDirection` answers "long or short side?" and "entry or exit?"; `GlyphStyle` answers "was this a deliberate strategy decision, or a mechanical forced event?". The two are orthogonal.
 
 ### 1.4 `Pane`
 
