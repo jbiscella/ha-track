@@ -59,4 +59,40 @@ public sealed interface Annotation {
             Objects.requireNonNull(previousPeriodBar, "previousPeriodBar");
         }
     }
+
+    /**
+     * A semantic glyph (triangle or arrow) at a specific bar, colored by the
+     * conventional entry/exit role. The shape is chosen via {@code glyphStyle};
+     * the color is chosen by the renderer from {@code direction} (long-entry
+     * and short-exit render in the bullish theme color, short-entry and
+     * long-exit in the bearish theme color). Use this for trade markers on a
+     * backtest chart.
+     */
+    record EntryExitMarker(Instant time, BigDecimal price,
+                           MarkerDirection direction, GlyphStyle glyphStyle)
+            implements Annotation {
+        public EntryExitMarker {
+            Objects.requireNonNull(time, "time");
+            Objects.requireNonNull(price, "price");
+            Objects.requireNonNull(direction, "direction");
+            Objects.requireNonNull(glyphStyle, "glyphStyle");
+        }
+    }
+
+    /**
+     * A semi-transparent shaded band over a closed time interval, drawn behind
+     * the chart's series and indicators. Typical use: shade the "in-position"
+     * period of a backtest trade. The color is chosen by the renderer from
+     * {@code fillColor}; {@code opacity} is in {@code [0, 1]} inclusive.
+     */
+    record TimeRangeHighlight(Instant startTime, Instant endTime,
+                              FillColor fillColor, BigDecimal opacity)
+            implements Annotation {
+        public TimeRangeHighlight {
+            Objects.requireNonNull(startTime, "startTime");
+            Objects.requireNonNull(endTime, "endTime");
+            Objects.requireNonNull(fillColor, "fillColor");
+            Objects.requireNonNull(opacity, "opacity");
+        }
+    }
 }

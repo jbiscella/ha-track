@@ -119,3 +119,62 @@ Feature: ChartSpecBuilder eager validation
     And an SMA indicator with period 20 and source CLOSE
     When I build the chart spec
     Then the chart spec builds successfully
+
+  Scenario: An EntryExitMarker at a non-existent bar time fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And an EntryExitMarker at a non-existent time
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V16"
+
+  Scenario: An EntryExitMarker at a valid bar passes build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And an EntryExitMarker at bar index 5 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    When I build the chart spec
+    Then the chart spec builds successfully
+
+  Scenario: A TimeRangeHighlight with reversed times fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a TimeRangeHighlight with reversed times
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V17"
+
+  Scenario: A TimeRangeHighlight entirely outside the series fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a TimeRangeHighlight entirely after the series
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V17"
+
+  Scenario: A TimeRangeHighlight with opacity above 1 fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a TimeRangeHighlight with opacity 1.5
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V18"
+
+  Scenario: A TimeRangeHighlight with negative opacity fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a TimeRangeHighlight with opacity -0.1
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V18"
+
+  Scenario: A TimeRangeHighlight with opacity at the boundary passes build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a TimeRangeHighlight from bar 1 to bar 5 with fillColor LONG_POSITION and opacity 0.15
+    When I build the chart spec
+    Then the chart spec builds successfully
+
+  Scenario: EntryExitMarker and TimeRangeHighlight coexist with other annotations
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And a HorizontalLevel annotation at price 100
+    And an EntryExitMarker at bar index 3 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    And an EntryExitMarker at bar index 7 with direction LONG_EXIT and glyph DOWN_TRIANGLE
+    And a TimeRangeHighlight from bar 3 to bar 7 with fillColor LONG_POSITION and opacity 0.15
+    When I build the chart spec
+    Then the chart spec builds successfully

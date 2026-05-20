@@ -17,10 +17,13 @@ import org.hatrack.heerwisch.api.spec.Annotation;
 import org.hatrack.heerwisch.api.spec.ChartImage;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
 import org.hatrack.heerwisch.api.spec.ChartSpecBuilder;
+import org.hatrack.heerwisch.api.spec.FillColor;
+import org.hatrack.heerwisch.api.spec.GlyphStyle;
 import org.hatrack.heerwisch.api.spec.Indicator;
 import org.hatrack.heerwisch.api.spec.LayoutSpec;
 import org.hatrack.heerwisch.api.spec.LayoutSpecBuilder;
 import org.hatrack.heerwisch.api.spec.LevelStyle;
+import org.hatrack.heerwisch.api.spec.MarkerDirection;
 import org.hatrack.heerwisch.api.spec.Pane;
 
 import java.math.BigDecimal;
@@ -179,6 +182,43 @@ public class HeerwischApiStepDefinitions {
     public void fibRetracementAnnotation(BigDecimal swingHigh, BigDecimal swingLow) {
         builder.addAnnotation(new Annotation.FibRetracement(swingHigh, swingLow,
                 Annotation.FibRetracement.STANDARD_LEVELS));
+    }
+
+    @Given("an EntryExitMarker at bar index {int} with direction {word} and glyph {word}")
+    public void entryExitMarkerAtBar(int barIndex, String direction, String glyph) {
+        builder.addAnnotation(new Annotation.EntryExitMarker(timeOf(barIndex), BigDecimal.TEN,
+                MarkerDirection.valueOf(direction), GlyphStyle.valueOf(glyph)));
+    }
+
+    @Given("an EntryExitMarker at a non-existent time")
+    public void entryExitMarkerOffSeries() {
+        builder.addAnnotation(new Annotation.EntryExitMarker(BASE.minusSeconds(86400L),
+                BigDecimal.TEN, MarkerDirection.LONG_ENTRY, GlyphStyle.UP_TRIANGLE));
+    }
+
+    @Given("a TimeRangeHighlight from bar {int} to bar {int} with fillColor {word} and opacity {bigdecimal}")
+    public void timeRangeHighlight(int fromBar, int toBar, String fillColor, BigDecimal opacity) {
+        builder.addAnnotation(new Annotation.TimeRangeHighlight(timeOf(fromBar), timeOf(toBar),
+                FillColor.valueOf(fillColor), opacity));
+    }
+
+    @Given("a TimeRangeHighlight with reversed times")
+    public void timeRangeHighlightReversed() {
+        builder.addAnnotation(new Annotation.TimeRangeHighlight(timeOf(5), timeOf(2),
+                FillColor.LONG_POSITION, new BigDecimal("0.15")));
+    }
+
+    @Given("a TimeRangeHighlight entirely after the series")
+    public void timeRangeHighlightAfterSeries() {
+        builder.addAnnotation(new Annotation.TimeRangeHighlight(
+                BASE.plusSeconds(365L * 86400L), BASE.plusSeconds(366L * 86400L),
+                FillColor.NEUTRAL, new BigDecimal("0.10")));
+    }
+
+    @Given("a TimeRangeHighlight with opacity {bigdecimal}")
+    public void timeRangeHighlightWithOpacity(BigDecimal opacity) {
+        builder.addAnnotation(new Annotation.TimeRangeHighlight(timeOf(1), timeOf(4),
+                FillColor.LONG_POSITION, opacity));
     }
 
     // --- layout ---

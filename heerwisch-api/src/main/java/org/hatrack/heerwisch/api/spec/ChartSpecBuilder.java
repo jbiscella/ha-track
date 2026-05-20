@@ -124,6 +124,25 @@ public final class ChartSpecBuilder {
                 case Annotation.PivotPointLevels ignored -> {
                     // no eager validation
                 }
+                case Annotation.EntryExitMarker marker -> {
+                    if (!barTimes.contains(marker.time())) {
+                        throw new InvalidChartSpecException("V16", marker.time());
+                    }
+                }
+                case Annotation.TimeRangeHighlight range -> {
+                    if (!range.startTime().isBefore(range.endTime())) {
+                        throw new InvalidChartSpecException("V17", range);
+                    }
+                    Instant firstBar = times.get(0);
+                    Instant lastBar = times.get(times.size() - 1);
+                    if (range.endTime().isBefore(firstBar) || range.startTime().isAfter(lastBar)) {
+                        throw new InvalidChartSpecException("V17", range);
+                    }
+                    BigDecimal opacity = range.opacity();
+                    if (opacity.signum() < 0 || opacity.compareTo(BigDecimal.ONE) > 0) {
+                        throw new InvalidChartSpecException("V18", opacity);
+                    }
+                }
             }
         }
         if (effectiveLayout instanceof LayoutSpec.ExplicitLayoutSpec explicit) {

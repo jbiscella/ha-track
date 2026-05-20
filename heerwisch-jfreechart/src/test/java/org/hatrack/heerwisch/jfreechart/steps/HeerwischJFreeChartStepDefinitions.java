@@ -9,12 +9,16 @@ import org.hatrack.commons.OHLCSeries;
 import org.hatrack.commons.PriceSource;
 import org.hatrack.heerwisch.api.error.DriverInternalException;
 import org.hatrack.heerwisch.api.error.UnsupportedFeatureException;
+import org.hatrack.heerwisch.api.spec.Annotation;
 import org.hatrack.heerwisch.api.spec.ChartImage;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
 import org.hatrack.heerwisch.api.spec.ChartSpecBuilder;
+import org.hatrack.heerwisch.api.spec.FillColor;
+import org.hatrack.heerwisch.api.spec.GlyphStyle;
 import org.hatrack.heerwisch.api.spec.ImageFormat;
 import org.hatrack.heerwisch.api.spec.Indicator;
 import org.hatrack.heerwisch.api.spec.LayoutSpec;
+import org.hatrack.heerwisch.api.spec.MarkerDirection;
 import org.hatrack.heerwisch.api.spec.Pane;
 import org.hatrack.heerwisch.jfreechart.JFreeChartRenderer;
 import org.hatrack.heerwisch.jfreechart.TestRenderers;
@@ -64,6 +68,24 @@ public class HeerwischJFreeChartStepDefinitions {
     @Given("the layout is auto {int} by {int} with format {word}")
     public void theLayoutIsAuto(int width, int height, String format) {
         builder.withLayout(new LayoutSpec.AutoLayoutSpec(width, height, ImageFormat.valueOf(format)));
+    }
+
+    @Given("an EntryExitMarker at bar {int} with direction {word} and glyph {word}")
+    public void anEntryExitMarker(int barIndex, String direction, String glyph) {
+        builder.addAnnotation(new Annotation.EntryExitMarker(
+                BASE.plusSeconds(barIndex * 86400L),
+                new BigDecimal("100"),
+                MarkerDirection.valueOf(direction),
+                GlyphStyle.valueOf(glyph)));
+    }
+
+    @Given("a TimeRangeHighlight from bar {int} to bar {int} with fillColor {word} and opacity {bigdecimal}")
+    public void aTimeRangeHighlight(int fromBar, int toBar, String fillColor, BigDecimal opacity) {
+        builder.addAnnotation(new Annotation.TimeRangeHighlight(
+                BASE.plusSeconds(fromBar * 86400L),
+                BASE.plusSeconds(toBar * 86400L),
+                FillColor.valueOf(fillColor),
+                opacity));
     }
 
     @Given("java.awt.headless is set to true")
