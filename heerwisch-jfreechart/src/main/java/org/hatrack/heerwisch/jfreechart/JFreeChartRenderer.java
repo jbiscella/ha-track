@@ -398,15 +398,23 @@ public final class JFreeChartRenderer implements ChartRenderer {
         long firstT, lastT;
         double priceMin = Double.POSITIVE_INFINITY;
         double priceMax = Double.NEGATIVE_INFINITY;
+        long minIntervalMillis = Long.MAX_VALUE;
         int barCount;
         if (series instanceof OHLCSeries ohlc) {
             var bars = ohlc.bars();
             barCount = bars.size();
             firstT = bars.get(0).time().toEpochMilli();
             lastT = bars.get(barCount - 1).time().toEpochMilli();
-            for (OHLCBar bar : bars) {
+            long prevT = firstT;
+            for (int i = 0; i < barCount; i++) {
+                OHLCBar bar = bars.get(i);
                 priceMin = Math.min(priceMin, bar.low().doubleValue());
                 priceMax = Math.max(priceMax, bar.high().doubleValue());
+                if (i > 0) {
+                    long t = bar.time().toEpochMilli();
+                    minIntervalMillis = Math.min(minIntervalMillis, t - prevT);
+                    prevT = t;
+                }
             }
         } else {
             HASeries ha = (HASeries) series;
@@ -414,15 +422,29 @@ public final class JFreeChartRenderer implements ChartRenderer {
             barCount = bars.size();
             firstT = bars.get(0).time().toEpochMilli();
             lastT = bars.get(barCount - 1).time().toEpochMilli();
-            for (HABar bar : bars) {
+            long prevT = firstT;
+            for (int i = 0; i < barCount; i++) {
+                HABar bar = bars.get(i);
                 priceMin = Math.min(priceMin, bar.haLow().doubleValue());
                 priceMax = Math.max(priceMax, bar.haHigh().doubleValue());
+                if (i > 0) {
+                    long t = bar.time().toEpochMilli();
+                    minIntervalMillis = Math.min(minIntervalMillis, t - prevT);
+                    prevT = t;
+                }
             }
         }
-        long timeSpan = Math.max(lastT - firstT, 1L);
-        long barPeriodMillis = barCount > 1
-                ? Math.max(timeSpan / (barCount - 1), 1L)
-                : 24L * 3_600_000L;
+
+        // Single-bar series (legal under V2) provides no period or aspect
+        // information. Fall back to the pre-fix fixed extents — there is
+        // nothing meaningful to scale to.
+        if (barCount < 2) {
+            double fallbackDx = 12.0 * 3_600_000;
+            double fallbackDy = Math.max(priceMin * 0.005, 1e-3);
+            return new GlyphExtents(fallbackDx, fallbackDy);
+        }
+
+        long timeSpan = lastT - firstT;
         double priceSpan = Math.max(priceMax - priceMin, 1e-9);
 
         LayoutSpec layout = spec.layout();
@@ -431,9 +453,13 @@ public final class JFreeChartRenderer implements ChartRenderer {
         int heightPx = (layout instanceof LayoutSpec.AutoLayoutSpec auto) ? auto.heightPx()
                 : ((LayoutSpec.ExplicitLayoutSpec) layout).heightPx();
 
-        // dx = 40% of a bar period → total glyph width = 80% of one candle:
-        // wide enough to read, narrow enough to not overlap adjacent markers.
-        double dx = 0.4 * barPeriodMillis;
+        // dx = 40% of the *smallest* bar interval. JFreeChart's
+        // CandlestickRenderer uses WIDTHMETHOD_SMALLEST, so candle width
+        // tracks the minimum interval — we match it. On irregular timelines
+        // (e.g. daily data with weekend gaps) the average interval would
+        // overstate the candle width and the glyph would extend past
+        // adjacent candles.
+        double dx = 0.4 * minIntervalMillis;
 
         // dy chosen so glyph appears roughly square in pixel space:
         //   glyph_width_px  = (2·dx / timeSpan) · widthPx
