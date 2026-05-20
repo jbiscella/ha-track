@@ -395,7 +395,12 @@ public final class JFreeChartRenderer implements ChartRenderer {
         if (dy <= 0) {
             dy = 1.0;
         }
-        double shaft = dx / 3.0;            // shaft half-width for ARROW_* glyphs
+        double shaft = dx / 2.0;            // shaft half-width for ARROW_* glyphs;
+                                            // dx/2 (not dx/3) so the arrow's
+                                            // filled area matches the triangle's
+                                            // (shaft 2·shaft·dy + chevron dx·dy
+                                            // = 2·dx·dy, identical to the
+                                            // triangle's 0.5·2dx·2dy).
         Path2D.Double p = new Path2D.Double();
         switch (style) {
             case UP_TRIANGLE -> {
