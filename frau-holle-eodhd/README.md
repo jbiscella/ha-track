@@ -18,7 +18,7 @@ endpoint — historical end-of-day bars — and maps the JSON response into
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle-eodhd</artifactId>
-    <version>0.44.0-alpha</version>
+    <version>0.45.0-alpha</version>
 </dependency>
 ```
 
