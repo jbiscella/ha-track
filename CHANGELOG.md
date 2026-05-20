@@ -5,7 +5,7 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
-## 0.44.0-alpha
+## 0.45.0-alpha
 
 ### Added
 
@@ -20,6 +20,10 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 - **heerwisch-jfreechart:** renderer support for the two new subtypes via JFreeChart's `XYShapeAnnotation` (glyph at `(time, price)`) and `IntervalMarker` on the domain axis at `Layer.BACKGROUND` (time-range band drawn behind candles).
 - **heerwisch-jfreechart:** four new `ThemeConstants` for `TimeRangeHighlight` fills: `TIME_RANGE_LONG`, `TIME_RANGE_SHORT`, `TIME_RANGE_NEUTRAL`, `TIME_RANGE_CAUTION` (RGB only; opacity is applied per-instance from the annotation).
 - **heerwisch-api:** `GlyphStyle` now carries a documented semantic contract: `UP_TRIANGLE`/`DOWN_TRIANGLE` for **scheduled** (strategy-scenario-driven) entry/exit events; `ARROW_UP`/`ARROW_DOWN` for **forced** (stop-loss / take-profit / trailing-stop / time-based / end-of-backtest) events. Consumers should map their exit categories per the reference table in `heerwisch-api/CLAUDE.md` §1.3.1. The renderer's geometry reinforces the distinction — triangles render as compact solid shapes (visually prominent, signaling a deliberate decision), arrows as a lighter chevron+shaft silhouette (signaling mechanical execution). The asymmetry is the API contract; future drivers must preserve it.
+
+### Changed
+
+- **heerwisch-jfreechart:** `EntryExitMarker` glyph half-extents are now computed adaptively from the series' smallest bar interval and the chart's pixel aspect, rather than fixed at ≈12h on the time axis and ≈0.5% of price on the value axis. The glyph width tracks one candle on any chart density, any aspect ratio, any device; the height is scaled so the glyph reads as roughly square in pixel space. The previous fixed extents produced flat horizontal slivers on zoomed-in charts (e.g. 1h bars over ~2 days) and bloated markers on wide-aspect layouts. The TRIANGLE-vs-ARROW visual asymmetry (reinforcing the scheduled-vs-forced semantic contract from §1.3.1) is preserved at every size. Single-bar series — legal under V2 — fall back to the previous fixed extents (no period or aspect signal to scale to). Spec: `heerwisch-jfreechart/CLAUDE.md` §8.1.
 
 ### Fixed
 

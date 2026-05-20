@@ -25,7 +25,7 @@ belong in your own code, not here.
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>commons</artifactId>
-    <version>0.44.0-alpha</version>
+    <version>0.45.0-alpha</version>
 </dependency>
 ```
 
