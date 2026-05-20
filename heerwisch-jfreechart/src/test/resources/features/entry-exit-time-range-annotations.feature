@@ -32,12 +32,38 @@ Feature: EntryExitMarker and TimeRangeHighlight rendering
     When I render the chart
     Then rendering succeeds
 
-  Scenario: All four FillColor values render without error
+  Scenario: All four direction-oriented FillColor values render without error
     Given a chart with an OHLC series of 60 bars
     And a TimeRangeHighlight from bar 5 to bar 12 with fillColor LONG_POSITION and opacity 0.15
     And a TimeRangeHighlight from bar 15 to bar 22 with fillColor SHORT_POSITION and opacity 0.15
     And a TimeRangeHighlight from bar 25 to bar 32 with fillColor NEUTRAL and opacity 0.10
     And a TimeRangeHighlight from bar 35 to bar 42 with fillColor CAUTION and opacity 0.20
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: Outcome-oriented WIN FillColor renders the band
+    Given a chart with an OHLC series of 60 bars
+    And a TimeRangeHighlight from bar 10 to bar 25 with fillColor WIN and opacity 0.18
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: Outcome-oriented LOSS FillColor renders the band
+    Given a chart with an OHLC series of 60 bars
+    And a TimeRangeHighlight from bar 10 to bar 25 with fillColor LOSS and opacity 0.18
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: Outcome-oriented OPEN FillColor renders the band
+    Given a chart with an OHLC series of 60 bars
+    And a TimeRangeHighlight from bar 10 to bar 50 with fillColor OPEN and opacity 0.15
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: Direction- and outcome-oriented variants coexist in one chart
+    Given a chart with an OHLC series of 60 bars
+    And a TimeRangeHighlight from bar 4 to bar 14 with fillColor WIN and opacity 0.18
+    And a TimeRangeHighlight from bar 18 to bar 28 with fillColor LOSS and opacity 0.18
+    And a TimeRangeHighlight from bar 32 to bar 50 with fillColor OPEN and opacity 0.15
     When I render the chart
     Then rendering succeeds
 

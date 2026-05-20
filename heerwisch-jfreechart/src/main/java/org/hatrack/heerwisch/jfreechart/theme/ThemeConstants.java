@@ -55,6 +55,12 @@ public final class ThemeConstants {
     public static final Color TIME_RANGE_SHORT = new Color(0xEF5350);
     public static final Color TIME_RANGE_NEUTRAL = new Color(0x90A4AE);
     public static final Color TIME_RANGE_CAUTION = new Color(0xFFB300);
+    /** Outcome-oriented: winning trade. Same RGB as {@code TIME_RANGE_LONG} today; the renderer may differentiate later without API change. */
+    public static final Color TIME_RANGE_WIN = new Color(0x26A69A);
+    /** Outcome-oriented: losing trade. Same RGB as {@code TIME_RANGE_SHORT} today; the renderer may differentiate later without API change. */
+    public static final Color TIME_RANGE_LOSS = new Color(0xEF5350);
+    /** Outcome-oriented: still-open trade at backtest end. Same RGB as {@code TIME_RANGE_NEUTRAL} today; the renderer may differentiate later without API change. */
+    public static final Color TIME_RANGE_OPEN = new Color(0x90A4AE);
 
     /**
      * Vertical offset multiplier for auto-positioned {@code EntryExitMarkerAuto}

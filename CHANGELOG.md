@@ -5,6 +5,17 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.47.0-alpha
+
+### Added
+
+- **heerwisch-api:** three new `FillColor` enum values for `Annotation.TimeRangeHighlight` — `WIN`, `LOSS`, `OPEN` — for outcome-oriented trade-duration shading (the TradingView convention: green band = winning trade, red band = losing trade, neutral band = still-open trade at backtest end). Distinct from the existing direction-oriented values (`LONG_POSITION`, `SHORT_POSITION`, `NEUTRAL`, `CAUTION`); consumers pick the variant that matches their semantic intent. The enum-name carries the contract.
+- **heerwisch-jfreechart:** three new `ThemeConstants` — `TIME_RANGE_WIN`, `TIME_RANGE_LOSS`, `TIME_RANGE_OPEN` — for the new `FillColor` variants. Currently share RGBs with `TIME_RANGE_LONG` / `TIME_RANGE_SHORT` / `TIME_RANGE_NEUTRAL` (green / red / blue-grey, the universally-recognized semantic palette); the renderer may differentiate the tones in future without API change.
+
+### Compatibility
+
+- Additive. Existing consumers of `FillColor.LONG_POSITION` / `SHORT_POSITION` / `NEUTRAL` / `CAUTION` continue to work unchanged. Adding enum values is structurally significant for exhaustive-switch consumers (they recompile to add the new arms or stop being exhaustive) but binary-additive — the same pattern PR #27 used cleanly when `FillColor` was originally introduced.
+
 ## 0.46.0-alpha
 
 ### Fixed

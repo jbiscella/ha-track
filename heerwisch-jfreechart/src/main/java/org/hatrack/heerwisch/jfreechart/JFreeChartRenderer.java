@@ -442,6 +442,9 @@ public final class JFreeChartRenderer implements ChartRenderer {
             case SHORT_POSITION -> ThemeConstants.TIME_RANGE_SHORT;
             case NEUTRAL -> ThemeConstants.TIME_RANGE_NEUTRAL;
             case CAUTION -> ThemeConstants.TIME_RANGE_CAUTION;
+            case WIN -> ThemeConstants.TIME_RANGE_WIN;
+            case LOSS -> ThemeConstants.TIME_RANGE_LOSS;
+            case OPEN -> ThemeConstants.TIME_RANGE_OPEN;
         };
     }
 
