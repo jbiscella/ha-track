@@ -5,6 +5,18 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.48.0-alpha
+
+### Added
+
+- **frau-holle-eodhd:** support for EODHD's `/api/intraday` endpoint alongside the existing `/api/eod` endpoint. `EodhdMarketDataSource` now handles intraday timeframes `1m`, `5m`, `1h` in addition to daily / weekly / monthly. Endpoint dispatch is by `Timeframe.unit()`: `SECOND` / `MINUTE` / `HOUR` route to `/api/intraday`; `DAY` / `WEEK` / `MONTH` / `YEAR` route to `/api/eod`. Single class, single public entry point — consumers do not choose at construction.
+- **frau-holle-eodhd:** intraday-specific behavior — `from` / `to` are passed as UNIX epoch **seconds** (not `YYYY-MM-DD`, EODHD's different convention for this endpoint); bar `time` is `Instant.ofEpochSecond(row["timestamp"])` (bar start in UTC, EODHD's `gmtoffset` and `datetime` fields ignored); pre-market and after-hours bars for US tickers are passed through as-is (no RTH filtering — filter downstream); intraday call cost is 5 EODHD API credits per request (vs 1 for EOD); 5m / 1h history available from October 2020, 1m varies by ticker.
+- **frau-holle-eodhd:** unsupported intraday intervals (e.g. `15m`, `30m`, `2h`) are rejected with `MarketDataSchemaException` naming the supported set `{1m, 5m, 1h}`. Unsupported daily timeframes (e.g. `3d`, `2w`) are rejected with the supported set `{1d, 1w, 1M}`. The prior blanket "intraday rejected" message is replaced by these targeted messages.
+
+### Compatibility
+
+- Additive. Existing consumers passing `1d` / `1w` / `1M` continue to work unchanged (same endpoint, same URL shape, same response shape). Consumers passing intraday timeframes — previously rejected — now receive bars instead of an exception. japicmp clean (no public API surface change in commons or heerwisch-api; `frau-holle-eodhd`'s `EodhdMarketDataSource` constructor and `fetchHistory` signature are unchanged).
+
 ## 0.47.0-alpha
 
 ### Added
