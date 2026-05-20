@@ -174,6 +174,12 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 
 Annotations are drawn on the `MAIN` pane only in v1. Multi-pane annotations are not supported (a future API extension).
 
+#### EntryExitMarker glyph geometry — semantic asymmetry, not a cosmetic bug
+
+The renderer deliberately draws `UP_TRIANGLE` / `DOWN_TRIANGLE` as compact solid shapes and `ARROW_UP` / `ARROW_DOWN` as a sparse chevron+shaft silhouette. The triangle's filled pixels are concentrated in a single block; the arrow's filled pixels are spread across a thin V plus a thin vertical shaft. Even when the **filled area** is held equal across glyph styles (which is the case in the current implementation — `(chevronHalf + 2·shaft)·dy = 2·dx·dy`), the triangle reads as visually heavier because solid shapes look chunkier than thin silhouettes of equal pixel count.
+
+This asymmetry is intentional and matches the `GlyphStyle` semantic contract documented in `heerwisch-api/CLAUDE.md` §1.3.1: TRIANGLE = scheduled (strategy-scenario-driven) trade event; ARROW = forced (risk-managed) trade event. The renderer's geometry reinforces the semantic — bigger / chunkier = "the strategy made a deliberate decision here"; smaller / lighter = "this was a mechanical safety exit". Future driver implementations MUST preserve this asymmetry. Do not try to equalize the visual weight of triangles and arrows: the asymmetry is the API contract, not a rendering artifact.
+
 ### Pivot Points formulas (canonical)
 
 For a previous-period bar with high H, low L, close C:
