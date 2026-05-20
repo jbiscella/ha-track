@@ -395,17 +395,38 @@ public final class JFreeChartRenderer implements ChartRenderer {
         if (dy <= 0) {
             dy = 1.0;
         }
+        double shaft = dx / 3.0;            // shaft half-width for ARROW_* glyphs
         Path2D.Double p = new Path2D.Double();
         switch (style) {
-            case UP_TRIANGLE, ARROW_UP -> {
+            case UP_TRIANGLE -> {
                 p.moveTo(x,      y + dy);
                 p.lineTo(x - dx, y - dy);
                 p.lineTo(x + dx, y - dy);
             }
-            case DOWN_TRIANGLE, ARROW_DOWN -> {
+            case DOWN_TRIANGLE -> {
                 p.moveTo(x,      y - dy);
                 p.lineTo(x - dx, y + dy);
                 p.lineTo(x + dx, y + dy);
+            }
+            // ARROW_* glyphs: a rectangular shaft tipped with a wider
+            // chevron — visually distinct from the simple triangles.
+            case ARROW_UP -> {
+                p.moveTo(x - shaft, y - dy);
+                p.lineTo(x + shaft, y - dy);
+                p.lineTo(x + shaft, y);
+                p.lineTo(x + dx,    y);
+                p.lineTo(x,         y + dy);
+                p.lineTo(x - dx,    y);
+                p.lineTo(x - shaft, y);
+            }
+            case ARROW_DOWN -> {
+                p.moveTo(x - shaft, y + dy);
+                p.lineTo(x + shaft, y + dy);
+                p.lineTo(x + shaft, y);
+                p.lineTo(x + dx,    y);
+                p.lineTo(x,         y - dy);
+                p.lineTo(x - dx,    y);
+                p.lineTo(x - shaft, y);
             }
         }
         p.closePath();
