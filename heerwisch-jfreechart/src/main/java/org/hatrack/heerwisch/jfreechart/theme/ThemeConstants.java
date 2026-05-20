@@ -56,6 +56,20 @@ public final class ThemeConstants {
     public static final Color TIME_RANGE_NEUTRAL = new Color(0x90A4AE);
     public static final Color TIME_RANGE_CAUTION = new Color(0xFFB300);
 
+    /**
+     * Vertical offset multiplier for auto-positioned {@code EntryExitMarkerAuto}
+     * glyphs. The glyph sits at {@code bar.low - glyph.dy × FACTOR} for
+     * {@code LONG_ENTRY} / {@code SHORT_EXIT} (below the bar), and at
+     * {@code bar.high + glyph.dy × FACTOR} for {@code LONG_EXIT} /
+     * {@code SHORT_ENTRY} (above the bar). Default {@code 1.5} places the
+     * glyph clearly outside the bar without excessive distance.
+     *
+     * <p>Future variants ({@code GLYPH_OFFSET_FACTOR_TIME},
+     * {@code GLYPH_OFFSET_FACTOR_PRICE}, etc.) may be added if other offset
+     * semantics emerge.
+     */
+    public static final double GLYPH_OFFSET_FACTOR_BAR = 1.5;
+
     public static final Stroke STROKE_DEFAULT = new BasicStroke(1.0f);
     public static final Stroke STROKE_INDICATOR = new BasicStroke(1.5f);
     public static final Stroke STROKE_HORIZONTAL_LEVEL_DASHED = new BasicStroke(

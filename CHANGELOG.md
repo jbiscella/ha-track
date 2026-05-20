@@ -20,10 +20,13 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
   - **V21** — `RSI.oversold` MUST be strictly less than `RSI.overbought`.
   The canonical `RSI` constructor's prior bounds enforcement (positivity on `overbought` and `oversold`) moved into V19/V20/V21 so the malformed-input path produces `InvalidChartSpecException` uniformly. The canonical now enforces only nullness + `period ≥ 1`. `oversold = 0` (rejected previously) is now valid.
 - **heerwisch-jfreechart:** two new `ThemeConstants` for RSI danger-zone fills: `RSI_OVERBOUGHT_ZONE` and `RSI_OVERSOLD_ZONE` (15% alpha, semantic red / green).
+- **heerwisch-api:** new `Annotation` subtype `EntryExitMarkerAuto(Instant time, MarkerDirection direction, GlyphStyle glyphStyle)` for auto-positioned trade markers. The renderer derives the Y position from the bar at `time`: `LONG_ENTRY` / `SHORT_EXIT` glyphs sit below the bar's low, `LONG_EXIT` / `SHORT_ENTRY` glyphs sit above the bar's high. Matches industry convention (TradingView and similar tools); avoids the visual overlap that occurs when consumers pass `bar.close()` as the explicit price to `EntryExitMarker`. **Recommended** for visualizing trade entries and exits. V16 generalizes to both `EntryExitMarker` and `EntryExitMarkerAuto`.
+- **heerwisch-jfreechart:** new `ThemeConstants.GLYPH_OFFSET_FACTOR_BAR` (default `1.5`) controls the offset distance of the auto-positioned glyph from the bar's high/low. Sized in glyph-half-height units so it adapts to the chart's aspect ratio via the same machinery that sizes the glyph itself.
+- **heerwisch-api:** existing `EntryExitMarker(time, price, direction, glyphStyle)` remains first-class and unchanged. Recommended for pinning markers to specific Y coordinates not tied to a bar's high/low — target levels, limit-order prices, indicator-driven alerts.
 
 ### Compatibility
 
-- Additive across the board — consumers of v0.45.0-alpha rebuild without changes. Adding a record component to `RSI` is structurally significant; japicmp reports it clean against 0.45.0-alpha because the 4-arg overload constructor preserves the original constructor signature and the new `visualization()` accessor is purely additive.
+- Additive across the board — consumers of v0.45.0-alpha rebuild without changes. Adding a record component to `RSI` is structurally significant; japicmp reports it clean against 0.45.0-alpha because the 4-arg overload constructor preserves the original constructor signature and the new `visualization()` accessor is purely additive. Adding `EntryExitMarkerAuto` to the sealed `Annotation` hierarchy is also clean: the same pattern PR #27 used when adding `EntryExitMarker` and `TimeRangeHighlight` — consumers with exhaustive `switch (annotation)` blocks recompile, but binary callers are unaffected.
 
 ## 0.45.0-alpha
 

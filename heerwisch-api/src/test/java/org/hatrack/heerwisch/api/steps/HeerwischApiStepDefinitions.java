@@ -196,6 +196,18 @@ public class HeerwischApiStepDefinitions {
                 BigDecimal.TEN, MarkerDirection.LONG_ENTRY, GlyphStyle.UP_TRIANGLE));
     }
 
+    @Given("an EntryExitMarkerAuto at bar index {int} with direction {word} and glyph {word}")
+    public void entryExitMarkerAutoAtBar(int barIndex, String direction, String glyph) {
+        builder.addAnnotation(new Annotation.EntryExitMarkerAuto(timeOf(barIndex),
+                MarkerDirection.valueOf(direction), GlyphStyle.valueOf(glyph)));
+    }
+
+    @Given("an EntryExitMarkerAuto at a non-existent time")
+    public void entryExitMarkerAutoOffSeries() {
+        builder.addAnnotation(new Annotation.EntryExitMarkerAuto(BASE.minusSeconds(86400L),
+                MarkerDirection.LONG_ENTRY, GlyphStyle.UP_TRIANGLE));
+    }
+
     @Given("a TimeRangeHighlight from bar {int} to bar {int} with fillColor {word} and opacity {bigdecimal}")
     public void timeRangeHighlight(int fromBar, int toBar, String fillColor, BigDecimal opacity) {
         builder.addAnnotation(new Annotation.TimeRangeHighlight(timeOf(fromBar), timeOf(toBar),

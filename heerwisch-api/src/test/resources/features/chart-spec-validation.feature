@@ -134,6 +134,20 @@ Feature: ChartSpecBuilder eager validation
     When I build the chart spec
     Then the chart spec builds successfully
 
+  Scenario: An EntryExitMarkerAuto at a non-existent time fails build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And an EntryExitMarkerAuto at a non-existent time
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V16"
+
+  Scenario: An EntryExitMarkerAuto at a valid bar passes build
+    Given a chart spec builder
+    And an OHLC series of 10 bars
+    And an EntryExitMarkerAuto at bar index 5 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    When I build the chart spec
+    Then the chart spec builds successfully
+
   Scenario: A TimeRangeHighlight with reversed times fails build
     Given a chart spec builder
     And an OHLC series of 10 bars

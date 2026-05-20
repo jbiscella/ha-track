@@ -398,6 +398,22 @@ public final class JFreeChartRenderer implements ChartRenderer {
                             ThemeConstants.STROKE_DEFAULT, color, color);
                     plot.addAnnotation(shape);
                 }
+                case Annotation.EntryExitMarkerAuto entryExit -> {
+                    Color color = entryExitColor(entryExit.direction());
+                    double[] hl = barHighLow(spec.series(), entryExit.time());
+                    double padding = glyphExtents.dy() * ThemeConstants.GLYPH_OFFSET_FACTOR_BAR;
+                    double yPosition = switch (entryExit.direction()) {
+                        case LONG_ENTRY, SHORT_EXIT -> hl[1] - padding; // below bar.low
+                        case LONG_EXIT, SHORT_ENTRY -> hl[0] + padding; // above bar.high
+                    };
+                    Shape glyph = glyphShape(entryExit.glyphStyle(),
+                            entryExit.time().toEpochMilli(),
+                            yPosition,
+                            glyphExtents.dx(), glyphExtents.dy());
+                    XYShapeAnnotation shape = new XYShapeAnnotation(glyph,
+                            ThemeConstants.STROKE_DEFAULT, color, color);
+                    plot.addAnnotation(shape);
+                }
                 case Annotation.TimeRangeHighlight range -> {
                     Color base = timeRangeColor(range.fillColor());
                     int alpha = range.opacity().multiply(new BigDecimal("255")).intValue();
@@ -627,6 +643,39 @@ public final class JFreeChartRenderer implements ChartRenderer {
             case OHLCSeries o -> o.bars().stream().map(OHLCBar::time).toList();
             case HASeries h -> h.bars().stream().map(HABar::time).toList();
         };
+    }
+
+    /**
+     * Returns {@code {high, low}} for the bar at {@code time} in {@code series}.
+     * V16 guarantees the bar exists by the time the renderer runs; this helper
+     * still throws {@link IllegalStateException} if invoked outside that guard
+     * (defensive, should never fire in practice).
+     */
+    private static double[] barHighLow(Series series, Instant time) {
+        switch (series) {
+            case OHLCSeries o -> {
+                for (OHLCBar bar : o.bars()) {
+                    if (bar.time().equals(time)) {
+                        return new double[] {
+                                bar.high().doubleValue(),
+                                bar.low().doubleValue()
+                        };
+                    }
+                }
+            }
+            case HASeries h -> {
+                for (HABar bar : h.bars()) {
+                    if (bar.time().equals(time)) {
+                        return new double[] {
+                                bar.haHigh().doubleValue(),
+                                bar.haLow().doubleValue()
+                        };
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException("bar not found at " + time
+                + " (V16 should have rejected this earlier)");
     }
 
     private static List<BigDecimal> prices(Series series, PriceSource source) {

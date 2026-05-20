@@ -49,6 +49,44 @@ Feature: EntryExitMarker and TimeRangeHighlight rendering
     When I render the chart
     Then rendering succeeds
 
+  Scenario: EntryExitMarkerAuto LONG_ENTRY renders glyph below bar.low
+    Given a chart with an OHLC series of 60 bars
+    And an EntryExitMarkerAuto at bar 10 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: EntryExitMarkerAuto LONG_EXIT renders glyph above bar.high
+    Given a chart with an OHLC series of 60 bars
+    And an EntryExitMarkerAuto at bar 30 with direction LONG_EXIT and glyph DOWN_TRIANGLE
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: EntryExitMarkerAuto SHORT_ENTRY renders glyph above bar.high
+    Given a chart with an OHLC series of 60 bars
+    And an EntryExitMarkerAuto at bar 20 with direction SHORT_ENTRY and glyph DOWN_TRIANGLE
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: EntryExitMarkerAuto SHORT_EXIT renders glyph below bar.low
+    Given a chart with an OHLC series of 60 bars
+    And an EntryExitMarkerAuto at bar 40 with direction SHORT_EXIT and glyph UP_TRIANGLE
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: EntryExitMarker (explicit price) renders unchanged for backward compatibility
+    Given a chart with an OHLC series of 60 bars
+    And an EntryExitMarker at bar 15 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: EntryExitMarkerAuto and EntryExitMarker coexist in a single chart
+    Given a chart with an OHLC series of 60 bars
+    And an EntryExitMarkerAuto at bar 10 with direction LONG_ENTRY and glyph UP_TRIANGLE
+    And an EntryExitMarker at bar 20 with direction LONG_EXIT and glyph DOWN_TRIANGLE
+    And an EntryExitMarkerAuto at bar 30 with direction SHORT_ENTRY and glyph DOWN_TRIANGLE
+    When I render the chart
+    Then rendering succeeds
+
   Scenario: Scheduled-vs-forced semantic — consumer wires triangles for scenario exits, arrows for stop-loss
     # Documents the consumer-side mapping codified by GlyphStyle's semantic
     # contract (heerwisch-api/CLAUDE.md section 1.3.1): the scenario-driven
