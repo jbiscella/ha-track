@@ -45,6 +45,13 @@ public final class ThemeConstants {
     public static final Color FIB_LEVEL = new Color(0x7B, 0x1F, 0xA2, 153);
     public static final Color PIVOT_LEVEL = new Color(0x19, 0x76, 0xD2, 153);
 
+    // Base (opaque) colors for TimeRangeHighlight fills. The per-instance
+    // opacity is applied by JFreeChartRenderer; these are RGB-only.
+    public static final Color TIME_RANGE_LONG = new Color(0x26A69A);
+    public static final Color TIME_RANGE_SHORT = new Color(0xEF5350);
+    public static final Color TIME_RANGE_NEUTRAL = new Color(0x90A4AE);
+    public static final Color TIME_RANGE_CAUTION = new Color(0xFFB300);
+
     public static final Stroke STROKE_DEFAULT = new BasicStroke(1.0f);
     public static final Stroke STROKE_INDICATOR = new BasicStroke(1.5f);
     public static final Stroke STROKE_HORIZONTAL_LEVEL_DASHED = new BasicStroke(

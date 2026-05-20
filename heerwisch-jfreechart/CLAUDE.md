@@ -165,10 +165,12 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 
 | Annotation | Render strategy |
 |---|---|
-| `BarHighlight(time, price, label)` | A small triangle marker at `(time, price)` colored by direction; the label is rendered as a text annotation adjacent to the marker. Direction inferred from `label` is not done — caller responsibility; driver uses `ANNOTATION_NEUTRAL` color by default. If a future API change adds a direction enum, the rule changes |
+| `BarHighlight(time, price, label)` | A text-only annotation (`XYTextAnnotation`) at `(time, price)`, rendered in `ANNOTATION_NEUTRAL` color. **No glyph is drawn** — for a directional glyph (triangle / arrow) use `EntryExitMarker` instead. The label string is the only visual element |
 | `HorizontalLevel(price, label, style)` | A horizontal line across all panes at `price`, with stroke from `style` (`SOLID` / `DASHED` / `DOTTED`), color `HORIZONTAL_LEVEL`. Label rendered at the right margin |
 | `FibRetracement(swingHigh, swingLow, levels)` | One horizontal line per `level` in the list, between `swingHigh` and `swingLow`, color `FIB_LEVEL`. Each line labeled with its fraction |
 | `PivotPointLevels(variant, previousPeriodBar)` | Levels computed from `previousPeriodBar` per the formulas of `variant` (`STANDARD`, `CAMARILLA`, `WOODIE`). Rendered as horizontal lines colored `PIVOT_LEVEL`, each labeled (P, S1, S2, R1, R2, etc.) |
+| `EntryExitMarker(time, price, direction, glyphStyle)` | A chunky semantic glyph drawn at `(time, price)` via JFreeChart's `XYShapeAnnotation`. Shape from `glyphStyle` (triangle/arrow, up or down); color from `direction` — `LONG_ENTRY` and `SHORT_EXIT` use `ANNOTATION_BULLISH` (semantic green), `SHORT_ENTRY` and `LONG_EXIT` use `ANNOTATION_BEARISH` (semantic red). Half-extent ≈ 12 hours on the time axis and 0.5% of price on the value axis, producing a ~8-12 px marker at typical chart densities |
+| `TimeRangeHighlight(startTime, endTime, fillColor, opacity)` | A shaded background band over `[startTime, endTime]` drawn via JFreeChart's `IntervalMarker` on the domain axis, placed at `Layer.BACKGROUND` so it sits behind candles and indicator lines. Base color from `fillColor` (`LONG_POSITION` → `TIME_RANGE_LONG`, `SHORT_POSITION` → `TIME_RANGE_SHORT`, `NEUTRAL` → `TIME_RANGE_NEUTRAL`, `CAUTION` → `TIME_RANGE_CAUTION`); per-instance `opacity` (`[0, 1]`) is applied as the fill alpha. No outline is drawn |
 
 Annotations are drawn on the `MAIN` pane only in v1. Multi-pane annotations are not supported (a future API extension).
 

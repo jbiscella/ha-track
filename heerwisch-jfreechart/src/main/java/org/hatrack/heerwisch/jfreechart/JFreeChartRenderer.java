@@ -13,11 +13,14 @@ import org.hatrack.heerwisch.api.port.ChartRenderer;
 import org.hatrack.heerwisch.api.spec.Annotation;
 import org.hatrack.heerwisch.api.spec.ChartImage;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
+import org.hatrack.heerwisch.api.spec.FillColor;
+import org.hatrack.heerwisch.api.spec.GlyphStyle;
 import org.hatrack.heerwisch.api.spec.ImageFormat;
 import org.hatrack.heerwisch.api.spec.Indicator;
 import org.hatrack.heerwisch.api.spec.IndicatorPlacement;
 import org.hatrack.heerwisch.api.spec.LayoutSpec;
 import org.hatrack.heerwisch.api.spec.LevelStyle;
+import org.hatrack.heerwisch.api.spec.MarkerDirection;
 import org.hatrack.heerwisch.api.spec.Pane;
 import org.hatrack.heerwisch.jfreechart.theme.ThemeConstants;
 import org.hatrack.indicators.BollingerBands;
@@ -25,13 +28,16 @@ import org.hatrack.indicators.Indicators;
 import org.hatrack.indicators.MacdResult;
 import org.hatrack.indicators.StochasticResult;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.annotations.XYShapeAnnotation;
 import org.jfree.chart.annotations.XYTextAnnotation;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.axis.ValueAxis;
 import org.jfree.chart.plot.CombinedDomainXYPlot;
+import org.jfree.chart.plot.IntervalMarker;
 import org.jfree.chart.plot.ValueMarker;
 import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.ui.Layer;
 import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.chart.renderer.xy.XYBarRenderer;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
@@ -48,6 +54,8 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontFormatException;
+import java.awt.Shape;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -336,8 +344,98 @@ public final class JFreeChartRenderer implements ChartRenderer {
                         plot.addRangeMarker(marker(level.doubleValue(), ThemeConstants.PIVOT_LEVEL));
                     }
                 }
+                case Annotation.EntryExitMarker entryExit -> {
+                    Color color = entryExitColor(entryExit.direction());
+                    Shape glyph = glyphShape(entryExit.glyphStyle(),
+                            entryExit.time().toEpochMilli(),
+                            entryExit.price().doubleValue());
+                    XYShapeAnnotation shape = new XYShapeAnnotation(glyph,
+                            ThemeConstants.STROKE_DEFAULT, color, color);
+                    plot.addAnnotation(shape);
+                }
+                case Annotation.TimeRangeHighlight range -> {
+                    Color base = timeRangeColor(range.fillColor());
+                    int alpha = range.opacity().multiply(new BigDecimal("255")).intValue();
+                    Color fill = new Color(base.getRed(), base.getGreen(), base.getBlue(), alpha);
+                    IntervalMarker band = new IntervalMarker(
+                            range.startTime().toEpochMilli(),
+                            range.endTime().toEpochMilli(),
+                            fill);
+                    band.setOutlinePaint(null);
+                    plot.addDomainMarker(band, Layer.BACKGROUND);
+                }
             }
         }
+    }
+
+    private static Color entryExitColor(MarkerDirection direction) {
+        return switch (direction) {
+            case LONG_ENTRY, SHORT_EXIT -> ThemeConstants.ANNOTATION_BULLISH;
+            case SHORT_ENTRY, LONG_EXIT -> ThemeConstants.ANNOTATION_BEARISH;
+        };
+    }
+
+    private static Color timeRangeColor(FillColor fillColor) {
+        return switch (fillColor) {
+            case LONG_POSITION -> ThemeConstants.TIME_RANGE_LONG;
+            case SHORT_POSITION -> ThemeConstants.TIME_RANGE_SHORT;
+            case NEUTRAL -> ThemeConstants.TIME_RANGE_NEUTRAL;
+            case CAUTION -> ThemeConstants.TIME_RANGE_CAUTION;
+        };
+    }
+
+    private static Shape glyphShape(GlyphStyle style, double x, double y) {
+        // Glyph half-extents in data space. XYShapeAnnotation interprets the
+        // Shape's coordinates in the plot's domain (time-millis) and range
+        // (price), so coordinates must be doubles — Path2D.Double, not the
+        // int-based Polygon. Half-extents picked to read as a chunky marker
+        // (~8-12 px at typical chart densities) without dominating a candle.
+        double dx = 12.0 * 60 * 60 * 1000;  // 12 hours half-width on the time axis
+        double dy = Math.abs(y) * 0.005;    // 0.5% of price as vertical half-extent
+        if (dy <= 0) {
+            dy = 1.0;
+        }
+        double shaft = dx / 2.0;            // shaft half-width for ARROW_* glyphs;
+                                            // dx/2 (not dx/3) so the arrow's
+                                            // filled area matches the triangle's
+                                            // (shaft 2·shaft·dy + chevron dx·dy
+                                            // = 2·dx·dy, identical to the
+                                            // triangle's 0.5·2dx·2dy).
+        Path2D.Double p = new Path2D.Double();
+        switch (style) {
+            case UP_TRIANGLE -> {
+                p.moveTo(x,      y + dy);
+                p.lineTo(x - dx, y - dy);
+                p.lineTo(x + dx, y - dy);
+            }
+            case DOWN_TRIANGLE -> {
+                p.moveTo(x,      y - dy);
+                p.lineTo(x - dx, y + dy);
+                p.lineTo(x + dx, y + dy);
+            }
+            // ARROW_* glyphs: a rectangular shaft tipped with a wider
+            // chevron — visually distinct from the simple triangles.
+            case ARROW_UP -> {
+                p.moveTo(x - shaft, y - dy);
+                p.lineTo(x + shaft, y - dy);
+                p.lineTo(x + shaft, y);
+                p.lineTo(x + dx,    y);
+                p.lineTo(x,         y + dy);
+                p.lineTo(x - dx,    y);
+                p.lineTo(x - shaft, y);
+            }
+            case ARROW_DOWN -> {
+                p.moveTo(x - shaft, y + dy);
+                p.lineTo(x + shaft, y + dy);
+                p.lineTo(x + shaft, y);
+                p.lineTo(x + dx,    y);
+                p.lineTo(x,         y - dy);
+                p.lineTo(x - dx,    y);
+                p.lineTo(x - shaft, y);
+            }
+        }
+        p.closePath();
+        return p;
     }
 
     private static ValueMarker levelMarker(Annotation.HorizontalLevel level) {

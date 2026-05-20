@@ -53,17 +53,32 @@ All `period` and period-like int fields MUST be ≥ 1 (rejected by canonical con
 ### 1.3 `Annotation` (sealed)
 
 ```
-sealed interface Annotation permits BarHighlight, HorizontalLevel, FibRetracement, PivotPointLevels
+sealed interface Annotation permits BarHighlight, HorizontalLevel, FibRetracement, PivotPointLevels,
+                                    EntryExitMarker, TimeRangeHighlight
 ```
+
+The `permits` clause is implicit in source (all six variants are nested records in `Annotation.java`), consistent with `Indicator` and `LayoutSpec`. The full set is enumerated above for documentation and javadoc.
 
 | Variant | Fields | Notes |
 |---|---|---|
-| `BarHighlight` | `Instant time`, `BigDecimal price`, `String label` | Marks a single bar with a labeled arrow at `(time, price)`. `time` must exist in the series; `label` may be empty |
+| `BarHighlight` | `Instant time`, `BigDecimal price`, `String label` | Text annotation at `(time, price)`. The label string is rendered as a text annotation; the driver does NOT draw a glyph for `BarHighlight`. For a directional glyph use `EntryExitMarker`. `time` must exist in the series (rule V7); `label` may be empty |
 | `HorizontalLevel` | `BigDecimal price`, `String label`, `LevelStyle style` | Solid/dashed/dotted horizontal line at a given price. `LevelStyle` enum: `SOLID`, `DASHED`, `DOTTED` |
 | `FibRetracement` | `BigDecimal swingHigh`, `BigDecimal swingLow`, `List<BigDecimal> levels` | Draws Fibonacci levels between two prices. `levels` are fractions in `[0, 1]`. A constant `FibRetracement.STANDARD_LEVELS` = `[0.236, 0.382, 0.5, 0.618, 0.786]` is provided |
 | `PivotPointLevels` | `PivotPointVariant variant`, `OHLCBar previousPeriodBar` | Levels computed from the previous period's H/L/C. `PivotPointVariant` enum: `STANDARD`, `CAMARILLA`, `WOODIE` |
+| `EntryExitMarker` | `Instant time`, `BigDecimal price`, `MarkerDirection direction`, `GlyphStyle glyphStyle` | A semantic glyph (triangle or arrow) at a specific bar, colored by direction. Use for entry / exit visualization on backtest charts. `time` must exist in the series (rule V16) |
+| `TimeRangeHighlight` | `Instant startTime`, `Instant endTime`, `FillColor fillColor`, `BigDecimal opacity` | A semi-transparent shaded band over a closed time interval drawn behind the chart. Use for "in-position" bands or alert highlights. `startTime < endTime`, range must overlap the series (rule V17). `opacity` in `[0, 1]` inclusive (rule V18) |
 
 `PivotPointLevels` is computed by the driver from the `previousPeriodBar` (a pure function of three numbers — no pivot detection algorithm, no lookahead). The driver renders the computed levels as horizontal lines.
+
+`MarkerDirection`, `GlyphStyle`, and `FillColor` are closed enums in `org.hatrack.heerwisch.api.spec`:
+
+| Enum | Values | Semantic |
+|---|---|---|
+| `MarkerDirection` | `LONG_ENTRY`, `LONG_EXIT`, `SHORT_ENTRY`, `SHORT_EXIT` | Renderer convention: `LONG_ENTRY` and `SHORT_EXIT` use the bullish theme color (semantic green); `SHORT_ENTRY` and `LONG_EXIT` use the bearish theme color (semantic red). Named `MarkerDirection` (not `Direction`) to avoid a simple-name clash with `org.hatrack.frauholle.model.Direction` in consumer code that imports both modules |
+| `GlyphStyle` | `UP_TRIANGLE`, `DOWN_TRIANGLE`, `ARROW_UP`, `ARROW_DOWN` | Shape only; does not imply direction by itself (the accompanying `MarkerDirection` carries the semantic) |
+| `FillColor` | `LONG_POSITION`, `SHORT_POSITION`, `NEUTRAL`, `CAUTION` | Renderer base palette: light green, light red, light blue/gray, light yellow/amber |
+
+The API exposes no explicit color parameters on the new subtypes — color is renderer-applied from the semantic enum, matching the read-only `ThemeConstants` design of the JFreeChart driver.
 
 ### 1.4 `Pane`
 
@@ -171,6 +186,9 @@ All of these are rejected eagerly in `build()`. The exception carries a `String 
 | V13 | when the series is an `OHLCSeries`, every `OHLCBar` MUST satisfy its OHLC invariants (the `commons` invariant set — positive prices, `high ≥ low`, `high ≥ open/close`, `low ≤ open/close`, `volume ≥ 0` when present) | a bar with `high < low` |
 | V14 | a `LayoutSpecBuilder` with one or more subplot heights set MUST also have a main-pane height set | `LayoutSpec.builder().addSubplotHeight(SUBPLOT_1, 0.4).build()` with no `withMainPaneHeight(...)` |
 | V15 | with an `ExplicitLayoutSpec`, every non-`MAIN` `Pane` targeted by an indicator MUST have an entry in `subplotHeights` | an indicator placed at `SUBPLOT_1` while `subplotHeights` has no `SUBPLOT_1` key |
+| V16 | every `EntryExitMarker.time` MUST equal some `bar.time` in the series | marker references a non-existent bar (symmetric with V7 for `BarHighlight`) |
+| V17 | every `TimeRangeHighlight` MUST have `startTime` strictly before `endTime` AND its range MUST overlap the series time span | reversed or zero-width range, or a range entirely outside the series. The endpoints are NOT required to be bar times — any `Instant` within the overlap is valid (a trade can end mid-bar) |
+| V18 | every `TimeRangeHighlight.opacity` MUST be in `[0, 1]` inclusive | negative opacity, or opacity > 1 |
 
 V12 is a soft rule the `heerwisch-api` documents but does not enforce universally — different drivers MAY support different mixings. The default driver `heerwisch-jfreechart` enforces V12 strictly. If a driver does NOT support a given placement, it must throw `UnsupportedFeatureException` (see §4) at render time, not pretend to render.
 
@@ -187,12 +205,12 @@ All checked. All extend `ChartRenderException` (root).
 | Exception | Cause | Carrier fields |
 |---|---|---|
 | `ChartRenderException` (root) | abstract — never thrown directly | `String message`, `Throwable cause` |
-| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13, V14 or V15 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
+| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13, V14, V15, V16, V17, or V18 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
 | `UnsupportedFeatureException` | Driver doesn't support a requested feature | `String featureName`, `String driverName` |
 | `InsufficientDataException` | Data insufficient for an indicator at render time (escape hatch — preferably caught at build via V6) | `String indicatorName`, `int requiredBars`, `int availableBars` |
 | `DriverInternalException` | Underlying driver internal error | `Throwable cause` is mandatory; carries the original exception |
 
-`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13, V15) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
+`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13, V15, V16, V17, V18) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
 
 ## 5. Port: `ChartRenderer`
 
@@ -298,6 +316,28 @@ Feature: ChartSpecBuilder eager validation
     And an indicator placed at SUBPLOT_1
     When I withLayout(layout) and build()
     Then InvalidChartSpecException is thrown with violatedRule = "V15"
+
+  Scenario: EntryExitMarker at a non-existent bar time fails build
+    Given a series whose bar times do not include T
+    And an EntryExitMarker with time = T
+    When I addAnnotation(marker) and build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V16"
+
+  Scenario: TimeRangeHighlight with reversed times fails build
+    Given a TimeRangeHighlight with startTime ≥ endTime
+    When I addAnnotation(range) and build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V17"
+
+  Scenario: TimeRangeHighlight entirely outside the series time span fails build
+    Given a series spanning [B0.time, Bn.time]
+    And a TimeRangeHighlight whose entire range is before B0.time or after Bn.time
+    When I addAnnotation(range) and build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V17"
+
+  Scenario: TimeRangeHighlight with out-of-range opacity fails build
+    Given a TimeRangeHighlight with opacity < 0 or > 1
+    When I addAnnotation(range) and build()
+    Then InvalidChartSpecException is thrown with violatedRule = "V18"
 ```
 
 ## 7. Block 2 — Default pane assignment
