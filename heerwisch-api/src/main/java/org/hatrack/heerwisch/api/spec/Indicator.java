@@ -4,6 +4,7 @@ import org.hatrack.commons.PriceSource;
 
 import java.math.BigDecimal;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Closed hierarchy of chart indicators. Variants are nested records. Canonical
@@ -106,19 +107,31 @@ public sealed interface Indicator {
         }
     }
 
-    record RSI(int period, BigDecimal overbought, BigDecimal oversold, PriceSource priceSource)
+    record RSI(int period, BigDecimal overbought, BigDecimal oversold, PriceSource priceSource,
+               Optional<RsiVisualization> visualization)
             implements Indicator {
         public RSI {
             requirePeriod(period, "period");
             Objects.requireNonNull(overbought, "overbought");
             Objects.requireNonNull(oversold, "oversold");
             Objects.requireNonNull(priceSource, "priceSource");
+            Objects.requireNonNull(visualization, "visualization");
             // Bounds checks (overbought in (0, 100], oversold in [0, 100),
             // oversold < overbought) are enforced as V19/V20/V21 by
             // ChartSpecBuilder.build(). The canonical constructor accepts
             // any non-null BigDecimals so the bounds-violation path always
             // produces an InvalidChartSpecException rather than a raw
             // IllegalArgumentException.
+        }
+
+        /**
+         * Backward-compatible overload — defers to the canonical constructor
+         * with {@code visualization = Optional.empty()}. Existing callers
+         * built against the 4-argument signature continue to work unchanged.
+         */
+        public RSI(int period, BigDecimal overbought, BigDecimal oversold,
+                   PriceSource priceSource) {
+            this(period, overbought, oversold, priceSource, Optional.empty());
         }
 
         @Override
@@ -130,6 +143,25 @@ public sealed interface Indicator {
         public Pane defaultPane() {
             return Pane.SUBPLOT_1;
         }
+    }
+
+    /**
+     * Optional sub-pane visualization knobs for {@link RSI}. Carries
+     * driver-applied rendering decisions that have no impact on the
+     * indicator's numeric values; absent (i.e. {@code Optional.empty()}) means
+     * "default rendering" (threshold lines at overbought/oversold per
+     * {@code heerwisch-jfreechart/CLAUDE.md} §7, no shaded danger zones).
+     *
+     * <p>The danger-zone toggle pattern is intended to generalize to other
+     * bounded indicators in future releases (e.g. {@code Stochastic}); RSI is
+     * the first instance.
+     */
+    record RsiVisualization(boolean dangerZones) {
+        /** Default visualization: threshold lines drawn, no danger-zone shading. */
+        public static final RsiVisualization DEFAULT = new RsiVisualization(false);
+
+        /** Threshold lines drawn AND shaded danger zones above overbought / below oversold. */
+        public static final RsiVisualization DANGER_ZONES_ON = new RsiVisualization(true);
     }
 
     record ADX(int period) implements Indicator {

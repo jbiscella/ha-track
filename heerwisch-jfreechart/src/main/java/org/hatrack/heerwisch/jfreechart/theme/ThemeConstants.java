@@ -28,6 +28,10 @@ public final class ThemeConstants {
     public static final Color RSI_LINE = new Color(0x7B1FA2);
     public static final Color RSI_OVERBOUGHT_LEVEL = new Color(0xEF, 0x53, 0x50, 153);
     public static final Color RSI_OVERSOLD_LEVEL = new Color(0x26, 0xA6, 0x9A, 153);
+    /** Shaded fill for the overbought danger zone (above overbought threshold). 15% alpha. */
+    public static final Color RSI_OVERBOUGHT_ZONE = new Color(0xEF, 0x53, 0x50, 38);
+    /** Shaded fill for the oversold danger zone (below oversold threshold). 15% alpha. */
+    public static final Color RSI_OVERSOLD_ZONE = new Color(0x26, 0xA6, 0x9A, 38);
     public static final Color MACD_LINE = new Color(0x1976D2);
     public static final Color MACD_SIGNAL = new Color(0xF57C00);
     public static final Color MACD_HISTOGRAM_UP = new Color(0x26, 0xA6, 0x9A, 179);

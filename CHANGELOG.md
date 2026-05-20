@@ -5,6 +5,26 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.46.0-alpha
+
+### Fixed
+
+- **heerwisch-jfreechart:** the RSI sub-pane now renders the two horizontal threshold lines at the configured `overbought` and `oversold` values, and bounds the sub-pane Y axis to `[0, 100]` when the pane contains only RSI indicator(s). Both behaviors have always been specified by `heerwisch-jfreechart/CLAUDE.md` §7; the code previously rendered only the line. Existing consumers gain the threshold lines and bounded axis the spec already promised them. Mixed panes (RSI combined with an unbounded indicator such as MACD/ATR) preserve auto-range so unbounded siblings are not clipped.
+
+### Added
+
+- **heerwisch-api:** new optional `RsiVisualization` configuration record carried as a fifth optional argument on `Indicator.RSI`. Currently exposes a single `dangerZones` boolean that, when `true`, shades the regions above `overbought` and below `oversold` to highlight the danger zones. A backward-compatible 4-argument `RSI(period, overbought, oversold, priceSource)` constructor is preserved as an overload; existing callers built against it continue to work unchanged. The danger-zone toggle pattern is intended to generalize to other bounded indicators (e.g. `Stochastic`) in future PRs.
+- **heerwisch-api:** three new `InvalidChartSpecException` rules:
+  - **V19** — `RSI.overbought` MUST be ≤ 100.
+  - **V20** — `RSI.oversold` MUST be ≥ 0.
+  - **V21** — `RSI.oversold` MUST be strictly less than `RSI.overbought`.
+  The canonical `RSI` constructor's prior bounds enforcement (positivity on `overbought` and `oversold`) moved into V19/V20/V21 so the malformed-input path produces `InvalidChartSpecException` uniformly. The canonical now enforces only nullness + `period ≥ 1`. `oversold = 0` (rejected previously) is now valid.
+- **heerwisch-jfreechart:** two new `ThemeConstants` for RSI danger-zone fills: `RSI_OVERBOUGHT_ZONE` and `RSI_OVERSOLD_ZONE` (15% alpha, semantic red / green).
+
+### Compatibility
+
+- Additive across the board — consumers of v0.45.0-alpha rebuild without changes. Adding a record component to `RSI` is structurally significant; japicmp reports it clean against 0.45.0-alpha because the 4-arg overload constructor preserves the original constructor signature and the new `visualization()` accessor is purely additive.
+
 ## 0.45.0-alpha
 
 ### Added

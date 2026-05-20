@@ -279,6 +279,20 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 return addLine(plot, next, "Signal", times, lines.signalLine(), ThemeConstants.MACD_SIGNAL);
             }
             case Indicator.RSI rsi -> {
+                // Optional shaded danger zones (drawn first so they sit
+                // behind the threshold lines and the RSI line itself).
+                if (rsi.visualization().map(Indicator.RsiVisualization::dangerZones).orElse(false)) {
+                    double obValue = rsi.overbought().doubleValue();
+                    double osValue = rsi.oversold().doubleValue();
+                    IntervalMarker overboughtZone = new IntervalMarker(obValue, 100.0,
+                            ThemeConstants.RSI_OVERBOUGHT_ZONE);
+                    overboughtZone.setOutlinePaint(null);
+                    plot.addRangeMarker(overboughtZone, Layer.BACKGROUND);
+                    IntervalMarker oversoldZone = new IntervalMarker(0.0, osValue,
+                            ThemeConstants.RSI_OVERSOLD_ZONE);
+                    oversoldZone.setOutlinePaint(null);
+                    plot.addRangeMarker(oversoldZone, Layer.BACKGROUND);
+                }
                 // Horizontal reference levels at the configured overbought /
                 // oversold thresholds, per heerwisch-jfreechart/CLAUDE.md §7.
                 plot.addRangeMarker(marker(rsi.overbought().doubleValue(),

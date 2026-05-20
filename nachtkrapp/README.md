@@ -24,7 +24,7 @@ detection engine all live here.
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>nachtkrapp</artifactId>
-    <version>0.45.0-alpha</version>
+    <version>0.46.0-alpha</version>
 </dependency>
 ```
 

@@ -40,7 +40,7 @@ sealed interface Indicator permits SMA, EMA, MACD, RSI, BollingerBands, ADX, Sto
 | `EMA` | `int period`, `PriceSource priceSource` | `MAIN` |
 | `BollingerBands` | `int period`, `BigDecimal stdDevMultiplier`, `PriceSource priceSource` | `MAIN` |
 | `MACD` | `int fastPeriod`, `int slowPeriod`, `int signalPeriod`, `PriceSource priceSource` | `SUBPLOT_1` |
-| `RSI` | `int period`, `BigDecimal overbought`, `BigDecimal oversold`, `PriceSource priceSource` | `SUBPLOT_1` |
+| `RSI` | `int period`, `BigDecimal overbought`, `BigDecimal oversold`, `PriceSource priceSource`, `Optional<RsiVisualization> visualization` | `SUBPLOT_1` |
 | `ADX` | `int period` | `SUBPLOT_1` |
 | `Stochastic` | `int kPeriod`, `int dPeriod`, `int smoothing` | `SUBPLOT_1` |
 | `ATR` | `int period` | `SUBPLOT_1` |
@@ -49,6 +49,22 @@ sealed interface Indicator permits SMA, EMA, MACD, RSI, BollingerBands, ADX, Sto
 All `period` and period-like int fields MUST be ≥ 1 (rejected by canonical constructor). All `BigDecimal` ratio fields MUST be > 0. `priceSource` MUST be non-null where present.
 
 `VolumePane` is special: it reads `volume` from the underlying `Series` rather than computing from prices. If the series has no volume on its bars, the chart spec is invalid (rejected eager — see §3).
+
+#### 1.2.1 `RsiVisualization` — optional sub-pane rendering knobs for `RSI`
+
+`RSI` accepts an `Optional<RsiVisualization>` 5th argument that controls renderer-applied visual decisions with no impact on the indicator's numeric values:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `dangerZones` | `boolean` | When `true`, the driver shades the regions above `overbought` and below `oversold` to highlight the danger zones. When `false` (default), the sub-pane shows the RSI line and the two threshold lines only |
+
+Constants: `RsiVisualization.DEFAULT` (`dangerZones = false`) and `RsiVisualization.DANGER_ZONES_ON` (`dangerZones = true`).
+
+**Backward compatibility:** an explicit 4-argument `RSI(period, overbought, oversold, priceSource)` constructor is preserved as an overload; it delegates to the canonical 5-arg form with `visualization = Optional.empty()`. Existing callers built against the 4-arg signature continue to work unchanged.
+
+**Independent of the RSI threshold-line rendering:** threshold lines at `overbought` and `oversold` are always drawn (per `heerwisch-jfreechart/CLAUDE.md` §7), regardless of `RsiVisualization`. The visualization knob controls only the optional danger-zone shading.
+
+The danger-zone toggle pattern is designed to generalize to other bounded indicators in future PRs (e.g. a `StochasticVisualization`); RSI is the first instance.
 
 ### 1.3 `Annotation` (sealed)
 

@@ -155,7 +155,7 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 | `EMA(period, priceSource)` | Single line using `EMA_LINE` color |
 | `BollingerBands(period, mult, priceSource)` | Three lines (upper, middle, lower); upper and lower in `BB_BAND` color; middle implicit (already shown as SMA if present, otherwise rendered) |
 | `MACD(fast, slow, signal, priceSource)` | Two lines (MACD and signal) plus histogram bars |
-| `RSI(period, ob, os, priceSource)` | Single line + two horizontal levels at `overbought` and `oversold` |
+| `RSI(period, ob, os, priceSource, visualization)` | Single line in `RSI_LINE` color; two horizontal threshold lines at `overbought` (`RSI_OVERBOUGHT_LEVEL`) and `oversold` (`RSI_OVERSOLD_LEVEL`); sub-pane Y axis bounded to `[0, 100]` when the pane contains only RSI indicator(s) (mixed panes keep auto-range so unbounded siblings such as MACD/ATR are not clipped). When `visualization` is `Optional.of(RsiVisualization(dangerZones = true))`, the regions above `overbought` and below `oversold` are additionally shaded using `RSI_OVERBOUGHT_ZONE` / `RSI_OVERSOLD_ZONE` (15% alpha) at `Layer.BACKGROUND` |
 | `ADX(period)` | Single line |
 | `Stochastic(k, d, smoothing)` | Two lines (%K and %D) |
 | `ATR(period)` | Single line |
