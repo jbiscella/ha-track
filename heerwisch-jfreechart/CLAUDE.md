@@ -169,10 +169,23 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 | `HorizontalLevel(price, label, style)` | A horizontal line across all panes at `price`, with stroke from `style` (`SOLID` / `DASHED` / `DOTTED`), color `HORIZONTAL_LEVEL`. Label rendered at the right margin |
 | `FibRetracement(swingHigh, swingLow, levels)` | One horizontal line per `level` in the list, between `swingHigh` and `swingLow`, color `FIB_LEVEL`. Each line labeled with its fraction |
 | `PivotPointLevels(variant, previousPeriodBar)` | Levels computed from `previousPeriodBar` per the formulas of `variant` (`STANDARD`, `CAMARILLA`, `WOODIE`). Rendered as horizontal lines colored `PIVOT_LEVEL`, each labeled (P, S1, S2, R1, R2, etc.) |
-| `EntryExitMarker(time, price, direction, glyphStyle)` | A chunky semantic glyph drawn at `(time, price)` via JFreeChart's `XYShapeAnnotation`. Shape from `glyphStyle` (triangle/arrow, up or down); color from `direction` — `LONG_ENTRY` and `SHORT_EXIT` use `ANNOTATION_BULLISH` (semantic green), `SHORT_ENTRY` and `LONG_EXIT` use `ANNOTATION_BEARISH` (semantic red). Time-axis half-extent: ≈ 12 hours for `UP_TRIANGLE` / `DOWN_TRIANGLE`; ≈ 18 hours at the chevron tip for `ARROW_UP` / `ARROW_DOWN` (the chevron is widened beyond the triangle's base so the arrow silhouette stays distinguishable at typical marker sizes — the shaft is correspondingly narrowed so the filled area matches the triangle's). Value-axis half-extent: ≈ 0.5% of price. All four glyphs render at the same visual weight (~8-12 px at typical chart densities) |
+| `EntryExitMarker(time, price, direction, glyphStyle)` | A chunky semantic glyph drawn at `(time, price)` via JFreeChart's `XYShapeAnnotation`. Shape from `glyphStyle` (triangle/arrow, up or down); color from `direction` — `LONG_ENTRY` and `SHORT_EXIT` use `ANNOTATION_BULLISH` (semantic green), `SHORT_ENTRY` and `LONG_EXIT` use `ANNOTATION_BEARISH` (semantic red). Half-extents are computed adaptively from the series and layout (see §8.1 below) so the glyph stays proportional to the rendered candle width on any chart density, any aspect ratio, any device. `ARROW_UP` / `ARROW_DOWN` widen the chevron beyond the triangle's base (1.5× the triangle's half-width at the chevron tip) and narrow the shaft (¼ of the triangle's half-width) so the arrow silhouette stays distinguishable from the triangle while preserving equal filled area |
 | `TimeRangeHighlight(startTime, endTime, fillColor, opacity)` | A shaded background band over `[startTime, endTime]` drawn via JFreeChart's `IntervalMarker` on the domain axis, placed at `Layer.BACKGROUND` so it sits behind candles and indicator lines. Base color from `fillColor` (`LONG_POSITION` → `TIME_RANGE_LONG`, `SHORT_POSITION` → `TIME_RANGE_SHORT`, `NEUTRAL` → `TIME_RANGE_NEUTRAL`, `CAUTION` → `TIME_RANGE_CAUTION`); per-instance `opacity` (`[0, 1]`) is applied as the fill alpha. No outline is drawn |
 
 Annotations are drawn on the `MAIN` pane only in v1. Multi-pane annotations are not supported (a future API extension).
+
+#### 8.1 EntryExitMarker glyph half-extents — adaptive computation
+
+Half-extents are derived once per render from the series and the layout, not hardcoded. Given the series' minimum bar interval `Δt_min`, the series' price span `Δp = max(high) − min(low)`, the time span `T = lastBar.time − firstBar.time`, and the layout's `widthPx` / `heightPx`:
+
+| Quantity | Value |
+|---|---|
+| `dx` (time-axis half-extent) | `0.4 · Δt_min` — yielding a glyph total width of ~80% of one candle. The driver matches the **smallest** bar interval rather than the average so the glyph still tracks candle width on irregular timelines (daily series with weekend gaps, intraday series with session breaks), where the average interval would overstate it. The 0.4 fraction balances "wide enough to read" against "narrow enough not to overlap an adjacent candle's marker". |
+| `dy` (value-axis half-extent) | `dx · (Δp / T) · (widthPx / heightPx)` — chosen so the glyph reads as roughly square in pixel space (i.e. `2·dx / T · widthPx == 2·dy / Δp · heightPx`). Adapts to any chart aspect — narrow mobile portrait or ultra-wide desktop — without needing per-density tuning. |
+
+`ARROW_UP` / `ARROW_DOWN` use `chevronHalf = 1.5·dx` at the chevron tip and `shaft = dx/4`. The widened chevron makes the arrow silhouette distinguishable from a triangle; the narrowed shaft holds the filled area equal to `2·dx·dy` (= triangle's filled area), so all four glyph styles render at the same visual weight.
+
+Single-bar series fall back to a fixed `dx = 12h`, `dy = 0.5% · price`. A single bar provides no period or aspect information; the adaptive computation would have no signal to scale to.
 
 #### EntryExitMarker glyph geometry — semantic asymmetry, not a cosmetic bug
 

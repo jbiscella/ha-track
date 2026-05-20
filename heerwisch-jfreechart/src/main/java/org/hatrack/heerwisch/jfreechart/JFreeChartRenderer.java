@@ -321,6 +321,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
     // --- annotations (MAIN pane only) ---
 
     private void addAnnotations(XYPlot plot, ChartSpec spec) {
+        GlyphExtents glyphExtents = computeGlyphExtents(spec);
         for (Annotation annotation : spec.annotations()) {
             switch (annotation) {
                 case Annotation.BarHighlight highlight -> {
@@ -348,7 +349,8 @@ public final class JFreeChartRenderer implements ChartRenderer {
                     Color color = entryExitColor(entryExit.direction());
                     Shape glyph = glyphShape(entryExit.glyphStyle(),
                             entryExit.time().toEpochMilli(),
-                            entryExit.price().doubleValue());
+                            entryExit.price().doubleValue(),
+                            glyphExtents.dx(), glyphExtents.dy());
                     XYShapeAnnotation shape = new XYShapeAnnotation(glyph,
                             ThemeConstants.STROKE_DEFAULT, color, color);
                     plot.addAnnotation(shape);
@@ -384,17 +386,98 @@ public final class JFreeChartRenderer implements ChartRenderer {
         };
     }
 
-    private static Shape glyphShape(GlyphStyle style, double x, double y) {
-        // Glyph half-extents in data space. XYShapeAnnotation interprets the
-        // Shape's coordinates in the plot's domain (time-millis) and range
-        // (price), so coordinates must be doubles — Path2D.Double, not the
-        // int-based Polygon. Half-extents picked to read as a chunky marker
-        // (~8-12 px at typical chart densities) without dominating a candle.
-        double dx = 12.0 * 60 * 60 * 1000;  // 12 hours half-width on the time axis
-        double dy = Math.abs(y) * 0.005;    // 0.5% of price as vertical half-extent
-        if (dy <= 0) {
-            dy = 1.0;
+    // Glyph extents in data space. Computed once per render from the series'
+    // bar period (so the glyph width tracks candle width regardless of zoom
+    // or device) and the series' price/time span scaled by the chart's pixel
+    // aspect (so the glyph reads as roughly square in pixel space — no more
+    // horizontal slivers on zoomed-in or narrow charts).
+    private record GlyphExtents(double dx, double dy) {}
+
+    private static GlyphExtents computeGlyphExtents(ChartSpec spec) {
+        Series series = spec.series();
+        long firstT, lastT;
+        double priceMin = Double.POSITIVE_INFINITY;
+        double priceMax = Double.NEGATIVE_INFINITY;
+        long minIntervalMillis = Long.MAX_VALUE;
+        int barCount;
+        if (series instanceof OHLCSeries ohlc) {
+            var bars = ohlc.bars();
+            barCount = bars.size();
+            firstT = bars.get(0).time().toEpochMilli();
+            lastT = bars.get(barCount - 1).time().toEpochMilli();
+            long prevT = firstT;
+            for (int i = 0; i < barCount; i++) {
+                OHLCBar bar = bars.get(i);
+                priceMin = Math.min(priceMin, bar.low().doubleValue());
+                priceMax = Math.max(priceMax, bar.high().doubleValue());
+                if (i > 0) {
+                    long t = bar.time().toEpochMilli();
+                    minIntervalMillis = Math.min(minIntervalMillis, t - prevT);
+                    prevT = t;
+                }
+            }
+        } else {
+            HASeries ha = (HASeries) series;
+            var bars = ha.bars();
+            barCount = bars.size();
+            firstT = bars.get(0).time().toEpochMilli();
+            lastT = bars.get(barCount - 1).time().toEpochMilli();
+            long prevT = firstT;
+            for (int i = 0; i < barCount; i++) {
+                HABar bar = bars.get(i);
+                priceMin = Math.min(priceMin, bar.haLow().doubleValue());
+                priceMax = Math.max(priceMax, bar.haHigh().doubleValue());
+                if (i > 0) {
+                    long t = bar.time().toEpochMilli();
+                    minIntervalMillis = Math.min(minIntervalMillis, t - prevT);
+                    prevT = t;
+                }
+            }
         }
+
+        // Single-bar series (legal under V2) provides no period or aspect
+        // information. Fall back to the pre-fix fixed extents — there is
+        // nothing meaningful to scale to.
+        if (barCount < 2) {
+            double fallbackDx = 12.0 * 3_600_000;
+            double fallbackDy = Math.max(priceMin * 0.005, 1e-3);
+            return new GlyphExtents(fallbackDx, fallbackDy);
+        }
+
+        long timeSpan = lastT - firstT;
+        double priceSpan = Math.max(priceMax - priceMin, 1e-9);
+
+        LayoutSpec layout = spec.layout();
+        int widthPx = (layout instanceof LayoutSpec.AutoLayoutSpec auto) ? auto.widthPx()
+                : ((LayoutSpec.ExplicitLayoutSpec) layout).widthPx();
+        int heightPx = (layout instanceof LayoutSpec.AutoLayoutSpec auto) ? auto.heightPx()
+                : ((LayoutSpec.ExplicitLayoutSpec) layout).heightPx();
+
+        // dx = 40% of the *smallest* bar interval. JFreeChart's
+        // CandlestickRenderer uses WIDTHMETHOD_SMALLEST, so candle width
+        // tracks the minimum interval — we match it. On irregular timelines
+        // (e.g. daily data with weekend gaps) the average interval would
+        // overstate the candle width and the glyph would extend past
+        // adjacent candles.
+        double dx = 0.4 * minIntervalMillis;
+
+        // dy chosen so glyph appears roughly square in pixel space:
+        //   glyph_width_px  = (2·dx / timeSpan) · widthPx
+        //   glyph_height_px = (2·dy / priceSpan) · heightPx
+        // Setting them equal and solving for dy:
+        //   dy = dx · (priceSpan / timeSpan) · (widthPx / heightPx)
+        // This adapts to any chart aspect, any zoom, any device.
+        double dy = dx * (priceSpan / (double) timeSpan)
+                * ((double) widthPx / (double) heightPx);
+
+        return new GlyphExtents(dx, dy);
+    }
+
+    private static Shape glyphShape(GlyphStyle style, double x, double y, double dx, double dy) {
+        // XYShapeAnnotation interprets the Shape's coordinates in the plot's
+        // domain (time-millis) and range (price), so coordinates must be
+        // doubles — Path2D.Double, not the int-based Polygon.
+        //
         // ARROW_* glyphs: a thin shaft topped (or bottomed) with a wider
         // chevron. Geometry chosen for clear arrow-like silhouette while
         // preserving equal filled area with the matching triangle:
