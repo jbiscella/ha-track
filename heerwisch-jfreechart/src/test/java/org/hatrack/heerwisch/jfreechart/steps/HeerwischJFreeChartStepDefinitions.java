@@ -87,6 +87,14 @@ public class HeerwischJFreeChartStepDefinitions {
                 GlyphStyle.valueOf(glyph)));
     }
 
+    @Given("an EntryExitMarkerAuto at bar {int} with direction {word} and glyph {word}")
+    public void anEntryExitMarkerAuto(int barIndex, String direction, String glyph) {
+        builder.addAnnotation(new Annotation.EntryExitMarkerAuto(
+                BASE.plusSeconds(barIndex * 86400L),
+                MarkerDirection.valueOf(direction),
+                GlyphStyle.valueOf(glyph)));
+    }
+
     @Given("a TimeRangeHighlight from bar {int} to bar {int} with fillColor {word} and opacity {bigdecimal}")
     public void aTimeRangeHighlight(int fromBar, int toBar, String fillColor, BigDecimal opacity) {
         builder.addAnnotation(new Annotation.TimeRangeHighlight(

@@ -70,7 +70,7 @@ The danger-zone toggle pattern is designed to generalize to other bounded indica
 
 ```
 sealed interface Annotation permits BarHighlight, HorizontalLevel, FibRetracement, PivotPointLevels,
-                                    EntryExitMarker, TimeRangeHighlight
+                                    EntryExitMarker, EntryExitMarkerAuto, TimeRangeHighlight
 ```
 
 The `permits` clause is implicit in source (all six variants are nested records in `Annotation.java`), consistent with `Indicator` and `LayoutSpec`. The full set is enumerated above for documentation and javadoc.
@@ -81,7 +81,8 @@ The `permits` clause is implicit in source (all six variants are nested records 
 | `HorizontalLevel` | `BigDecimal price`, `String label`, `LevelStyle style` | Solid/dashed/dotted horizontal line at a given price. `LevelStyle` enum: `SOLID`, `DASHED`, `DOTTED` |
 | `FibRetracement` | `BigDecimal swingHigh`, `BigDecimal swingLow`, `List<BigDecimal> levels` | Draws Fibonacci levels between two prices. `levels` are fractions in `[0, 1]`. A constant `FibRetracement.STANDARD_LEVELS` = `[0.236, 0.382, 0.5, 0.618, 0.786]` is provided |
 | `PivotPointLevels` | `PivotPointVariant variant`, `OHLCBar previousPeriodBar` | Levels computed from the previous period's H/L/C. `PivotPointVariant` enum: `STANDARD`, `CAMARILLA`, `WOODIE` |
-| `EntryExitMarker` | `Instant time`, `BigDecimal price`, `MarkerDirection direction`, `GlyphStyle glyphStyle` | A semantic glyph (triangle or arrow) at a specific bar, colored by direction. Use for entry / exit visualization on backtest charts. `time` must exist in the series (rule V16) |
+| `EntryExitMarker` | `Instant time`, `BigDecimal price`, `MarkerDirection direction`, `GlyphStyle glyphStyle` | A semantic glyph (triangle or arrow) at a specific bar, colored by direction. The caller chooses the Y position via `price`. Use when the marker should sit at a specific Y coordinate — e.g. a target level, limit-order price, indicator alert — rather than be positioned relative to the bar. `time` must exist in the series (rule V16) |
+| `EntryExitMarkerAuto` | `Instant time`, `MarkerDirection direction`, `GlyphStyle glyphStyle` | A semantic glyph whose Y position is computed by the renderer from the bar at `time`. `LONG_ENTRY` / `SHORT_EXIT` sit below the bar's low (semantic "up" arrow pointing at the bar from underneath); `LONG_EXIT` / `SHORT_ENTRY` sit above the bar's high. Matches industry convention (TradingView and similar tools): trade markers sit outside the candle so they do not occlude price action. **Recommended** for visualizing trade entries and exits. `time` must exist in the series (rule V16, shared with `EntryExitMarker`) |
 | `TimeRangeHighlight` | `Instant startTime`, `Instant endTime`, `FillColor fillColor`, `BigDecimal opacity` | A semi-transparent shaded band over a closed time interval drawn behind the chart. Use for "in-position" bands or alert highlights. `startTime < endTime`, range must overlap the series (rule V17). `opacity` in `[0, 1]` inclusive (rule V18) |
 
 `PivotPointLevels` is computed by the driver from the `previousPeriodBar` (a pure function of three numbers — no pivot detection algorithm, no lookahead). The driver renders the computed levels as horizontal lines.
@@ -220,7 +221,7 @@ All of these are rejected eagerly in `build()`. The exception carries a `String 
 | V13 | when the series is an `OHLCSeries`, every `OHLCBar` MUST satisfy its OHLC invariants (the `commons` invariant set — positive prices, `high ≥ low`, `high ≥ open/close`, `low ≤ open/close`, `volume ≥ 0` when present) | a bar with `high < low` |
 | V14 | a `LayoutSpecBuilder` with one or more subplot heights set MUST also have a main-pane height set | `LayoutSpec.builder().addSubplotHeight(SUBPLOT_1, 0.4).build()` with no `withMainPaneHeight(...)` |
 | V15 | with an `ExplicitLayoutSpec`, every non-`MAIN` `Pane` targeted by an indicator MUST have an entry in `subplotHeights` | an indicator placed at `SUBPLOT_1` while `subplotHeights` has no `SUBPLOT_1` key |
-| V16 | every `EntryExitMarker.time` MUST equal some `bar.time` in the series | marker references a non-existent bar (symmetric with V7 for `BarHighlight`) |
+| V16 | every `EntryExitMarker.time` and every `EntryExitMarkerAuto.time` MUST equal some `bar.time` in the series | marker references a non-existent bar (symmetric with V7 for `BarHighlight`). Both variants share V16 — the renderer needs the bar to exist (`EntryExitMarkerAuto` needs its high/low for Y positioning; `EntryExitMarker` is on the same axis as the bar) |
 | V17 | every `TimeRangeHighlight` MUST have `startTime` strictly before `endTime` AND its range MUST overlap the series time span | reversed or zero-width range, or a range entirely outside the series. The endpoints are NOT required to be bar times — any `Instant` within the overlap is valid (a trade can end mid-bar) |
 | V18 | every `TimeRangeHighlight.opacity` MUST be in `[0, 1]` inclusive | negative opacity, or opacity > 1 |
 | V19 | `RSI.overbought` MUST be ≤ 100 | `new Indicator.RSI(14, BigDecimal.valueOf(120), …)` |

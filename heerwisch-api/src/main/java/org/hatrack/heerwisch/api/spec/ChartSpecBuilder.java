@@ -140,6 +140,11 @@ public final class ChartSpecBuilder {
                         throw new InvalidChartSpecException("V16", marker.time());
                     }
                 }
+                case Annotation.EntryExitMarkerAuto marker -> {
+                    if (!barTimes.contains(marker.time())) {
+                        throw new InvalidChartSpecException("V16", marker.time());
+                    }
+                }
                 case Annotation.TimeRangeHighlight range -> {
                     if (!range.startTime().isBefore(range.endTime())) {
                         throw new InvalidChartSpecException("V17", range);

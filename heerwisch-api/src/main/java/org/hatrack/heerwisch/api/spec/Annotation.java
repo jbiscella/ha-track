@@ -80,6 +80,43 @@ public sealed interface Annotation {
     }
 
     /**
+     * Auto-positioned variant of {@link EntryExitMarker}. The caller supplies
+     * only the bar time, the direction, and the glyph shape; the renderer
+     * computes the Y position from the bar at {@code time}:
+     *
+     * <ul>
+     *   <li>{@link MarkerDirection#LONG_ENTRY} and {@link MarkerDirection#SHORT_EXIT}
+     *       — glyph sits below the bar's low (semantic "up" arrow pointing
+     *       at the bar from underneath).</li>
+     *   <li>{@link MarkerDirection#LONG_EXIT} and {@link MarkerDirection#SHORT_ENTRY}
+     *       — glyph sits above the bar's high (semantic "down" arrow pointing
+     *       at the bar from above).</li>
+     * </ul>
+     *
+     * Matches industry convention (TradingView and similar tools): trade
+     * markers sit outside the candle so they do not occlude price action.
+     * This is the recommended form for visualizing trade entries and exits.
+     *
+     * <p>{@link EntryExitMarker} (the explicit-price variant) remains
+     * first-class and is the right choice for pinning markers to a specific
+     * Y position that is not tied to a bar's high/low — target levels,
+     * limit-order prices, indicator-driven alerts, etc.
+     *
+     * <p>Like {@link EntryExitMarker}, the marker's {@code time} must equal
+     * a bar time in the series (rule V16); the renderer needs the bar's
+     * high/low to position the glyph.
+     */
+    record EntryExitMarkerAuto(Instant time, MarkerDirection direction,
+                               GlyphStyle glyphStyle)
+            implements Annotation {
+        public EntryExitMarkerAuto {
+            Objects.requireNonNull(time, "time");
+            Objects.requireNonNull(direction, "direction");
+            Objects.requireNonNull(glyphStyle, "glyphStyle");
+        }
+    }
+
+    /**
      * A semi-transparent shaded band over a closed time interval, drawn behind
      * the chart's series and indicators. Typical use: shade the "in-position"
      * period of a backtest trade. The color is chosen by the renderer from
