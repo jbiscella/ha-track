@@ -178,3 +178,38 @@ Feature: ChartSpecBuilder eager validation
     And a TimeRangeHighlight from bar 3 to bar 7 with fillColor LONG_POSITION and opacity 0.15
     When I build the chart spec
     Then the chart spec builds successfully
+
+  Scenario: An RSI with overbought above 100 fails build (V19)
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    And an RSI indicator with period 14 overbought 120 oversold 30 and source CLOSE
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V19"
+
+  Scenario: An RSI with oversold below 0 fails build (V20)
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    And an RSI indicator with period 14 overbought 70 oversold -5 and source CLOSE
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V20"
+
+  Scenario: An RSI with oversold equal to overbought fails build (V21)
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    And an RSI indicator with period 14 overbought 50 oversold 50 and source CLOSE
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V21"
+
+  Scenario: An RSI with oversold greater than overbought fails build (V21)
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    And an RSI indicator with period 14 overbought 30 oversold 70 and source CLOSE
+    When I build the chart spec
+    Then an InvalidChartSpecException is thrown with violatedRule "V21"
+
+  Scenario: An RSI at the boundary values passes build
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    And an RSI indicator with period 14 overbought 100 oversold 0 and source CLOSE
+    When I build the chart spec
+    Then the chart spec builds successfully

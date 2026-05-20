@@ -40,7 +40,7 @@ sealed interface Indicator permits SMA, EMA, MACD, RSI, BollingerBands, ADX, Sto
 | `EMA` | `int period`, `PriceSource priceSource` | `MAIN` |
 | `BollingerBands` | `int period`, `BigDecimal stdDevMultiplier`, `PriceSource priceSource` | `MAIN` |
 | `MACD` | `int fastPeriod`, `int slowPeriod`, `int signalPeriod`, `PriceSource priceSource` | `SUBPLOT_1` |
-| `RSI` | `int period`, `BigDecimal overbought`, `BigDecimal oversold`, `PriceSource priceSource` | `SUBPLOT_1` |
+| `RSI` | `int period`, `BigDecimal overbought`, `BigDecimal oversold`, `PriceSource priceSource`, `Optional<RsiVisualization> visualization` | `SUBPLOT_1` |
 | `ADX` | `int period` | `SUBPLOT_1` |
 | `Stochastic` | `int kPeriod`, `int dPeriod`, `int smoothing` | `SUBPLOT_1` |
 | `ATR` | `int period` | `SUBPLOT_1` |
@@ -49,6 +49,22 @@ sealed interface Indicator permits SMA, EMA, MACD, RSI, BollingerBands, ADX, Sto
 All `period` and period-like int fields MUST be ≥ 1 (rejected by canonical constructor). All `BigDecimal` ratio fields MUST be > 0. `priceSource` MUST be non-null where present.
 
 `VolumePane` is special: it reads `volume` from the underlying `Series` rather than computing from prices. If the series has no volume on its bars, the chart spec is invalid (rejected eager — see §3).
+
+#### 1.2.1 `RsiVisualization` — optional sub-pane rendering knobs for `RSI`
+
+`RSI` accepts an `Optional<RsiVisualization>` 5th argument that controls renderer-applied visual decisions with no impact on the indicator's numeric values:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `dangerZones` | `boolean` | When `true`, the driver shades the regions above `overbought` and below `oversold` to highlight the danger zones. When `false` (default), the sub-pane shows the RSI line and the two threshold lines only |
+
+Constants: `RsiVisualization.DEFAULT` (`dangerZones = false`) and `RsiVisualization.DANGER_ZONES_ON` (`dangerZones = true`).
+
+**Backward compatibility:** an explicit 4-argument `RSI(period, overbought, oversold, priceSource)` constructor is preserved as an overload; it delegates to the canonical 5-arg form with `visualization = Optional.empty()`. Existing callers built against the 4-arg signature continue to work unchanged.
+
+**Independent of the RSI threshold-line rendering:** threshold lines at `overbought` and `oversold` are always drawn (per `heerwisch-jfreechart/CLAUDE.md` §7), regardless of `RsiVisualization`. The visualization knob controls only the optional danger-zone shading.
+
+The danger-zone toggle pattern is designed to generalize to other bounded indicators in future PRs (e.g. a `StochasticVisualization`); RSI is the first instance.
 
 ### 1.3 `Annotation` (sealed)
 
@@ -207,6 +223,9 @@ All of these are rejected eagerly in `build()`. The exception carries a `String 
 | V16 | every `EntryExitMarker.time` MUST equal some `bar.time` in the series | marker references a non-existent bar (symmetric with V7 for `BarHighlight`) |
 | V17 | every `TimeRangeHighlight` MUST have `startTime` strictly before `endTime` AND its range MUST overlap the series time span | reversed or zero-width range, or a range entirely outside the series. The endpoints are NOT required to be bar times — any `Instant` within the overlap is valid (a trade can end mid-bar) |
 | V18 | every `TimeRangeHighlight.opacity` MUST be in `[0, 1]` inclusive | negative opacity, or opacity > 1 |
+| V19 | `RSI.overbought` MUST be ≤ 100 | `new Indicator.RSI(14, BigDecimal.valueOf(120), …)` |
+| V20 | `RSI.oversold` MUST be ≥ 0 | `new Indicator.RSI(14, …, BigDecimal.valueOf(-5), …)` |
+| V21 | `RSI.oversold` MUST be strictly less than `RSI.overbought` | `new Indicator.RSI(14, BigDecimal.valueOf(30), BigDecimal.valueOf(70), …)` (swapped) |
 
 V12 is a soft rule the `heerwisch-api` documents but does not enforce universally — different drivers MAY support different mixings. The default driver `heerwisch-jfreechart` enforces V12 strictly. If a driver does NOT support a given placement, it must throw `UnsupportedFeatureException` (see §4) at render time, not pretend to render.
 
@@ -223,12 +242,12 @@ All checked. All extend `ChartRenderException` (root).
 | Exception | Cause | Carrier fields |
 |---|---|---|
 | `ChartRenderException` (root) | abstract — never thrown directly | `String message`, `Throwable cause` |
-| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13, V14, V15, V16, V17, or V18 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
+| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13, V14, V15, V16, V17, V18, V19, V20, or V21 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
 | `UnsupportedFeatureException` | Driver doesn't support a requested feature | `String featureName`, `String driverName` |
 | `InsufficientDataException` | Data insufficient for an indicator at render time (escape hatch — preferably caught at build via V6) | `String indicatorName`, `int requiredBars`, `int availableBars` |
 | `DriverInternalException` | Underlying driver internal error | `Throwable cause` is mandatory; carries the original exception |
 
-`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13, V15, V16, V17, V18) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
+`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13, V15, V16, V17, V18, V19, V20, V21) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
 
 ## 5. Port: `ChartRenderer`
 

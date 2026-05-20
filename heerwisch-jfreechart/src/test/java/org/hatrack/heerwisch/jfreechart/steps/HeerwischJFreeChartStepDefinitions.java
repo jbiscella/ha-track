@@ -65,6 +65,14 @@ public class HeerwischJFreeChartStepDefinitions {
         builder.addIndicator(indicatorByName(name), Pane.valueOf(pane));
     }
 
+    @Given("an RSI indicator with danger zones placed at pane {word}")
+    public void anRsiWithDangerZonesPlacedAtPane(String pane) {
+        builder.addIndicator(new Indicator.RSI(14, new BigDecimal("70"),
+                new BigDecimal("30"), PriceSource.CLOSE,
+                java.util.Optional.of(Indicator.RsiVisualization.DANGER_ZONES_ON)),
+                Pane.valueOf(pane));
+    }
+
     @Given("the layout is auto {int} by {int} with format {word}")
     public void theLayoutIsAuto(int width, int height, String format) {
         builder.withLayout(new LayoutSpec.AutoLayoutSpec(width, height, ImageFormat.valueOf(format)));
