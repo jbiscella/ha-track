@@ -207,6 +207,9 @@ All of these are rejected eagerly in `build()`. The exception carries a `String 
 | V16 | every `EntryExitMarker.time` MUST equal some `bar.time` in the series | marker references a non-existent bar (symmetric with V7 for `BarHighlight`) |
 | V17 | every `TimeRangeHighlight` MUST have `startTime` strictly before `endTime` AND its range MUST overlap the series time span | reversed or zero-width range, or a range entirely outside the series. The endpoints are NOT required to be bar times — any `Instant` within the overlap is valid (a trade can end mid-bar) |
 | V18 | every `TimeRangeHighlight.opacity` MUST be in `[0, 1]` inclusive | negative opacity, or opacity > 1 |
+| V19 | `RSI.overbought` MUST be ≤ 100 | `new Indicator.RSI(14, BigDecimal.valueOf(120), …)` |
+| V20 | `RSI.oversold` MUST be ≥ 0 | `new Indicator.RSI(14, …, BigDecimal.valueOf(-5), …)` |
+| V21 | `RSI.oversold` MUST be strictly less than `RSI.overbought` | `new Indicator.RSI(14, BigDecimal.valueOf(30), BigDecimal.valueOf(70), …)` (swapped) |
 
 V12 is a soft rule the `heerwisch-api` documents but does not enforce universally — different drivers MAY support different mixings. The default driver `heerwisch-jfreechart` enforces V12 strictly. If a driver does NOT support a given placement, it must throw `UnsupportedFeatureException` (see §4) at render time, not pretend to render.
 
@@ -223,12 +226,12 @@ All checked. All extend `ChartRenderException` (root).
 | Exception | Cause | Carrier fields |
 |---|---|---|
 | `ChartRenderException` (root) | abstract — never thrown directly | `String message`, `Throwable cause` |
-| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13, V14, V15, V16, V17, or V18 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
+| `InvalidChartSpecException` | Spec malformed (any V1–V11, V13, V14, V15, V16, V17, V18, V19, V20, or V21 rule violation) | `String violatedRule`, `Object offendingValue` (may be null) |
 | `UnsupportedFeatureException` | Driver doesn't support a requested feature | `String featureName`, `String driverName` |
 | `InsufficientDataException` | Data insufficient for an indicator at render time (escape hatch — preferably caught at build via V6) | `String indicatorName`, `int requiredBars`, `int availableBars` |
 | `DriverInternalException` | Underlying driver internal error | `Throwable cause` is mandatory; carries the original exception |
 
-`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13, V15, V16, V17, V18) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
+`InvalidChartSpecException` is thrown only from `build()` — `ChartSpecBuilder.build()` (rules V1–V11, V13, V15, V16, V17, V18, V19, V20, V21) and `LayoutSpecBuilder.build()` (rule V14). The other three are thrown only from `ChartRenderer.render()`.
 
 ## 5. Port: `ChartRenderer`
 

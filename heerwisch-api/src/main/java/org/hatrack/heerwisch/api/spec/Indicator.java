@@ -110,9 +110,15 @@ public sealed interface Indicator {
             implements Indicator {
         public RSI {
             requirePeriod(period, "period");
-            requirePositive(overbought, "overbought");
-            requirePositive(oversold, "oversold");
+            Objects.requireNonNull(overbought, "overbought");
+            Objects.requireNonNull(oversold, "oversold");
             Objects.requireNonNull(priceSource, "priceSource");
+            // Bounds checks (overbought in (0, 100], oversold in [0, 100),
+            // oversold < overbought) are enforced as V19/V20/V21 by
+            // ChartSpecBuilder.build(). The canonical constructor accepts
+            // any non-null BigDecimals so the bounds-violation path always
+            // produces an InvalidChartSpecException rather than a raw
+            // IllegalArgumentException.
         }
 
         @Override

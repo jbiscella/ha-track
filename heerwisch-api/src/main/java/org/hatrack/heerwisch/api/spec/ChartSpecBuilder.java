@@ -102,6 +102,17 @@ public final class ChartSpecBuilder {
             if (indicator instanceof Indicator.VolumePane && !hasVolumeOnEveryBar(series)) {
                 throw new InvalidChartSpecException("V9", indicator);
             }
+            if (indicator instanceof Indicator.RSI rsi) {
+                if (rsi.overbought().compareTo(java.math.BigDecimal.valueOf(100)) > 0) {
+                    throw new InvalidChartSpecException("V19", rsi.overbought());
+                }
+                if (rsi.oversold().signum() < 0) {
+                    throw new InvalidChartSpecException("V20", rsi.oversold());
+                }
+                if (rsi.oversold().compareTo(rsi.overbought()) >= 0) {
+                    throw new InvalidChartSpecException("V21", rsi);
+                }
+            }
         }
         Set<Instant> barTimes = new HashSet<>(times);
         for (Annotation annotation : annotations) {

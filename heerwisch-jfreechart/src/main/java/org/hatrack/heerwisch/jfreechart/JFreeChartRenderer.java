@@ -185,6 +185,17 @@ public final class JFreeChartRenderer implements ChartRenderer {
         plot.setRangeAxis(rangeAxis);
         stylePlot(plot);
 
+        // RSI is mathematically bounded to [0, 100]. When a pane contains only
+        // RSI indicators, bind the range axis explicitly so the line and the
+        // overbought / oversold reference levels render against the canonical
+        // 0–100 scale rather than JFreeChart's auto-range. Mixed panes (RSI
+        // combined with an unbounded indicator) keep auto-range to avoid
+        // clipping the unbounded sibling.
+        if (paneContainsOnlyRsi(spec, pane)) {
+            rangeAxis.setRange(0.0, 100.0);
+            rangeAxis.setAutoRange(false);
+        }
+
         int datasetIndex = 0;
         for (IndicatorPlacement placement : spec.indicators()) {
             if (placement.pane() == pane) {
@@ -192,6 +203,18 @@ public final class JFreeChartRenderer implements ChartRenderer {
             }
         }
         return plot;
+    }
+
+    private static boolean paneContainsOnlyRsi(ChartSpec spec, Pane pane) {
+        boolean sawRsi = false;
+        for (IndicatorPlacement placement : spec.indicators()) {
+            if (placement.pane() != pane) continue;
+            if (!(placement.indicator() instanceof Indicator.RSI)) {
+                return false;
+            }
+            sawRsi = true;
+        }
+        return sawRsi;
     }
 
     private static List<Pane> referencedSubplotPanes(ChartSpec spec) {
@@ -256,6 +279,12 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 return addLine(plot, next, "Signal", times, lines.signalLine(), ThemeConstants.MACD_SIGNAL);
             }
             case Indicator.RSI rsi -> {
+                // Horizontal reference levels at the configured overbought /
+                // oversold thresholds, per heerwisch-jfreechart/CLAUDE.md §7.
+                plot.addRangeMarker(marker(rsi.overbought().doubleValue(),
+                        ThemeConstants.RSI_OVERBOUGHT_LEVEL));
+                plot.addRangeMarker(marker(rsi.oversold().doubleValue(),
+                        ThemeConstants.RSI_OVERSOLD_LEVEL));
                 return addLine(plot, index, "RSI", times,
                         Indicators.rsi(prices(series, rsi.priceSource()), rsi.period()),
                         ThemeConstants.RSI_LINE);
