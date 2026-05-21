@@ -54,8 +54,8 @@ public final class ThemeConstants {
     public static final Color HORIZONTAL_LEVEL_WIN = new Color(0x26, 0xA6, 0x9A, 204);
     /** Stop-loss / losing level — coral-red. */
     public static final Color HORIZONTAL_LEVEL_LOSS = new Color(0xEF, 0x53, 0x50, 204);
-    /** Still-open level — blue-grey. */
-    public static final Color HORIZONTAL_LEVEL_OPEN = new Color(0x90, 0xA4, 0xAE, 204);
+    /** Still-open level — medium blue-grey, dark enough to read on the white canvas (darker than the translucent TIME_RANGE_OPEN band). */
+    public static final Color HORIZONTAL_LEVEL_OPEN = new Color(0x54, 0x6E, 0x7A, 204);
     /** Long-position level — cooler/darker teal, distinct from WIN's brighter green. */
     public static final Color HORIZONTAL_LEVEL_LONG_POSITION = new Color(0x00, 0x89, 0x7B, 204);
     /** Short-position level — warmer orange-red, distinct from LOSS's coral. */
