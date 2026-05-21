@@ -91,8 +91,8 @@ class LegendTest {
         List<LegendEntry> legend = render(spec).legend();
 
         assertEquals(2, legend.size());
-        assertEquals("MACD(12,26,9)", legend.get(0).label());
-        assertEquals("Signal", legend.get(1).label());
+        assertEquals("MACD(12,26,9): MACD", legend.get(0).label());
+        assertEquals("MACD(12,26,9): Signal", legend.get(1).label());
         assertEquals(rgb(ThemeConstants.MACD_LINE), legend.get(0).rgb());
         assertEquals(rgb(ThemeConstants.MACD_SIGNAL), legend.get(1).rgb());
         assertEquals(Pane.SUBPLOT_1, legend.get(0).pane());
@@ -108,8 +108,8 @@ class LegendTest {
         List<LegendEntry> legend = render(spec).legend();
 
         assertEquals(2, legend.size());
-        assertEquals("Stoch(14,3,3)", legend.get(0).label());
-        assertEquals("%D", legend.get(1).label());
+        assertEquals("Stoch(14,3,3): %K", legend.get(0).label());
+        assertEquals("Stoch(14,3,3): %D", legend.get(1).label());
         assertNotEquals(legend.get(0).rgb(), legend.get(1).rgb());
     }
 
@@ -141,9 +141,9 @@ class LegendTest {
         List<LegendEntry> legend = render(spec).legend();
 
         assertEquals(3, legend.size());
-        assertEquals("BB(20) Upper", legend.get(0).label());
-        assertEquals("BB(20) Basis", legend.get(1).label());
-        assertEquals("BB(20) Lower", legend.get(2).label());
+        assertEquals("BB(20,2): Upper", legend.get(0).label());
+        assertEquals("BB(20,2): Basis", legend.get(1).label());
+        assertEquals("BB(20,2): Lower", legend.get(2).label());
         // all three share the placement's color (grouped band)
         assertEquals(legend.get(0).rgb(), legend.get(1).rgb());
         assertEquals(legend.get(1).rgb(), legend.get(2).rgb());

@@ -36,9 +36,9 @@ Feature: Legend introspection and per-placement overlay colors
     When I render the chart
     Then rendering succeeds
     And the legend has 3 entries
-    And legend entry 0 has label "BB(20) Upper"
-    And legend entry 1 has label "BB(20) Basis"
-    And legend entry 2 has label "BB(20) Lower"
+    And legend entry 0 has label "BB(20,2): Upper"
+    And legend entry 1 has label "BB(20,2): Basis"
+    And legend entry 2 has label "BB(20,2): Lower"
 
   Scenario: MACD emits two legend entries (line + signal)
     Given a chart with an OHLC series of 60 bars
@@ -46,6 +46,6 @@ Feature: Legend introspection and per-placement overlay colors
     When I render the chart
     Then rendering succeeds
     And the legend has 2 entries
-    And legend entry 0 has label "MACD(12,26,9)"
-    And legend entry 1 has label "Signal"
+    And legend entry 0 has label "MACD(12,26,9): MACD"
+    And legend entry 1 has label "MACD(12,26,9): Signal"
     And legend entries 0 and 1 have distinct colors

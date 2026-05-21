@@ -277,11 +277,15 @@ public final class JFreeChartRenderer implements ChartRenderer {
 
     /**
      * Legend rows in spec insertion order, one entry per rendered line. A
-     * single-line indicator emits one entry; MACD and Stochastic emit two
-     * (line + "Signal" / "%K" + "%D"); BollingerBands emits three
-     * ("&lt;base&gt; Upper" / " Basis" / " Lower"), all sharing the placement's
-     * color. The base label is the placement's override or the auto-derived
-     * indicator label.
+     * single-line indicator emits one entry labeled by its base (the
+     * placement's override or the auto-derived indicator label, e.g.
+     * {@code "SMA(20)"}). Multi-line indicators use the {@code "<base>: <role>"}
+     * colon convention: MACD → {@code "<base>: MACD"} + {@code "<base>: Signal"};
+     * Stochastic → {@code "<base>: %K"} + {@code "<base>: %D"}; BollingerBands →
+     * {@code "<base>: Upper"} + {@code ": Basis"} + {@code ": Lower"} (all three
+     * sharing the placement's color). The full base keeps every parameter
+     * visible so two placements of the same type with different parameters do
+     * not collapse to identical labels.
      */
     private static List<LegendEntry> buildLegend(ChartSpec spec) {
         List<IndicatorPlacement> placements = spec.indicators();
@@ -293,20 +297,21 @@ public final class JFreeChartRenderer implements ChartRenderer {
             Pane pane = placement.pane();
             switch (indicator) {
                 case Indicator.MACD ignored -> {
-                    entries.add(new LegendEntry(placement, label, rgb(ThemeConstants.MACD_LINE), pane));
-                    entries.add(new LegendEntry(placement, "Signal", rgb(ThemeConstants.MACD_SIGNAL), pane));
+                    entries.add(new LegendEntry(placement, label + ": MACD", rgb(ThemeConstants.MACD_LINE), pane));
+                    entries.add(new LegendEntry(placement, label + ": Signal", rgb(ThemeConstants.MACD_SIGNAL), pane));
                 }
                 case Indicator.Stochastic ignored -> {
-                    entries.add(new LegendEntry(placement, label, rgb(ThemeConstants.STOCHASTIC_K), pane));
-                    entries.add(new LegendEntry(placement, "%D", rgb(ThemeConstants.STOCHASTIC_D), pane));
+                    entries.add(new LegendEntry(placement, label + ": %K", rgb(ThemeConstants.STOCHASTIC_K), pane));
+                    entries.add(new LegendEntry(placement, label + ": %D", rgb(ThemeConstants.STOCHASTIC_D), pane));
                 }
                 case Indicator.BollingerBands ignored -> {
                     // Three lines (upper/basis/lower) share the placement's
-                    // palette color — emit one entry per rendered line.
+                    // palette color — emit one entry per rendered line, with
+                    // the "<base>: <role>" colon convention.
                     int c = rgb(legendPrimaryColor(spec, i));
-                    entries.add(new LegendEntry(placement, label + " Upper", c, pane));
-                    entries.add(new LegendEntry(placement, label + " Basis", c, pane));
-                    entries.add(new LegendEntry(placement, label + " Lower", c, pane));
+                    entries.add(new LegendEntry(placement, label + ": Upper", c, pane));
+                    entries.add(new LegendEntry(placement, label + ": Basis", c, pane));
+                    entries.add(new LegendEntry(placement, label + ": Lower", c, pane));
                 }
                 default ->
                         entries.add(new LegendEntry(placement, label,
@@ -338,7 +343,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
         return switch (indicator) {
             case Indicator.SMA sma -> "SMA(" + sma.period() + ")";
             case Indicator.EMA ema -> "EMA(" + ema.period() + ")";
-            case Indicator.BollingerBands bb -> "BB(" + bb.period() + ")";
+            case Indicator.BollingerBands bb -> "BB(" + bb.period() + "," + bb.stdDevMultiplier() + ")";
             case Indicator.MACD macd -> "MACD(" + macd.fastPeriod() + ","
                     + macd.slowPeriod() + "," + macd.signalPeriod() + ")";
             case Indicator.RSI rsi -> "RSI(" + rsi.period() + ")";
