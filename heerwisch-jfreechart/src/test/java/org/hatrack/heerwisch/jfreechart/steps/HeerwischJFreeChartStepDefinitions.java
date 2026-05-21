@@ -171,6 +171,11 @@ public class HeerwischJFreeChartStepDefinitions {
         builder.addIndicator(new Indicator.SMA(period, PriceSource.CLOSE), Pane.valueOf(pane));
     }
 
+    @Given("an SMA indicator with period {int} placed at pane {word} labeled {string}")
+    public void anSmaIndicatorWithLabel(int period, String pane, String label) {
+        builder.addIndicator(new Indicator.SMA(period, PriceSource.CLOSE), Pane.valueOf(pane), label);
+    }
+
     @Then("the legend has {int} entry/entries")
     public void theLegendHasEntries(int count) {
         assertTrue(image != null, "no chart image produced");

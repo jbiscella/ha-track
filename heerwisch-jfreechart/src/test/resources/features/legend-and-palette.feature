@@ -22,6 +22,14 @@ Feature: Legend introspection and per-placement overlay colors
     And the legend has 1 entry
     And legend entry 0 has label "SMA(20)"
 
+  Scenario: A label override propagates to the legend entry
+    Given a chart with an OHLC series of 60 bars
+    And an SMA indicator with period 20 placed at pane MAIN labeled "Fast MA"
+    When I render the chart
+    Then rendering succeeds
+    And the legend has 1 entry
+    And legend entry 0 has label "Fast MA"
+
   Scenario: MACD emits two legend entries (line + signal)
     Given a chart with an OHLC series of 60 bars
     And a MACD indicator placed at pane SUBPLOT_1
