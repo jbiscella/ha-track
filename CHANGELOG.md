@@ -5,6 +5,17 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.49.0-alpha
+
+### Added
+
+- **heerwisch-api:** `Annotation.HorizontalLevel` now accepts an optional `FillColor` for semantic line coloring (4-arg constructor; the 3-arg overload is preserved for backward compatibility). Enables the industry-convention reference-line scheme (TradingView and similar platforms) — entry neutral, stop-loss red (`LOSS`), take-profit green (`WIN`). When `fillColor` is empty, the line keeps the default `ThemeConstants.HORIZONTAL_LEVEL` color, unchanged from prior releases.
+- **heerwisch-jfreechart:** seven new `ThemeConstants` for semantic `HorizontalLevel` lines — `HORIZONTAL_LEVEL_WIN`, `HORIZONTAL_LEVEL_LOSS`, `HORIZONTAL_LEVEL_OPEN`, `HORIZONTAL_LEVEL_LONG_POSITION`, `HORIZONTAL_LEVEL_SHORT_POSITION`, `HORIZONTAL_LEVEL_NEUTRAL`, `HORIZONTAL_LEVEL_CAUTION`. Stroked lines use a stronger ~80% alpha (`0xCC`) than the translucent `TimeRangeHighlight` band palette; hues align with the band palette where the meaning is shared. `NEUTRAL` is a dark near-black reference (not white, which would be invisible on the white canvas).
+
+### Compatibility
+
+- Additive. Existing `HorizontalLevel(price, label, style)` callers continue to render with the default `HORIZONTAL_LEVEL` color. japicmp clean — the `Optional<FillColor>` 4th record component plus a 3-arg overload constructor is the same pattern as `Indicator.RSI`'s `Optional<RsiVisualization>` extension that passed in 0.46.0-alpha.
+
 ## 0.48.0-alpha
 
 ### Added

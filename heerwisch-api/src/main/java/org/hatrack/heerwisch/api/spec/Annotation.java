@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Closed hierarchy of chart annotations. Variants are nested records.
@@ -20,11 +21,27 @@ public sealed interface Annotation {
         }
     }
 
-    record HorizontalLevel(BigDecimal price, String label, LevelStyle style) implements Annotation {
+    /**
+     * A horizontal reference line at {@code price}, styled by {@code style}
+     * (solid / dashed / dotted). An optional {@link FillColor} selects a
+     * semantic line color: consumers render the industry-convention scheme
+     * (TradingView and similar) — entry neutral, stop-loss red ({@code LOSS}),
+     * take-profit green ({@code WIN}) — by passing the matching enum value.
+     * When {@code fillColor} is empty (the 3-arg constructor) the line uses the
+     * driver's default reference color, unchanged from prior releases.
+     */
+    record HorizontalLevel(BigDecimal price, String label, LevelStyle style,
+                           Optional<FillColor> fillColor) implements Annotation {
         public HorizontalLevel {
             Objects.requireNonNull(price, "price");
             Objects.requireNonNull(label, "label");
             Objects.requireNonNull(style, "style");
+            Objects.requireNonNull(fillColor, "fillColor");
+        }
+
+        /** Backward-compatible overload — no semantic color (default reference line). */
+        public HorizontalLevel(BigDecimal price, String label, LevelStyle style) {
+            this(price, label, style, Optional.empty());
         }
     }
 

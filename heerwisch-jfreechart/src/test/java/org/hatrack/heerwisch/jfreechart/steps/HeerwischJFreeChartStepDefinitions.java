@@ -17,6 +17,7 @@ import org.hatrack.heerwisch.api.spec.FillColor;
 import org.hatrack.heerwisch.api.spec.GlyphStyle;
 import org.hatrack.heerwisch.api.spec.ImageFormat;
 import org.hatrack.heerwisch.api.spec.Indicator;
+import org.hatrack.heerwisch.api.spec.LevelStyle;
 import org.hatrack.heerwisch.api.spec.LayoutSpec;
 import org.hatrack.heerwisch.api.spec.MarkerDirection;
 import org.hatrack.heerwisch.api.spec.Pane;
@@ -76,6 +77,17 @@ public class HeerwischJFreeChartStepDefinitions {
     @Given("the layout is auto {int} by {int} with format {word}")
     public void theLayoutIsAuto(int width, int height, String format) {
         builder.withLayout(new LayoutSpec.AutoLayoutSpec(width, height, ImageFormat.valueOf(format)));
+    }
+
+    @Given("a HorizontalLevel at price {bigdecimal} with style {word}")
+    public void aHorizontalLevel(BigDecimal price, String style) {
+        builder.addAnnotation(new Annotation.HorizontalLevel(price, "", LevelStyle.valueOf(style)));
+    }
+
+    @Given("a HorizontalLevel at price {bigdecimal} with style {word} and fillColor {word}")
+    public void aHorizontalLevelWithFillColor(BigDecimal price, String style, String fillColor) {
+        builder.addAnnotation(new Annotation.HorizontalLevel(price, "", LevelStyle.valueOf(style),
+                Optional.of(FillColor.valueOf(fillColor))));
     }
 
     @Given("an EntryExitMarker at bar {int} with direction {word} and glyph {word}")
