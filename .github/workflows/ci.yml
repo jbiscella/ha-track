@@ -3,6 +3,10 @@ name: CI
 on:
   push:
   pull_request:
+  schedule:
+    # Daily at 06:00 UTC — catches EODHD live-API drift between commits.
+    # The EODHD smoke job is soft-fail here too (it never blocks).
+    - cron: '0 6 * * *'
 
 permissions:
   contents: read
@@ -35,10 +39,11 @@ jobs:
   eodhd-smoke:
     name: EODHD live smoke (soft-fail)
     runs-on: ubuntu-latest
-    # Soft fail: a red smoke run surfaces the error log without blocking the
-    # workflow. The release pipeline (release.yml) runs the same ITs with no
-    # continue-on-error, so a broken live path hard-fails a publish.
-    continue-on-error: true
+    # Soft-fail policy: a red smoke run surfaces the error log and a job-summary
+    # warning, but never blocks the workflow — a failure here usually means an
+    # EODHD service interruption rather than a driver regression. The release
+    # pipeline (release.yml) runs the same ITs with NO continue-on-error, so a
+    # broken live path hard-fails a publish (we do want release smoke green).
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -55,6 +60,13 @@ jobs:
       # -Dsurefire.failIfNoSpecifiedTests=false makes Surefire match no unit
       # tests across the reactor while Failsafe still runs the live smoke ITs.
       - name: Run EODHD live smoke tests
+        id: smoke
+        continue-on-error: true
         run: >-
           ./mvnw -pl frau-holle-eodhd -am --batch-mode --no-transfer-progress
           -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false verify
+
+      - name: Annotate smoke failure as a warning (soft-fail)
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "::warning title=EODHD smoke test failed::Live smoke test against EODHD failed. The build is allowed to continue (soft-fail policy) since this may indicate an EODHD service interruption rather than a driver regression. Review the smoke job log to determine cause."
