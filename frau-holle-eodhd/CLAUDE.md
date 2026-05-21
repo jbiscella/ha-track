@@ -4,13 +4,20 @@ This is the nested spec for the `frau-holle-eodhd` module. It is a reference imp
 
 ## 0. Goal and scope
 
-`frau-holle-eodhd` fetches historical OHLC bars from EODHD's End-of-Day API. It is ported from the existing EODHD adapter in the H-tchen-Mail consumer project, generalized to fit the `MarketDataSource` port.
+`frau-holle-eodhd` fetches historical OHLC bars from EODHD's historical-data APIs:
 
-Out of scope: intraday EODHD endpoints (different URL, different schema, different rate limits), real-time WebSocket streaming, fundamentals queries (news, earnings, financials — those stay in the consumer's domain layer), other EODHD products (forex tick data, splits/dividends API).
+- The **End-of-Day** endpoint (`/api/eod/<symbol>`) for daily, weekly, monthly bars
+- The **Intraday** endpoint (`/api/intraday/<symbol>`) for 1-minute, 5-minute, and 1-hour bars
+
+A single `EodhdMarketDataSource` class handles both. Dispatch is by `Timeframe.unit()`: `SECOND` / `MINUTE` / `HOUR` route to the intraday endpoint, `DAY` / `WEEK` / `MONTH` / `YEAR` route to the EOD endpoint. The supported wire-format set is `{1m, 5m, 1h}` for intraday (the only intervals EODHD's intraday endpoint accepts) and `{1d, 1w, 1M}` for daily.
+
+Out of scope: real-time WebSocket streaming, fundamentals queries (news, earnings, financials — those stay in the consumer's domain layer), other EODHD products (forex tick data, splits/dividends API).
 
 Dependencies: `frau-holle`, `commons`, an HTTP client and a JSON parser of the implementor's choice (the spec does not pin them).
 
 ## 1. EODHD API surface used
+
+### 1.1 End-of-Day endpoint (daily / weekly / monthly)
 
 | Aspect | Choice |
 |---|---|
@@ -18,9 +25,24 @@ Dependencies: `frau-holle`, `commons`, an HTTP client and a JSON parser of the i
 | Authentication | API token as query parameter |
 | Response format | JSON array of bar objects |
 | Bar object shape | `{ "date": "YYYY-MM-DD", "open": number, "high": number, "low": number, "close": number, "adjusted_close": number, "volume": integer }` |
-| Period parameter mapping | `Timeframe("1d") → "d"`, `Timeframe("1w") → "w"`, `Timeframe("1M") → "m"`. Other timeframes are NOT supported by the EODHD EOD endpoint (intraday is a different endpoint, out of scope) |
+| Period parameter mapping | `Timeframe("1d") → "d"`, `Timeframe("1w") → "w"`, `Timeframe("1M") → "m"`. Other daily-or-coarser timeframes (e.g. `3d`, `2w`) are rejected with `MarketDataSchemaException` naming the supported set |
 | Date format in request | `YYYY-MM-DD` (no time component); EODHD interprets as UTC |
 | Adjusted vs raw close | This driver uses **`close`** (raw, unadjusted). `adjusted_close` is ignored. Rationale: backtests with corporate-action adjustments require care; v1 keeps it simple and consumer-explicit |
+
+### 1.2 Intraday endpoint (1m / 5m / 1h)
+
+| Aspect | Choice |
+|---|---|
+| Endpoint | `https://eodhistoricaldata.com/api/intraday/<symbol>?api_token=...&fmt=json&interval=...&from=<unix-seconds>&to=<unix-seconds>` |
+| Authentication | API token as query parameter |
+| Response format | JSON array of bar objects |
+| Bar object shape | `{ "timestamp": integer (unix seconds, bar start UTC), "gmtoffset": integer, "datetime": "YYYY-MM-DD HH:MM:SS", "open": number, "high": number, "low": number, "close": number, "volume": integer }` |
+| Interval parameter mapping | `Timeframe("1m") → "1m"`, `Timeframe("5m") → "5m"`, `Timeframe("1h") → "1h"`. Other intraday timeframes (e.g. `15m`, `30m`, `2h`) are rejected with `MarketDataSchemaException` naming the supported set — EODHD's intraday endpoint accepts only `1m`, `5m`, `1h` |
+| Date format in request | UNIX epoch **seconds** (`Instant.getEpochSecond()`), NOT `YYYY-MM-DD` — different convention from the EOD endpoint |
+| Bar `time` reconstruction | `Instant.ofEpochSecond(row["timestamp"])` — bar start in UTC. `datetime` and `gmtoffset` are informational; the driver ignores them |
+| History availability | varies by interval and EODHD plan: `5m`/`1h` typically from October 2020 onward; `1m` history varies by ticker. Requests for ranges before the available history return an empty array (no error) |
+| Pre-market / after-hours | EODHD includes pre-market and after-hours bars by default for US tickers. The driver passes them through as-is — no RTH filtering. Consumers wanting RTH-only must filter downstream |
+| API call cost | 5 EODHD API credits per request (vs 1 for `/api/eod`). Plan: EOD+Intraday All World Extended or All-In-One |
 
 ## 2. Driver constructor and configuration
 
@@ -41,11 +63,15 @@ The HTTP client and JSON mapper abstractions are exposed as small interfaces in 
 | Aspect | Behavior |
 |---|---|
 | Symbol format | EODHD requires `TICKER.EXCHANGE` (e.g. `AAPL.US`, `EURUSD.FOREX`, `BTCUSD.CC`). The driver does NOT auto-suffix — the consumer passes the EODHD-formatted symbol |
-| Timeframe mapping | `1d → d`, `1w → w`, `1M → m`. Other timeframes throw `MarketDataSchemaException` with explanation |
-| Date filtering | `since` and `until` are converted to `YYYY-MM-DD` strings (UTC date) and passed as `from` and `to` query parameters |
-| Bar `time` reconstruction | Each response row has a `date` field; the driver maps to `Instant.parse("YYYY-MM-DDT00:00:00Z")` (midnight UTC) |
-| Ordering | EODHD returns bars in ascending date order; the driver does NOT re-sort but verifies **strict** ascending order (each `date` strictly after the previous) and throws `MarketDataSchemaException` — carrying the offending row index and date — if a row is out of order OR shares a date with the previous row. Strictness upholds the `MarketDataSource` port contract that output `time()` values are unique (`frau-holle/CLAUDE.md` §2.1) |
-| Missing required field | a bar object missing `date`, `open`, `high`, `low` or `close` throws `MarketDataSchemaException` naming the absent field |
+| Endpoint dispatch | `Timeframe.unit()` of `SECOND` / `MINUTE` / `HOUR` routes to the intraday endpoint (§1.2); `DAY` / `WEEK` / `MONTH` / `YEAR` routes to the EOD endpoint (§1.1). Single class, single public entry point |
+| Timeframe mapping (EOD) | `1d → d`, `1w → w`, `1M → m`. Other daily-or-coarser timeframes throw `MarketDataSchemaException` naming the supported set `{1d, 1w, 1M}` |
+| Timeframe mapping (intraday) | `1m → interval=1m`, `5m → interval=5m`, `1h → interval=1h`. Other intraday timeframes throw `MarketDataSchemaException` naming the supported set `{1m, 5m, 1h}` |
+| Date filtering (EOD) | `since` and `until` are converted to `YYYY-MM-DD` strings (UTC date) and passed as `from` and `to` query parameters |
+| Date filtering (intraday) | `since` and `until` are converted to UNIX epoch **seconds** via `Instant.getEpochSecond()` and passed as `from` and `to` query parameters — different convention from EOD |
+| Bar `time` reconstruction (EOD) | Each response row has a `date` field; the driver maps to `Instant.parse("YYYY-MM-DDT00:00:00Z")` (midnight UTC) |
+| Bar `time` reconstruction (intraday) | Each response row has a `timestamp` field (unix seconds, bar start UTC); the driver maps to `Instant.ofEpochSecond(timestamp)` |
+| Ordering | EODHD returns bars in ascending time order; the driver does NOT re-sort but verifies **strict** ascending order (each bar's `time` strictly after the previous) and throws `MarketDataSchemaException` — carrying the offending row index and time — if a row is out of order OR shares a time with the previous row. Strictness upholds the `MarketDataSource` port contract that output `time()` values are unique (`frau-holle/CLAUDE.md` §2.1) |
+| Missing required field | an EOD bar missing `date`, `open`, `high`, `low` or `close`, OR an intraday bar missing `timestamp`, `open`, `high`, `low` or `close`, throws `MarketDataSchemaException` naming the absent field |
 | Top-level JSON not an array | a response whose top-level JSON value is an object (or anything other than an array) throws `MarketDataSchemaException` with a `JsonParseException` cause |
 | `volume` field | mapped to `Optional<BigDecimal>`; if the field is absent or null in the response, becomes `Optional.empty()` |
 | Failed HTTP request | `MarketDataUnavailableException` (transient) |
@@ -151,11 +177,33 @@ Feature: Symbol and timeframe handling
     Given fetchHistory with timeframe "1M"
     Then the URL contains "&period=m"
 
-  Scenario: Intraday timeframes are rejected
+  Scenario: Hourly timeframe routes to the intraday endpoint
     Given fetchHistory with timeframe "1h"
+    Then the URL contains "/api/intraday/" and "&interval=1h"
+
+  Scenario: 5-minute timeframe routes to the intraday endpoint
+    Given fetchHistory with timeframe "5m"
+    Then the URL contains "&interval=5m"
+
+  Scenario: 1-minute timeframe routes to the intraday endpoint
+    Given fetchHistory with timeframe "1m"
+    Then the URL contains "&interval=1m"
+
+  Scenario: Intraday from/to are passed as UNIX epoch seconds
+    Given fetchHistory with timeframe "1h"
+    Then the URL contains the unix-seconds value of `since` as `from` and of `until` as `to`
+
+  Scenario: Unsupported intraday interval is rejected
+    Given fetchHistory with timeframe "15m"
     When the driver processes the call
     Then MarketDataSchemaException is thrown
-    And the message names the unsupported timeframe and points to the intraday endpoint
+    And the message names the supported set {1m, 5m, 1h}
+
+  Scenario: Unsupported daily timeframe is rejected
+    Given fetchHistory with timeframe "3d"
+    When the driver processes the call
+    Then MarketDataSchemaException is thrown
+    And the message names the supported set {1d, 1w, 1M}
 ```
 
 ## 9. Block 3 — Error handling
@@ -254,7 +302,6 @@ Feature: Configuration validation at construction
 
 ## 11. Out of scope for `frau-holle-eodhd`
 
-- Intraday endpoints (`/api/intraday/...`) — different schema, different rate limits
 - WebSocket streaming
 - Fundamentals queries (`/api/fundamentals/...`)
 - News (`/api/news/...`)
@@ -282,7 +329,7 @@ Claude Code is responsible for:
 
 What Claude Code MUST NOT do unilaterally:
 
-- Add other EODHD endpoints (intraday, fundamentals, news, splits)
+- Add other EODHD endpoints beyond `/api/eod` and `/api/intraday` (e.g. fundamentals, news, splits)
 - Add internal retry / circuit-breaker
 - Add internal caching
 - Use `adjusted_close` instead of `close`
@@ -291,4 +338,4 @@ What Claude Code MUST NOT do unilaterally:
 - Add reflective bean wiring or DI annotations
 - Hardcode the API token (must be configured)
 - Log the API token at any level, OR log the full request URL at INFO+ or equivalent (the URL contains the `api_token` query parameter; logging the URL is equivalent to logging the token). EODHD requires the token in the query string — it has no header-based auth — so the URL is token-bearing by construction; if a URL must be logged, the `api_token` value MUST be redacted first (security concern)
-- Add intraday timeframe support without scope change
+- Add EODHD endpoints beyond the two documented in §1 (EOD and intraday) without scope change

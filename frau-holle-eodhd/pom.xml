@@ -7,7 +7,7 @@
     <parent>
         <groupId>net.jacopobiscella</groupId>
         <artifactId>ha-track</artifactId>
-        <version>0.47.0-alpha</version>
+        <version>0.48.0-alpha</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -41,6 +41,31 @@
             <artifactId>junit-platform-suite</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Live smoke tests (*IT.java) run against EODHD's public demo
+                 endpoint in the integration-test phase. Skipped with -DskipITs.
+                 See README §"Live smoke tests". -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

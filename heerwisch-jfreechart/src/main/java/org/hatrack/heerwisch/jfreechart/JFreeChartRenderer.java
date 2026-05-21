@@ -177,7 +177,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
     }
 
     private XYPlot buildSubplot(ChartSpec spec, Pane pane) {
-        NumberAxis rangeAxis = new NumberAxis(pane.name());
+        NumberAxis rangeAxis = new NumberAxis(subplotLabel(spec, pane));
         styleAxis(rangeAxis);
         rangeAxis.setAutoRangeIncludesZero(false);
 
@@ -203,6 +203,42 @@ public final class JFreeChartRenderer implements ChartRenderer {
             }
         }
         return plot;
+    }
+
+    /**
+     * Y-axis label for a sub-pane: indicator-meaningful (e.g. {@code "RSI(14)"},
+     * {@code "MACD(12,26,9)"}), joined with {@code " / "} when a pane holds more
+     * than one indicator. Falls back to the generic {@code Pane} name only when
+     * the pane has no indicators (should not happen for a referenced subplot).
+     */
+    static String subplotLabel(ChartSpec spec, Pane pane) {
+        StringBuilder label = new StringBuilder();
+        for (IndicatorPlacement placement : spec.indicators()) {
+            if (placement.pane() != pane) {
+                continue;
+            }
+            if (label.length() > 0) {
+                label.append(" / ");
+            }
+            label.append(indicatorLabel(placement.indicator()));
+        }
+        return label.length() > 0 ? label.toString() : pane.name();
+    }
+
+    static String indicatorLabel(Indicator indicator) {
+        return switch (indicator) {
+            case Indicator.SMA sma -> "SMA(" + sma.period() + ")";
+            case Indicator.EMA ema -> "EMA(" + ema.period() + ")";
+            case Indicator.BollingerBands bb -> "BB(" + bb.period() + ")";
+            case Indicator.MACD macd -> "MACD(" + macd.fastPeriod() + ","
+                    + macd.slowPeriod() + "," + macd.signalPeriod() + ")";
+            case Indicator.RSI rsi -> "RSI(" + rsi.period() + ")";
+            case Indicator.ADX adx -> "ADX(" + adx.period() + ")";
+            case Indicator.Stochastic stoch -> "Stoch(" + stoch.kPeriod() + ","
+                    + stoch.dPeriod() + "," + stoch.smoothing() + ")";
+            case Indicator.ATR atr -> "ATR(" + atr.period() + ")";
+            case Indicator.VolumePane ignored -> "Volume";
+        };
     }
 
     private static boolean paneContainsOnlyRsi(ChartSpec spec, Pane pane) {

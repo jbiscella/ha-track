@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -73,8 +74,10 @@ public final class EodhdMarketDataSource implements MarketDataSource {
         Objects.requireNonNull(since, "since");
         Objects.requireNonNull(until, "until");
 
-        String period = mapTimeframe(timeframe, symbol);
-        String url = buildUrl(symbol, period, since, until);
+        boolean intraday = isIntraday(timeframe);
+        String url = intraday
+                ? buildIntradayUrl(symbol, mapIntradayInterval(timeframe, symbol), since, until)
+                : buildUrl(symbol, mapTimeframe(timeframe, symbol), since, until);
 
         HttpResult response;
         try {
@@ -85,7 +88,16 @@ public final class EodhdMarketDataSource implements MarketDataSource {
         }
 
         checkStatus(response.statusCode(), symbol);
-        return parseBars(response.body(), symbol);
+        return intraday
+                ? parseIntradayBars(response.body(), symbol)
+                : parseBars(response.body(), symbol);
+    }
+
+    private static boolean isIntraday(Timeframe timeframe) {
+        return switch (timeframe.unit()) {
+            case SECOND, MINUTE, HOUR -> true;
+            case DAY, WEEK, MONTH, YEAR -> false;
+        };
     }
 
     private static String mapTimeframe(Timeframe timeframe, String symbol)
@@ -95,9 +107,20 @@ public final class EodhdMarketDataSource implements MarketDataSource {
             case "1w" -> "w";
             case "1M" -> "m";
             default -> throw new MarketDataSchemaException(symbol,
-                    "timeframe '" + timeframe.wire() + "' is not supported by the EODHD "
-                            + "end-of-day endpoint; intraday timeframes require the separate "
-                            + "/api/intraday endpoint, which is out of scope for this driver");
+                    "daily timeframe '" + timeframe.wire() + "' is not supported by EODHD; "
+                            + "supported daily timeframes: {1d, 1w, 1M}");
+        };
+    }
+
+    private static String mapIntradayInterval(Timeframe timeframe, String symbol)
+            throws MarketDataSchemaException {
+        return switch (timeframe.wire()) {
+            case "1m" -> "1m";
+            case "5m" -> "5m";
+            case "1h" -> "1h";
+            default -> throw new MarketDataSchemaException(symbol,
+                    "intraday timeframe '" + timeframe.wire() + "' is not supported by EODHD; "
+                            + "supported intraday intervals: {1m, 5m, 1h}");
         };
     }
 
@@ -110,6 +133,15 @@ public final class EodhdMarketDataSource implements MarketDataSource {
                 + "&from=" + from
                 + "&to=" + to
                 + "&period=" + period;
+    }
+
+    private String buildIntradayUrl(String symbol, String interval, Instant since, Instant until) {
+        return baseUrl + "/api/intraday/" + symbol
+                + "?api_token=" + URLEncoder.encode(apiToken, StandardCharsets.UTF_8)
+                + "&fmt=json"
+                + "&interval=" + interval
+                + "&from=" + since.getEpochSecond()
+                + "&to=" + until.getEpochSecond();
     }
 
     private static Map<String, String> requestHeaders() {
@@ -177,6 +209,52 @@ public final class EodhdMarketDataSource implements MarketDataSource {
         BigDecimal close = parsePrice(required(row, "close", symbol), "close", symbol);
         Optional<BigDecimal> volume = parseVolume(row.get("volume"), symbol);
         return new OHLCBar(time, open, high, low, close, volume);
+    }
+
+    private List<OHLCBar> parseIntradayBars(String body, String symbol) throws MarketDataException {
+        List<Map<String, String>> rows;
+        try {
+            rows = jsonReader.readArrayOfObjects(body);
+        } catch (RuntimeException e) {
+            throw new MarketDataSchemaException(symbol, "malformed JSON response from EODHD", e);
+        }
+        List<OHLCBar> bars = new ArrayList<>(rows.size());
+        Instant previous = null;
+        int index = 0;
+        for (Map<String, String> row : rows) {
+            OHLCBar bar = mapIntradayRow(row, symbol);
+            if (previous != null && !bar.time().isAfter(previous)) {
+                throw new MarketDataSchemaException(symbol,
+                        "EODHD intraday bars are not in strict ascending timestamp order: row "
+                                + index + " has time " + bar.time()
+                                + " which is not after the previous bar");
+            }
+            previous = bar.time();
+            bars.add(bar);
+            index++;
+        }
+        return List.copyOf(bars);
+    }
+
+    private static OHLCBar mapIntradayRow(Map<String, String> row, String symbol)
+            throws MarketDataSchemaException {
+        Instant time = parseTimestamp(required(row, "timestamp", symbol), symbol);
+        BigDecimal open = parsePrice(required(row, "open", symbol), "open", symbol);
+        BigDecimal high = parsePrice(required(row, "high", symbol), "high", symbol);
+        BigDecimal low = parsePrice(required(row, "low", symbol), "low", symbol);
+        BigDecimal close = parsePrice(required(row, "close", symbol), "close", symbol);
+        Optional<BigDecimal> volume = parseVolume(row.get("volume"), symbol);
+        return new OHLCBar(time, open, high, low, close, volume);
+    }
+
+    private static Instant parseTimestamp(String text, String symbol)
+            throws MarketDataSchemaException {
+        try {
+            return Instant.ofEpochSecond(Long.parseLong(text));
+        } catch (NumberFormatException | DateTimeException e) {
+            throw new MarketDataSchemaException(symbol,
+                    "invalid timestamp '" + text + "' in EODHD intraday bar (expected unix seconds)", e);
+        }
     }
 
     private static String required(Map<String, String> row, String field, String symbol)
