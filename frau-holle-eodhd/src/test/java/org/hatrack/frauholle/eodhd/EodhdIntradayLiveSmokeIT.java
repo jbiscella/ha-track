@@ -31,9 +31,11 @@ class EodhdIntradayLiveSmokeIT {
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void fetchesHourlyBarsFromTheLiveIntradayEndpoint() throws MarketDataException {
-        // A fixed past week well inside intraday history coverage.
+        // A single past trading day (Mon 2024-06-03) — enough 1h bars to
+        // prove the intraday endpoint is reached and returns real data,
+        // without pulling a wide range.
         Instant since = Instant.parse("2024-06-03T00:00:00Z");
-        Instant until = Instant.parse("2024-06-08T00:00:00Z");
+        Instant until = Instant.parse("2024-06-04T00:00:00Z");
 
         List<OHLCBar> bars = LiveSmokeSupport.fetchAndLog(
                 "EodhdIntradayLiveSmokeIT", SYMBOL, "1h", since, until);
