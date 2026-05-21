@@ -3,6 +3,7 @@ package org.hatrack.heerwisch.jfreechart.theme;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Stroke;
+import java.util.List;
 
 /**
  * Read-only colour palette and stroke conventions of the JFreeChart driver
@@ -24,6 +25,19 @@ public final class ThemeConstants {
     public static final Color SMA_LINE = new Color(0x1976D2);
     public static final Color EMA_LINE = new Color(0xF57C00);
     public static final Color BB_BAND = new Color(0x9E9E9E);
+    // Per-placement palettes for multiple same-type overlays on one pane.
+    // Element [0] equals the scalar base color above, so a lone indicator
+    // renders identically (backward compat); [1..3] are same-hue lightness
+    // variants. Exposed as immutable List<Color> (List.of) — read-only, like
+    // the rest of ThemeConstants; Color is itself immutable. The renderer picks
+    // palette.get(occurrenceIndex % size()) by the count of earlier same-type
+    // placements on the same pane.
+    public static final List<Color> SMA_PALETTE = List.of(
+            new Color(0x1976D2), new Color(0x0D47A1), new Color(0x64B5F6), new Color(0x1565C0));
+    public static final List<Color> EMA_PALETTE = List.of(
+            new Color(0xF57C00), new Color(0xE65100), new Color(0xFFB74D), new Color(0xFB8C00));
+    public static final List<Color> BB_PALETTE = List.of(
+            new Color(0x9E9E9E), new Color(0x616161), new Color(0xBDBDBD), new Color(0x757575));
     public static final Color BB_FILL = new Color(0x9E, 0x9E, 0x9E, 26);
     public static final Color RSI_LINE = new Color(0x7B1FA2);
     public static final Color RSI_OVERBOUGHT_LEVEL = new Color(0xEF, 0x53, 0x50, 153);

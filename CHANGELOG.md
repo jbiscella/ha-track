@@ -5,12 +5,25 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.50.0-alpha
+
+### Added
+
+- **heerwisch-api:** `IndicatorPlacement` gains an `Optional<String> label` (3-arg constructor; the 2-arg overload is preserved). When present it overrides the auto-derived indicator label (`SMA(20)`, …) in sub-pane axis labels and legend entries. New builder overload `addIndicator(Indicator, Pane, String label)`.
+- **heerwisch-api:** new `LegendEntry(IndicatorPlacement placement, String label, int rgb, Pane pane)` record, and `ChartImage.legend()` returning `List<LegendEntry>` for consumer-side legend rendering. `rgb` is plain 24-bit `0xRRGGBB` (no alpha, validated to `[0, 0xFFFFFF]`) — engine-neutral, so `heerwisch-api` carries no `java.awt` coupling; `pane` is validated to equal `placement.pane()`. One entry **per rendered line**, in `ChartSpec.indicators()` insertion order: single-line indicators emit one entry labeled by their base; multi-line indicators use the `<base>: <role>` colon convention — MACD → `<base>: MACD` + `<base>: Signal`; Stochastic → `<base>: %K` + `<base>: %D`; BollingerBands → `<base>: Upper` / `: Basis` / `: Lower` (sharing one color). `<base>` keeps full parameters visible (e.g. `BB(20,2)`). `ChartImage` gains the 5-component canonical form with the 4-arg constructor preserved (empty legend).
+- **heerwisch-jfreechart:** `BollingerBands`' auto-derived label now includes the standard-deviation multiplier — `BB(<period>,<stdDev>)` (e.g. `BB(20,2)`) — in both sub-pane axis labels and legend entries, so two BB placements with different multipliers are distinguishable.
+- **heerwisch-jfreechart:** per-placement distinct colors for multiple same-type overlays on one pane. New `SMA_PALETTE`, `EMA_PALETTE`, `BB_PALETTE` 4-element `Color[]` palettes (element `[0]` equals the existing scalar base color, so a lone indicator renders identically; `[1..3]` are same-hue lightness variants). The renderer picks `palette[occurrenceIndex % length]` by the count of earlier same-type placements on the same pane. SMA / EMA take the palette color as their line color; BollingerBands' three lines share the placement's palette shade (stays grouped); MACD / Stochastic keep their intrinsic two-color schemes; RSI / ADX / ATR keep their single theme color.
+
+### Compatibility
+
+- Additive. Existing 2-arg `IndicatorPlacement` and 4-arg `ChartImage` constructor calls are unchanged; a lone SMA/EMA/BB renders in the same color as before (`palette[0]`). japicmp clean — same new-record-component + preserved-overload pattern as `Indicator.RSI`'s `RsiVisualization` (0.46.0) and `HorizontalLevel`'s `FillColor` (0.49.0). `LegendEntry` is a new type; `rgb` is engine-neutral `int`.
+
 ## 0.49.0-alpha
 
 ### Added
 
 - **heerwisch-api:** `Annotation.HorizontalLevel` now accepts an optional `FillColor` for semantic line coloring (4-arg constructor; the 3-arg overload is preserved for backward compatibility). Enables the industry-convention reference-line scheme (TradingView and similar platforms) — entry neutral, stop-loss red (`LOSS`), take-profit green (`WIN`). When `fillColor` is empty, the line keeps the default `ThemeConstants.HORIZONTAL_LEVEL` color, unchanged from prior releases.
-- **heerwisch-jfreechart:** seven new `ThemeConstants` for semantic `HorizontalLevel` lines — `HORIZONTAL_LEVEL_WIN`, `HORIZONTAL_LEVEL_LOSS`, `HORIZONTAL_LEVEL_OPEN`, `HORIZONTAL_LEVEL_LONG_POSITION`, `HORIZONTAL_LEVEL_SHORT_POSITION`, `HORIZONTAL_LEVEL_NEUTRAL`, `HORIZONTAL_LEVEL_CAUTION`. Stroked lines use a stronger ~80% alpha (`0xCC`) than the translucent `TimeRangeHighlight` band palette; hues align with the band palette where the meaning is shared. `NEUTRAL` is a dark near-black reference (not white, which would be invisible on the white canvas).
+- **heerwisch-jfreechart:** seven new `ThemeConstants` for semantic `HorizontalLevel` lines — `HORIZONTAL_LEVEL_WIN`, `HORIZONTAL_LEVEL_LOSS`, `HORIZONTAL_LEVEL_OPEN`, `HORIZONTAL_LEVEL_LONG_POSITION`, `HORIZONTAL_LEVEL_SHORT_POSITION`, `HORIZONTAL_LEVEL_NEUTRAL`, `HORIZONTAL_LEVEL_CAUTION`. Stroked lines use a stronger ~80% alpha (`0xCC`) than the translucent `TimeRangeHighlight` band palette; hues align with the band palette where the meaning is shared. `NEUTRAL` is a pure achromatic medium-dark gray (`#595959`) and `OPEN` a blue-tinted slate (`#6B7AA1`) — distinct at a glance and both readable on the white canvas.
 
 ### Compatibility
 

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -49,6 +50,15 @@ public final class ChartSpecBuilder {
 
     public ChartSpecBuilder addIndicator(Indicator indicator, Pane pane) {
         placements.add(new IndicatorPlacement(indicator, pane));
+        return this;
+    }
+
+    /** Appends an indicator at an explicit pane with a label override. */
+    public ChartSpecBuilder addIndicator(Indicator indicator, Pane pane, String label) {
+        Objects.requireNonNull(indicator, "indicator");
+        Objects.requireNonNull(pane, "pane");
+        Objects.requireNonNull(label, "label");
+        placements.add(new IndicatorPlacement(indicator, pane, Optional.of(label)));
         return this;
     }
 

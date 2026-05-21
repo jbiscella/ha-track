@@ -166,6 +166,38 @@ public class HeerwischJFreeChartStepDefinitions {
         assertTrue(image != null, "no chart image produced");
     }
 
+    @Given("an SMA indicator with period {int} placed at pane {word}")
+    public void anSmaIndicatorWithPeriod(int period, String pane) {
+        builder.addIndicator(new Indicator.SMA(period, PriceSource.CLOSE), Pane.valueOf(pane));
+    }
+
+    @Given("an SMA indicator with period {int} placed at pane {word} labeled {string}")
+    public void anSmaIndicatorWithLabel(int period, String pane, String label) {
+        builder.addIndicator(new Indicator.SMA(period, PriceSource.CLOSE), Pane.valueOf(pane), label);
+    }
+
+    @Then("the legend has {int} entry/entries")
+    public void theLegendHasEntries(int count) {
+        assertTrue(image != null, "no chart image produced");
+        assertTrue(image.legend().size() == count,
+                "legend size: expected " + count + " but was " + image.legend().size());
+    }
+
+    @Then("legend entry {int} has label {string}")
+    public void legendEntryHasLabel(int index, String label) {
+        assertTrue(image.legend().get(index).label().equals(label),
+                "legend[" + index + "] label: expected '" + label + "' but was '"
+                        + image.legend().get(index).label() + "'");
+    }
+
+    @Then("legend entries {int} and {int} have distinct colors")
+    public void legendEntriesHaveDistinctColors(int a, int b) {
+        int ca = image.legend().get(a).rgb();
+        int cb = image.legend().get(b).rgb();
+        assertTrue(ca != cb, "legend[" + a + "] and legend[" + b
+                + "] share color " + String.format("#%06X", ca));
+    }
+
     @Then("no HeadlessException is thrown")
     public void noHeadlessExceptionIsThrown() {
         assertTrue(!(thrown instanceof java.awt.HeadlessException),

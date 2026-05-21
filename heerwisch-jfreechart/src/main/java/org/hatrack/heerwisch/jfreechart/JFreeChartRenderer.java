@@ -18,6 +18,7 @@ import org.hatrack.heerwisch.api.spec.GlyphStyle;
 import org.hatrack.heerwisch.api.spec.ImageFormat;
 import org.hatrack.heerwisch.api.spec.Indicator;
 import org.hatrack.heerwisch.api.spec.IndicatorPlacement;
+import org.hatrack.heerwisch.api.spec.LegendEntry;
 import org.hatrack.heerwisch.api.spec.LayoutSpec;
 import org.hatrack.heerwisch.api.spec.LevelStyle;
 import org.hatrack.heerwisch.api.spec.MarkerDirection;
@@ -103,7 +104,8 @@ public final class JFreeChartRenderer implements ChartRenderer {
             BufferedImage image = chart.createBufferedImage(width, height,
                     BufferedImage.TYPE_INT_RGB, null);
             byte[] bytes = encode(image, layout.format());
-            return new ChartImage(bytes, contentType(layout.format()), width, height);
+            return new ChartImage(bytes, contentType(layout.format()), width, height,
+                    buildLegend(spec));
         } catch (RuntimeException e) {
             throw new DriverInternalException(e);
         }
@@ -167,9 +169,12 @@ public final class JFreeChartRenderer implements ChartRenderer {
         stylePlot(plot);
 
         int datasetIndex = 1;
-        for (IndicatorPlacement placement : spec.indicators()) {
+        List<IndicatorPlacement> placements = spec.indicators();
+        for (int i = 0; i < placements.size(); i++) {
+            IndicatorPlacement placement = placements.get(i);
             if (placement.pane() == Pane.MAIN) {
-                datasetIndex = addIndicator(plot, datasetIndex, spec.series(), placement.indicator());
+                datasetIndex = addIndicator(plot, datasetIndex, spec.series(),
+                        placement.indicator(), paletteColorAt(spec, i));
             }
         }
         addAnnotations(plot, spec);
@@ -197,9 +202,12 @@ public final class JFreeChartRenderer implements ChartRenderer {
         }
 
         int datasetIndex = 0;
-        for (IndicatorPlacement placement : spec.indicators()) {
+        List<IndicatorPlacement> placements = spec.indicators();
+        for (int i = 0; i < placements.size(); i++) {
+            IndicatorPlacement placement = placements.get(i);
             if (placement.pane() == pane) {
-                datasetIndex = addIndicator(plot, datasetIndex, spec.series(), placement.indicator());
+                datasetIndex = addIndicator(plot, datasetIndex, spec.series(),
+                        placement.indicator(), paletteColorAt(spec, i));
             }
         }
         return plot;
@@ -220,16 +228,122 @@ public final class JFreeChartRenderer implements ChartRenderer {
             if (label.length() > 0) {
                 label.append(" / ");
             }
-            label.append(indicatorLabel(placement.indicator()));
+            label.append(placement.label().orElseGet(() -> indicatorLabel(placement.indicator())));
         }
         return label.length() > 0 ? label.toString() : pane.name();
+    }
+
+    // --- per-placement color + legend ---
+
+    private static List<Color> paletteFor(Indicator indicator) {
+        if (indicator instanceof Indicator.SMA) {
+            return ThemeConstants.SMA_PALETTE;
+        }
+        if (indicator instanceof Indicator.EMA) {
+            return ThemeConstants.EMA_PALETTE;
+        }
+        if (indicator instanceof Indicator.BollingerBands) {
+            return ThemeConstants.BB_PALETTE;
+        }
+        return null;
+    }
+
+    /**
+     * Palette color for the placement at {@code position}, by the count of
+     * earlier same-type placements on the same pane (occurrence index). Returns
+     * {@code null} for indicator types without a per-placement palette.
+     */
+    private static Color paletteColorAt(ChartSpec spec, int position) {
+        List<IndicatorPlacement> placements = spec.indicators();
+        IndicatorPlacement placement = placements.get(position);
+        List<Color> palette = paletteFor(placement.indicator());
+        if (palette == null) {
+            return null;
+        }
+        int occurrence = 0;
+        for (int j = 0; j < position; j++) {
+            IndicatorPlacement earlier = placements.get(j);
+            if (earlier.pane() == placement.pane()
+                    && earlier.indicator().getClass() == placement.indicator().getClass()) {
+                occurrence++;
+            }
+        }
+        return palette.get(occurrence % palette.size());
+    }
+
+    private static int rgb(Color color) {
+        return color.getRGB() & 0xFFFFFF;
+    }
+
+    /**
+     * Legend rows in spec insertion order, one entry per rendered line. A
+     * single-line indicator emits one entry labeled by its base (the
+     * placement's override or the auto-derived indicator label, e.g.
+     * {@code "SMA(20)"}). Multi-line indicators use the {@code "<base>: <role>"}
+     * colon convention: MACD → {@code "<base>: MACD"} + {@code "<base>: Signal"};
+     * Stochastic → {@code "<base>: %K"} + {@code "<base>: %D"}; BollingerBands →
+     * {@code "<base>: Upper"} + {@code ": Basis"} + {@code ": Lower"} (all three
+     * sharing the placement's color). The full base keeps every parameter
+     * visible so two placements of the same type with different parameters do
+     * not collapse to identical labels.
+     */
+    private static List<LegendEntry> buildLegend(ChartSpec spec) {
+        List<IndicatorPlacement> placements = spec.indicators();
+        List<LegendEntry> entries = new ArrayList<>();
+        for (int i = 0; i < placements.size(); i++) {
+            IndicatorPlacement placement = placements.get(i);
+            Indicator indicator = placement.indicator();
+            String label = placement.label().orElseGet(() -> indicatorLabel(indicator));
+            Pane pane = placement.pane();
+            switch (indicator) {
+                case Indicator.MACD ignored -> {
+                    entries.add(new LegendEntry(placement, label + ": MACD", rgb(ThemeConstants.MACD_LINE), pane));
+                    entries.add(new LegendEntry(placement, label + ": Signal", rgb(ThemeConstants.MACD_SIGNAL), pane));
+                }
+                case Indicator.Stochastic ignored -> {
+                    entries.add(new LegendEntry(placement, label + ": %K", rgb(ThemeConstants.STOCHASTIC_K), pane));
+                    entries.add(new LegendEntry(placement, label + ": %D", rgb(ThemeConstants.STOCHASTIC_D), pane));
+                }
+                case Indicator.BollingerBands ignored -> {
+                    // Three lines (upper/basis/lower) share the placement's
+                    // palette color — emit one entry per rendered line, with
+                    // the "<base>: <role>" colon convention.
+                    int c = rgb(legendPrimaryColor(spec, i));
+                    entries.add(new LegendEntry(placement, label + ": Upper", c, pane));
+                    entries.add(new LegendEntry(placement, label + ": Basis", c, pane));
+                    entries.add(new LegendEntry(placement, label + ": Lower", c, pane));
+                }
+                default ->
+                        entries.add(new LegendEntry(placement, label,
+                                rgb(legendPrimaryColor(spec, i)), pane));
+            }
+        }
+        return entries;
+    }
+
+    private static Color legendPrimaryColor(ChartSpec spec, int position) {
+        Color palette = paletteColorAt(spec, position);
+        if (palette != null) {
+            return palette;
+        }
+        return switch (spec.indicators().get(position).indicator()) {
+            case Indicator.SMA ignored -> ThemeConstants.SMA_LINE;
+            case Indicator.EMA ignored -> ThemeConstants.EMA_LINE;
+            case Indicator.BollingerBands ignored -> ThemeConstants.BB_BAND;
+            case Indicator.MACD ignored -> ThemeConstants.MACD_LINE;
+            case Indicator.RSI ignored -> ThemeConstants.RSI_LINE;
+            case Indicator.ADX ignored -> ThemeConstants.ADX_LINE;
+            case Indicator.Stochastic ignored -> ThemeConstants.STOCHASTIC_K;
+            case Indicator.ATR ignored -> ThemeConstants.ATR_LINE;
+            case Indicator.VolumePane ignored -> ThemeConstants.VOLUME_BAR_UP;
+        };
     }
 
     static String indicatorLabel(Indicator indicator) {
         return switch (indicator) {
             case Indicator.SMA sma -> "SMA(" + sma.period() + ")";
             case Indicator.EMA ema -> "EMA(" + ema.period() + ")";
-            case Indicator.BollingerBands bb -> "BB(" + bb.period() + ")";
+            case Indicator.BollingerBands bb -> "BB(" + bb.period() + "," + bb.stdDevMultiplier() + ")";
             case Indicator.MACD macd -> "MACD(" + macd.fastPeriod() + ","
                     + macd.slowPeriod() + "," + macd.signalPeriod() + ")";
             case Indicator.RSI rsi -> "RSI(" + rsi.period() + ")";
@@ -288,25 +402,27 @@ public final class JFreeChartRenderer implements ChartRenderer {
         return collection;
     }
 
-    private int addIndicator(XYPlot plot, int index, Series series, Indicator indicator) {
+    private int addIndicator(XYPlot plot, int index, Series series, Indicator indicator,
+                             Color overrideColor) {
         List<Instant> times = times(series);
         switch (indicator) {
             case Indicator.SMA sma -> {
                 return addLine(plot, index, "SMA", times,
                         Indicators.sma(prices(series, sma.priceSource()), sma.period()),
-                        ThemeConstants.SMA_LINE);
+                        overrideColor != null ? overrideColor : ThemeConstants.SMA_LINE);
             }
             case Indicator.EMA ema -> {
                 return addLine(plot, index, "EMA", times,
                         Indicators.ema(prices(series, ema.priceSource()), ema.period()),
-                        ThemeConstants.EMA_LINE);
+                        overrideColor != null ? overrideColor : ThemeConstants.EMA_LINE);
             }
             case Indicator.BollingerBands bb -> {
+                Color band = overrideColor != null ? overrideColor : ThemeConstants.BB_BAND;
                 BollingerBands bands = Indicators.bollinger(
                         prices(series, bb.priceSource()), bb.period(), bb.stdDevMultiplier());
-                int next = addLine(plot, index, "BB upper", times, bands.upper(), ThemeConstants.BB_BAND);
-                next = addLine(plot, next, "BB middle", times, bands.middle(), ThemeConstants.BB_BAND);
-                return addLine(plot, next, "BB lower", times, bands.lower(), ThemeConstants.BB_BAND);
+                int next = addLine(plot, index, "BB upper", times, bands.upper(), band);
+                next = addLine(plot, next, "BB middle", times, bands.middle(), band);
+                return addLine(plot, next, "BB lower", times, bands.lower(), band);
             }
             case Indicator.MACD macd -> {
                 MacdResult lines = Indicators.macd(prices(series, macd.priceSource()),

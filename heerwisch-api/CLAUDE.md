@@ -123,14 +123,15 @@ Eight subplot slots are the hard ceiling. Beyond that, charts become unreadable.
 
 ### 1.5 `IndicatorPlacement`
 
-Record with two fields:
+Record with three fields:
 
 | Field | Type |
 |---|---|
 | `indicator` | `Indicator` (non-null) |
 | `pane` | `Pane` (non-null) |
+| `label` | `Optional<String>` (non-null; default `Optional.empty()`) |
 
-Internal type produced by `ChartSpecBuilder` to associate each indicator with its pane assignment. Exposed in `ChartSpec.indicators()`.
+Produced by `ChartSpecBuilder` to associate each indicator with its pane assignment and an optional label override. Exposed in `ChartSpec.indicators()`. A backward-compatible 2-arg constructor `(indicator, pane)` defaults `label` to `Optional.empty()`. When `label` is present it overrides the driver's auto-derived label (e.g. `"SMA(20)"`) in sub-pane axis labels and legend entries; when empty the auto-derived label is used. Set via the builder's `addIndicator(Indicator, Pane, String label)` overload.
 
 ### 1.6 `LayoutSpec` (sealed)
 
@@ -172,8 +173,22 @@ Immutable record exposing:
 | `contentType` | `String` (e.g. `"image/png"`) |
 | `widthPx` | `int` |
 | `heightPx` | `int` |
+| `legend` | `List<LegendEntry>` (defensively copied to an immutable list) |
 
-Defensive copy of `bytes` on construction and on access (it's a `byte[]`, not immutable).
+Defensive copy of `bytes` on construction and on access (it's a `byte[]`, not immutable). A backward-compatible 4-arg constructor `(bytes, contentType, widthPx, heightPx)` defaults `legend` to an empty list.
+
+### 1.9 `LegendEntry`
+
+Record describing one rendered series for consumer-side legend rendering:
+
+| Field | Type |
+|---|---|
+| `placement` | `IndicatorPlacement` (non-null) |
+| `label` | `String` (non-null; the placement's label override or the auto-derived indicator label) |
+| `rgb` | `int` (plain 24-bit `0xRRGGBB`, no alpha — engine-neutral, keeps `heerwisch-api` free of `java.awt`) |
+| `pane` | `Pane` (non-null) |
+
+Exposed via `ChartImage.legend()`. One entry per rendered series in `ChartSpec.indicators()` insertion order; single-line indicators yield one entry per placement, dual-line indicators (`MACD`, `Stochastic`) yield two entries that share the placement but carry distinct `label` and `rgb` (the line and its signal / `%D`). Consumers can group rows by `pane()` for per-pane legend sections. The colors and labels are a deterministic function of the spec; the driver computes them as it renders.
 
 ## 2. Builder API
 
