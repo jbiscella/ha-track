@@ -24,6 +24,20 @@ public final class ThemeConstants {
     public static final Color SMA_LINE = new Color(0x1976D2);
     public static final Color EMA_LINE = new Color(0xF57C00);
     public static final Color BB_BAND = new Color(0x9E9E9E);
+    // Per-placement palettes for multiple same-type overlays on one pane.
+    // Element [0] equals the scalar base color above, so a lone indicator
+    // renders identically (backward compat); [1..3] are same-hue lightness
+    // variants. The renderer picks palette[occurrenceIndex % length] by the
+    // count of earlier same-type placements on the same pane.
+    public static final Color[] SMA_PALETTE = {
+            new Color(0x1976D2), new Color(0x0D47A1), new Color(0x64B5F6), new Color(0x1565C0)
+    };
+    public static final Color[] EMA_PALETTE = {
+            new Color(0xF57C00), new Color(0xE65100), new Color(0xFFB74D), new Color(0xFB8C00)
+    };
+    public static final Color[] BB_PALETTE = {
+            new Color(0x9E9E9E), new Color(0x616161), new Color(0xBDBDBD), new Color(0x757575)
+    };
     public static final Color BB_FILL = new Color(0x9E, 0x9E, 0x9E, 26);
     public static final Color RSI_LINE = new Color(0x7B1FA2);
     public static final Color RSI_OVERBOUGHT_LEVEL = new Color(0xEF, 0x53, 0x50, 153);

@@ -161,6 +161,20 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 | `ATR(period)` | Single line |
 | `VolumePane()` | Vertical bars per bar, colored by `VOLUME_BAR_UP` or `VOLUME_BAR_DOWN` based on the underlying close vs open of the source series |
 
+### 7.2 Per-placement overlay colors
+
+When a pane carries multiple placements of the same indicator type (e.g. `SMA(20)` and `SMA(100)` both on `MAIN`), each is drawn in a distinct shade so the lines are visually separable. The driver computes a per-placement **occurrence index** = the count of earlier same-type placements on the same pane (over `spec.indicators()`, insertion order) and selects `palette[occurrence % palette.length]` from the type's palette:
+
+- `SMA_PALETTE`, `EMA_PALETTE`, `BB_PALETTE` are 4-element `Color[]` in `ThemeConstants`. Element `[0]` equals the scalar base color (`SMA_LINE` / `EMA_LINE` / `BB_BAND`), so a lone indicator renders identically to prior releases; `[1..3]` are same-hue lightness variants.
+- `SMA` / `EMA`: the palette color is the line color.
+- `BollingerBands`: all three lines (upper / middle / lower) share the placement's palette shade — they stay visually grouped; a second BB on the pane shifts to the next shade.
+- `MACD` / `Stochastic`: keep their intrinsic two-color schemes (the dual color is the information, not a collision).
+- `RSI` / `ADX` / `ATR`: keep their single theme color.
+
+### 7.3 Legend (`ChartImage.legend()`)
+
+The driver populates `ChartImage.legend()` with one `LegendEntry` per rendered series, in `spec.indicators()` insertion order, so consumers can render their own legend chrome. `rgb` is the series' rendered color as plain `0xRRGGBB`. Single-line indicators emit one entry (color = the per-placement palette color or the scalar theme color); dual-line indicators emit two — `MACD` → `MACD(f,s,sig)` (line) + `Signal`; `Stochastic` → `Stoch(k,d,sm)` (`%K`) + `%D`. The entry label is the placement's label override or the auto-derived indicator label (§7.1); `pane()` lets consumers group entries into per-pane sections.
+
 ### 7.1 Sub-pane Y axis labels
 
 Each sub-pane's Y axis is labeled with the indicator(s) it carries, not the generic `Pane` enum name. The label is derived from the indicator type and its parameters: `RSI(<period>)`, `MACD(<fast>,<slow>,<signal>)`, `Stoch(<k>,<d>,<smoothing>)`, `ADX(<period>)`, `ATR(<period>)`, `BB(<period>)`, `SMA(<period>)`, `EMA(<period>)`, `Volume`. When a pane carries more than one indicator the labels are joined with `" / "` (e.g. `RSI(14) / RSI(21)`). A pane with no indicator falls back to the `Pane` name (`SUBPLOT_1`, …), which should not occur for a referenced subplot. This aligns with the convention of TradingView and similar tools, where the pane label names the indicator and its period.
