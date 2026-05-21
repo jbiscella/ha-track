@@ -28,11 +28,11 @@ strategy are pluggable:
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle</artifactId>
-    <version>0.48.1-alpha</version>
+    <version>0.48.0-alpha</version>
 </dependency>
 ```
 
-> All ha-track modules share a single version — currently `0.48.1-alpha`.
+> All ha-track modules share a single version — currently `0.48.0-alpha`.
 
 Packages: `port`, `model`, `spec`, `result`, `engine`, `error` under
 `org.hatrack.frauholle`.

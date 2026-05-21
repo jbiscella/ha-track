@@ -22,7 +22,7 @@ It has zero external dependencies (JDK only), exactly like `commons`.
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>indicators</artifactId>
-    <version>0.48.1-alpha</version>
+    <version>0.48.0-alpha</version>
 </dependency>
 ```
 

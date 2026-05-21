@@ -5,20 +5,6 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
-## 0.48.1-alpha
-
-### Changed
-
-- **heerwisch-jfreechart:** sub-pane Y axis labels now read the indicator and its parameters — `RSI(14)`, `MACD(12,26,9)`, `Stoch(14,3,3)`, `ADX(14)`, `ATR(14)`, `BB(20)`, `SMA(20)`, `EMA(50)`, `Volume` — instead of the generic `SUBPLOT_1` / `SUBPLOT_2` fallback. Multiple indicators on one pane are joined with `" / "` (e.g. `RSI(14) / RSI(21)`). A pane with no indicator falls back to the `Pane` name (should not occur for a referenced subplot). Aligns with TradingView and similar tools, where the pane label names the indicator and its period. Spec: `heerwisch-jfreechart/CLAUDE.md` §7.1.
-
-### Added
-
-- **frau-holle-eodhd:** live smoke tests against EODHD's public demo endpoint (`api_token=demo`, AAPL.US) — `EodhdEodLiveSmokeIT` (1d) and `EodhdIntradayLiveSmokeIT` (1h). They run in Maven's `integration-test` phase via the Failsafe plugin (`*IT.java`); `./mvnw verify -DskipITs` skips them. In CI they run in a dedicated **soft-fail** job on push / pull_request (a red run surfaces the error log without blocking the workflow); the release pipeline runs the same ITs **hard-fail** so a broken live path blocks publishing. No EODHD subscription required — the demo token covers AAPL.US for free. Assert shape and invariants only (non-empty, OHLC valid, strictly ascending timestamps), never specific prices.
-
-### Compatibility
-
-- All changes additive / operational. No API surface change. japicmp clean.
-
 ## 0.48.0-alpha
 
 ### Added
@@ -26,10 +12,15 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 - **frau-holle-eodhd:** support for EODHD's `/api/intraday` endpoint alongside the existing `/api/eod` endpoint. `EodhdMarketDataSource` now handles intraday timeframes `1m`, `5m`, `1h` in addition to daily / weekly / monthly. Endpoint dispatch is by `Timeframe.unit()`: `SECOND` / `MINUTE` / `HOUR` route to `/api/intraday`; `DAY` / `WEEK` / `MONTH` / `YEAR` route to `/api/eod`. Single class, single public entry point — consumers do not choose at construction.
 - **frau-holle-eodhd:** intraday-specific behavior — `from` / `to` are passed as UNIX epoch **seconds** (not `YYYY-MM-DD`, EODHD's different convention for this endpoint); bar `time` is `Instant.ofEpochSecond(row["timestamp"])` (bar start in UTC, EODHD's `gmtoffset` and `datetime` fields ignored); pre-market and after-hours bars for US tickers are passed through as-is (no RTH filtering — filter downstream); intraday call cost is 5 EODHD API credits per request (vs 1 for EOD); 5m / 1h history available from October 2020, 1m varies by ticker.
 - **frau-holle-eodhd:** unsupported intraday intervals (e.g. `15m`, `30m`, `2h`) are rejected with `MarketDataSchemaException` naming the supported set `{1m, 5m, 1h}`. Unsupported daily timeframes (e.g. `3d`, `2w`) are rejected with the supported set `{1d, 1w, 1M}`. The prior blanket "intraday rejected" message is replaced by these targeted messages.
+- **frau-holle-eodhd:** live smoke tests against EODHD's public demo endpoint (`api_token=demo`, AAPL.US) — `EodhdEodLiveSmokeIT` (1d) and `EodhdIntradayLiveSmokeIT` (1h). They run in Maven's `integration-test` phase via the Failsafe plugin (`*IT.java`); `./mvnw verify -DskipITs` skips them. In CI they run in a dedicated **soft-fail** job on push / pull_request (a red run surfaces the error log without blocking the workflow); the release pipeline runs the same ITs **hard-fail** so a broken live path blocks publishing. No EODHD subscription required — the demo token covers AAPL.US for free. Assert shape and invariants only (non-empty, OHLC valid, strictly ascending timestamps), never specific prices.
+
+### Changed
+
+- **heerwisch-jfreechart:** sub-pane Y axis labels now read the indicator and its parameters — `RSI(14)`, `MACD(12,26,9)`, `Stoch(14,3,3)`, `ADX(14)`, `ATR(14)`, `BB(20)`, `SMA(20)`, `EMA(50)`, `Volume` — instead of the generic `SUBPLOT_1` / `SUBPLOT_2` fallback. Multiple indicators on one pane are joined with `" / "` (e.g. `RSI(14) / RSI(21)`). A pane with no indicator falls back to the `Pane` name (should not occur for a referenced subplot). Aligns with TradingView and similar tools, where the pane label names the indicator and its period. Spec: `heerwisch-jfreechart/CLAUDE.md` §7.1.
 
 ### Compatibility
 
-- Additive. Existing consumers passing `1d` / `1w` / `1M` continue to work unchanged (same endpoint, same URL shape, same response shape). Consumers passing intraday timeframes — previously rejected — now receive bars instead of an exception. japicmp clean (no public API surface change in commons or heerwisch-api; `frau-holle-eodhd`'s `EodhdMarketDataSource` constructor and `fetchHistory` signature are unchanged).
+- Additive across the board. Existing consumers passing `1d` / `1w` / `1M` continue to work unchanged (same endpoint, same URL shape, same response shape); consumers passing intraday timeframes — previously rejected — now receive bars instead of an exception. The sub-pane label change and the smoke tests are operational / cosmetic. No public API surface change in commons, heerwisch-api, or `frau-holle-eodhd` (`EodhdMarketDataSource` constructor and `fetchHistory` signature unchanged). japicmp clean.
 
 ## 0.47.0-alpha
 
