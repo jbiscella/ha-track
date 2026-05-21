@@ -173,7 +173,7 @@ When a pane carries multiple placements of the same indicator type (e.g. `SMA(20
 
 ### 7.3 Legend (`ChartImage.legend()`)
 
-The driver populates `ChartImage.legend()` with one `LegendEntry` per rendered series, in `spec.indicators()` insertion order, so consumers can render their own legend chrome. `rgb` is the series' rendered color as plain `0xRRGGBB`. Single-line indicators emit one entry (color = the per-placement palette color or the scalar theme color); dual-line indicators emit two — `MACD` → `MACD(f,s,sig)` (line) + `Signal`; `Stochastic` → `Stoch(k,d,sm)` (`%K`) + `%D`. The entry label is the placement's label override or the auto-derived indicator label (§7.1); `pane()` lets consumers group entries into per-pane sections.
+The driver populates `ChartImage.legend()` with legend rows in `spec.indicators()` insertion order, so consumers can render their own legend chrome. `rgb` is the series' rendered color as plain `0xRRGGBB`. Single-line indicators emit one entry (color = the per-placement palette color or the scalar theme color); dual-line indicators emit two — `MACD` → `MACD(f,s,sig)` (line) + `Signal`; `Stochastic` → `Stoch(k,d,sm)` (`%K`) + `%D`. `BollingerBands` emits a **single grouped entry**: its three lines (upper/middle/lower) share one color, so they are one logical legend row, not three. The entry label is the placement's label override or the auto-derived indicator label (§7.1); `pane()` (always equal to `placement.pane()`) lets consumers group entries into per-pane sections.
 
 ### 7.1 Sub-pane Y axis labels
 

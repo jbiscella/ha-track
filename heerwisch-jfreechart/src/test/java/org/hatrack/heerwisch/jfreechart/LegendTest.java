@@ -50,8 +50,8 @@ class LegendTest {
         assertEquals(2, legend.size());
         assertEquals("SMA(20)", legend.get(0).label());
         assertEquals("SMA(100)", legend.get(1).label());
-        assertEquals(rgb(ThemeConstants.SMA_PALETTE[0]), legend.get(0).rgb());
-        assertEquals(rgb(ThemeConstants.SMA_PALETTE[1]), legend.get(1).rgb());
+        assertEquals(rgb(ThemeConstants.SMA_PALETTE.get(0)), legend.get(0).rgb());
+        assertEquals(rgb(ThemeConstants.SMA_PALETTE.get(1)), legend.get(1).rgb());
         assertNotEquals(legend.get(0).rgb(), legend.get(1).rgb(),
                 "two SMA overlays must be distinct colors");
     }
@@ -66,7 +66,7 @@ class LegendTest {
 
         assertEquals(1, legend.size());
         assertEquals(rgb(ThemeConstants.SMA_LINE), legend.get(0).rgb());
-        assertEquals(rgb(ThemeConstants.SMA_PALETTE[0]), legend.get(0).rgb());
+        assertEquals(rgb(ThemeConstants.SMA_PALETTE.get(0)), legend.get(0).rgb());
     }
 
     @Test
@@ -129,6 +129,24 @@ class LegendTest {
         assertEquals(Pane.SUBPLOT_1, legend.get(2).pane());
         // distinct colors across the three series
         assertTrue(legend.stream().map(LegendEntry::rgb).distinct().count() == 3);
+    }
+
+    @Test
+    void legendEntryRejectsOutOfRangeRgb() {
+        var placement = new org.hatrack.heerwisch.api.spec.IndicatorPlacement(
+                new Indicator.SMA(20, PriceSource.CLOSE), Pane.MAIN);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new LegendEntry(placement, "x", 0x1000000, Pane.MAIN));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new LegendEntry(placement, "x", -1, Pane.MAIN));
+    }
+
+    @Test
+    void legendEntryRejectsPaneMismatch() {
+        var placement = new org.hatrack.heerwisch.api.spec.IndicatorPlacement(
+                new Indicator.SMA(20, PriceSource.CLOSE), Pane.MAIN);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new LegendEntry(placement, "x", 0x1976D2, Pane.SUBPLOT_1));
     }
 
     private static List<OHLCBar> bars(int n) {

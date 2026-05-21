@@ -235,7 +235,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
 
     // --- per-placement color + legend ---
 
-    private static Color[] paletteFor(Indicator indicator) {
+    private static List<Color> paletteFor(Indicator indicator) {
         if (indicator instanceof Indicator.SMA) {
             return ThemeConstants.SMA_PALETTE;
         }
@@ -256,7 +256,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
     private static Color paletteColorAt(ChartSpec spec, int position) {
         List<IndicatorPlacement> placements = spec.indicators();
         IndicatorPlacement placement = placements.get(position);
-        Color[] palette = paletteFor(placement.indicator());
+        List<Color> palette = paletteFor(placement.indicator());
         if (palette == null) {
             return null;
         }
@@ -268,7 +268,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 occurrence++;
             }
         }
-        return palette[occurrence % palette.length];
+        return palette.get(occurrence % palette.size());
     }
 
     private static int rgb(Color color) {
@@ -276,11 +276,13 @@ public final class JFreeChartRenderer implements ChartRenderer {
     }
 
     /**
-     * One {@link LegendEntry} per rendered series, in spec insertion order.
-     * Dual-line indicators (MACD, Stochastic) emit two entries that share the
-     * placement but carry distinct labels and colors. The primary entry's label
-     * is the placement's override or the auto-derived indicator label; the
-     * secondary entry is named by its line role ("Signal" / "%D").
+     * Legend rows in spec insertion order. Single-line indicators emit one
+     * entry; dual-line indicators (MACD, Stochastic) emit two entries that
+     * share the placement but carry distinct labels and colors. The primary
+     * entry's label is the placement's override or the auto-derived indicator
+     * label; the secondary entry is named by its line role ("Signal" / "%D").
+     * BollingerBands emits a single grouped entry — its three lines share one
+     * color, so they form one logical legend row rather than three.
      */
     private static List<LegendEntry> buildLegend(ChartSpec spec) {
         List<IndicatorPlacement> placements = spec.indicators();
