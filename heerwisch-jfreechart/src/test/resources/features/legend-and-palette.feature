@@ -30,6 +30,16 @@ Feature: Legend introspection and per-placement overlay colors
     And the legend has 1 entry
     And legend entry 0 has label "Fast MA"
 
+  Scenario: BollingerBands emits three legend entries (upper / basis / lower)
+    Given a chart with an OHLC series of 60 bars
+    And a BollingerBands indicator placed at pane MAIN
+    When I render the chart
+    Then rendering succeeds
+    And the legend has 3 entries
+    And legend entry 0 has label "BB(20) Upper"
+    And legend entry 1 has label "BB(20) Basis"
+    And legend entry 2 has label "BB(20) Lower"
+
   Scenario: MACD emits two legend entries (line + signal)
     Given a chart with an OHLC series of 60 bars
     And a MACD indicator placed at pane SUBPLOT_1

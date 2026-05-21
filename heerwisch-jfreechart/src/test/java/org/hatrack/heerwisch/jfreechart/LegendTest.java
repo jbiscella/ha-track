@@ -132,6 +132,25 @@ class LegendTest {
     }
 
     @Test
+    void bollingerBandsEmitsThreeGroupedEntries() throws Exception {
+        ChartSpec spec = ChartSpec.builder()
+                .withSeries(new OHLCSeries(bars(60)))
+                .addIndicator(new Indicator.BollingerBands(20, new BigDecimal("2"),
+                        PriceSource.CLOSE), Pane.MAIN)
+                .build();
+        List<LegendEntry> legend = render(spec).legend();
+
+        assertEquals(3, legend.size());
+        assertEquals("BB(20) Upper", legend.get(0).label());
+        assertEquals("BB(20) Basis", legend.get(1).label());
+        assertEquals("BB(20) Lower", legend.get(2).label());
+        // all three share the placement's color (grouped band)
+        assertEquals(legend.get(0).rgb(), legend.get(1).rgb());
+        assertEquals(legend.get(1).rgb(), legend.get(2).rgb());
+        assertEquals(rgb(ThemeConstants.BB_PALETTE.get(0)), legend.get(0).rgb());
+    }
+
+    @Test
     void legendEntryRejectsOutOfRangeRgb() {
         var placement = new org.hatrack.heerwisch.api.spec.IndicatorPlacement(
                 new Indicator.SMA(20, PriceSource.CLOSE), Pane.MAIN);

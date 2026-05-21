@@ -276,13 +276,12 @@ public final class JFreeChartRenderer implements ChartRenderer {
     }
 
     /**
-     * Legend rows in spec insertion order. Single-line indicators emit one
-     * entry; dual-line indicators (MACD, Stochastic) emit two entries that
-     * share the placement but carry distinct labels and colors. The primary
-     * entry's label is the placement's override or the auto-derived indicator
-     * label; the secondary entry is named by its line role ("Signal" / "%D").
-     * BollingerBands emits a single grouped entry — its three lines share one
-     * color, so they form one logical legend row rather than three.
+     * Legend rows in spec insertion order, one entry per rendered line. A
+     * single-line indicator emits one entry; MACD and Stochastic emit two
+     * (line + "Signal" / "%K" + "%D"); BollingerBands emits three
+     * ("&lt;base&gt; Upper" / " Basis" / " Lower"), all sharing the placement's
+     * color. The base label is the placement's override or the auto-derived
+     * indicator label.
      */
     private static List<LegendEntry> buildLegend(ChartSpec spec) {
         List<IndicatorPlacement> placements = spec.indicators();
@@ -300,6 +299,14 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 case Indicator.Stochastic ignored -> {
                     entries.add(new LegendEntry(placement, label, rgb(ThemeConstants.STOCHASTIC_K), pane));
                     entries.add(new LegendEntry(placement, "%D", rgb(ThemeConstants.STOCHASTIC_D), pane));
+                }
+                case Indicator.BollingerBands ignored -> {
+                    // Three lines (upper/basis/lower) share the placement's
+                    // palette color — emit one entry per rendered line.
+                    int c = rgb(legendPrimaryColor(spec, i));
+                    entries.add(new LegendEntry(placement, label + " Upper", c, pane));
+                    entries.add(new LegendEntry(placement, label + " Basis", c, pane));
+                    entries.add(new LegendEntry(placement, label + " Lower", c, pane));
                 }
                 default ->
                         entries.add(new LegendEntry(placement, label,
