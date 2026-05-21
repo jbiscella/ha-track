@@ -37,7 +37,7 @@ A green build compiles all eight modules and runs the full behavioural test
 suite — every module is specified and tested with **Cucumber feature files**
 (`<module>/src/test/resources/features/`) executed on the JUnit Platform.
 
-All eight modules share a single version (`0.48.0-alpha`), managed centrally
+All eight modules share a single version (`0.48.1-alpha`), managed centrally
 in the root POM.
 
 ---
@@ -154,14 +154,14 @@ All artifacts share the `net.jacopobiscella` group id.
 
 | Artifact | Version | Depends on |
 |---|---|---|
-| `commons` | `0.48.0-alpha` | — (JDK only) |
-| `indicators` | `0.48.0-alpha` | — (JDK only) |
-| `heerwisch-api` | `0.48.0-alpha` | `commons` |
-| `heerwisch-jfreechart` | `0.48.0-alpha` | `heerwisch-api`, `indicators`, JFreeChart 1.5 |
-| `nachtkrapp` | `0.48.0-alpha` | `commons`, `indicators` |
-| `frau-holle` | `0.48.0-alpha` | `commons` |
-| `frau-holle-csv` | `0.48.0-alpha` | `frau-holle` |
-| `frau-holle-eodhd` | `0.48.0-alpha` | `frau-holle` |
+| `commons` | `0.48.1-alpha` | — (JDK only) |
+| `indicators` | `0.48.1-alpha` | — (JDK only) |
+| `heerwisch-api` | `0.48.1-alpha` | `commons` |
+| `heerwisch-jfreechart` | `0.48.1-alpha` | `heerwisch-api`, `indicators`, JFreeChart 1.5 |
+| `nachtkrapp` | `0.48.1-alpha` | `commons`, `indicators` |
+| `frau-holle` | `0.48.1-alpha` | `commons` |
+| `frau-holle-csv` | `0.48.1-alpha` | `frau-holle` |
+| `frau-holle-eodhd` | `0.48.1-alpha` | `frau-holle` |
 
 A consumer depends only on the modules it actually uses — e.g. a charting-only
 app needs `heerwisch-api` + `heerwisch-jfreechart`; a backtesting app needs

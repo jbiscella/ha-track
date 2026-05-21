@@ -17,7 +17,7 @@ on disk. For a live HTTP source see [`frau-holle-eodhd`](../frau-holle-eodhd).
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle-csv</artifactId>
-    <version>0.48.0-alpha</version>
+    <version>0.48.1-alpha</version>
 </dependency>
 ```
 

@@ -21,7 +21,7 @@ For an offline, no-network source see [`frau-holle-csv`](../frau-holle-csv).
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle-eodhd</artifactId>
-    <version>0.48.0-alpha</version>
+    <version>0.48.1-alpha</version>
 </dependency>
 ```
 
@@ -111,6 +111,29 @@ EODHD has **no header-based authentication** — the API token travels as a quer
 parameter, so the request URL contains it. Never log that URL at INFO level or
 above; if a URL must be logged, redact the `api_token` value first. (The driver
 itself does no logging.)
+
+## Live smoke tests
+
+Two integration tests (`EodhdEodLiveSmokeIT`, `EodhdIntradayLiveSmokeIT`)
+exercise the driver against EODHD's **public demo endpoint** — `api_token=demo`
+covers `AAPL.US` for free, so no subscription or GitHub Secret is needed. They
+fetch a fixed historical window (daily and 1h), then assert shape only
+(non-empty, OHLC invariants, strictly ascending timestamps) — never specific
+prices, which drift between runs.
+
+They run in Maven's `integration-test` phase via the Failsafe plugin
+(`*IT.java`), so `./mvnw verify` runs them and `./mvnw verify -DskipITs` skips
+them. In CI:
+
+| Trigger | Behaviour |
+|---|---|
+| push / pull_request | smoke runs in a dedicated **soft-fail** job (`continue-on-error`) — a red run surfaces the error log without blocking the workflow |
+| release pipeline | the release build runs the same ITs with no `continue-on-error`, so a broken live path **hard-fails** a publish |
+
+On any failure the underlying `MarketDataException` propagates so the CI log
+shows the real cause (e.g. an EODHD outage, a network egress restriction, or a
+demo-token coverage change). If your build environment cannot reach
+`eodhd.com`, run `./mvnw verify -DskipITs` to skip the live calls.
 
 ## Out of scope
 

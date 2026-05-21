@@ -24,7 +24,7 @@ vector engine tomorrow, without changing how you describe charts.
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>heerwisch-api</artifactId>
-    <version>0.48.0-alpha</version>
+    <version>0.48.1-alpha</version>
 </dependency>
 ```
 

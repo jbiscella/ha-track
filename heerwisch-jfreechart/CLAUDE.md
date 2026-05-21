@@ -161,6 +161,10 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 | `ATR(period)` | Single line |
 | `VolumePane()` | Vertical bars per bar, colored by `VOLUME_BAR_UP` or `VOLUME_BAR_DOWN` based on the underlying close vs open of the source series |
 
+### 7.1 Sub-pane Y axis labels
+
+Each sub-pane's Y axis is labeled with the indicator(s) it carries, not the generic `Pane` enum name. The label is derived from the indicator type and its parameters: `RSI(<period>)`, `MACD(<fast>,<slow>,<signal>)`, `Stoch(<k>,<d>,<smoothing>)`, `ADX(<period>)`, `ATR(<period>)`, `BB(<period>)`, `SMA(<period>)`, `EMA(<period>)`, `Volume`. When a pane carries more than one indicator the labels are joined with `" / "` (e.g. `RSI(14) / RSI(21)`). A pane with no indicator falls back to the `Pane` name (`SUBPLOT_1`, …), which should not occur for a referenced subplot. This aligns with the convention of TradingView and similar tools, where the pane label names the indicator and its period.
+
 ## 8. Concrete behavior per annotation
 
 | Annotation | Render strategy |
