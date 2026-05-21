@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -250,7 +251,7 @@ public final class EodhdMarketDataSource implements MarketDataSource {
             throws MarketDataSchemaException {
         try {
             return Instant.ofEpochSecond(Long.parseLong(text));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException | DateTimeException e) {
             throw new MarketDataSchemaException(symbol,
                     "invalid timestamp '" + text + "' in EODHD intraday bar (expected unix seconds)", e);
         }

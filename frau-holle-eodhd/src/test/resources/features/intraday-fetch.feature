@@ -98,3 +98,15 @@ Feature: Intraday endpoint successful fetch and response parsing
     When I fetch history for "AAPL.US" as "1h"
     Then a MarketDataSchemaException is thrown
     And the exception message mentions "timestamp"
+
+  Scenario: Intraday row with an out-of-range timestamp is rejected as a schema error
+    Given an EODHD data source
+    And the endpoint returns the JSON body:
+      """
+      [
+        {"timestamp": 99999999999999999, "open": 100, "high": 101, "low": 99, "close": 100, "volume": 100}
+      ]
+      """
+    When I fetch history for "AAPL.US" as "1h"
+    Then a MarketDataSchemaException is thrown
+    And the exception message mentions "timestamp"
