@@ -46,6 +46,24 @@ public final class ThemeConstants {
     public static final Color ANNOTATION_BEARISH = new Color(0xEF5350);
     public static final Color ANNOTATION_NEUTRAL = new Color(0x7B1FA2);
     public static final Color HORIZONTAL_LEVEL = new Color(0x30, 0x30, 0x30, 153);
+    // Semantic HorizontalLevel line colors, selected via Annotation.HorizontalLevel's
+    // optional FillColor. Stroked lines (not translucent fills), so a stronger 80%
+    // alpha than the TimeRangeHighlight band palette. Hues align with the
+    // TimeRangeHighlight base colors where they share meaning.
+    /** Take-profit / winning level — teal-green. */
+    public static final Color HORIZONTAL_LEVEL_WIN = new Color(0x26, 0xA6, 0x9A, 204);
+    /** Stop-loss / losing level — coral-red. */
+    public static final Color HORIZONTAL_LEVEL_LOSS = new Color(0xEF, 0x53, 0x50, 204);
+    /** Still-open level — blue-grey. */
+    public static final Color HORIZONTAL_LEVEL_OPEN = new Color(0x90, 0xA4, 0xAE, 204);
+    /** Long-position level — cooler/darker teal, distinct from WIN's brighter green. */
+    public static final Color HORIZONTAL_LEVEL_LONG_POSITION = new Color(0x00, 0x89, 0x7B, 204);
+    /** Short-position level — warmer orange-red, distinct from LOSS's coral. */
+    public static final Color HORIZONTAL_LEVEL_SHORT_POSITION = new Color(0xE6, 0x4A, 0x19, 204);
+    /** Neutral reference (e.g. trade entry) — dark near-black; white would be invisible on the white canvas. */
+    public static final Color HORIZONTAL_LEVEL_NEUTRAL = new Color(0x30, 0x30, 0x30, 204);
+    /** Caution level — amber. */
+    public static final Color HORIZONTAL_LEVEL_CAUTION = new Color(0xFF, 0xB3, 0x00, 204);
     public static final Color FIB_LEVEL = new Color(0x7B, 0x1F, 0xA2, 153);
     public static final Color PIVOT_LEVEL = new Color(0x19, 0x76, 0xD2, 153);
 

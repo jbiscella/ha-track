@@ -622,13 +622,28 @@ public final class JFreeChartRenderer implements ChartRenderer {
     }
 
     private static ValueMarker levelMarker(Annotation.HorizontalLevel level) {
-        ValueMarker marker = marker(level.price().doubleValue(), ThemeConstants.HORIZONTAL_LEVEL);
+        Color color = level.fillColor()
+                .map(JFreeChartRenderer::horizontalLevelColor)
+                .orElse(ThemeConstants.HORIZONTAL_LEVEL);
+        ValueMarker marker = marker(level.price().doubleValue(), color);
         marker.setStroke(switch (level.style()) {
             case SOLID -> ThemeConstants.STROKE_DEFAULT;
             case DASHED -> ThemeConstants.STROKE_HORIZONTAL_LEVEL_DASHED;
             case DOTTED -> ThemeConstants.STROKE_HORIZONTAL_LEVEL_DOTTED;
         });
         return marker;
+    }
+
+    static Color horizontalLevelColor(FillColor fillColor) {
+        return switch (fillColor) {
+            case WIN -> ThemeConstants.HORIZONTAL_LEVEL_WIN;
+            case LOSS -> ThemeConstants.HORIZONTAL_LEVEL_LOSS;
+            case OPEN -> ThemeConstants.HORIZONTAL_LEVEL_OPEN;
+            case LONG_POSITION -> ThemeConstants.HORIZONTAL_LEVEL_LONG_POSITION;
+            case SHORT_POSITION -> ThemeConstants.HORIZONTAL_LEVEL_SHORT_POSITION;
+            case NEUTRAL -> ThemeConstants.HORIZONTAL_LEVEL_NEUTRAL;
+            case CAUTION -> ThemeConstants.HORIZONTAL_LEVEL_CAUTION;
+        };
     }
 
     private static ValueMarker marker(double value, Color color) {
