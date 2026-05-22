@@ -168,7 +168,8 @@
                     </executions>
                 </plugin>
                 <!-- Third-party license enumeration. Run manually to regenerate
-                     THIRD_PARTY_LICENSES.txt:  ./mvnw license:aggregate-add-third-party
+                     THIRD_PARTY_LICENSES.md:  ./mvnw license:aggregate-add-third-party
+                     Rendered as Markdown via src/license/third-party.md.ftl.
                      The notice documents the full license closure of the
                      published artifacts, so the sibling reactor modules (0BSD)
                      are intentionally included as transitive dependencies. -->
@@ -178,7 +179,8 @@
                     <version>${license-maven-plugin.version}</version>
                     <configuration>
                         <outputDirectory>${maven.multiModuleProjectDirectory}</outputDirectory>
-                        <thirdPartyFilename>THIRD_PARTY_LICENSES.txt</thirdPartyFilename>
+                        <thirdPartyFilename>THIRD_PARTY_LICENSES.md</thirdPartyFilename>
+                        <fileTemplate>${maven.multiModuleProjectDirectory}/src/license/third-party.md.ftl</fileTemplate>
                         <includeTransitiveDependencies>true</includeTransitiveDependencies>
                         <sortArtifactByName>true</sortArtifactByName>
                     </configuration>
