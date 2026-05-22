@@ -10,13 +10,13 @@ import java.util.Objects;
 /**
  * Fluent builder for {@link LayoutSpec}. Producing an {@code ExplicitLayoutSpec}
  * requires a main-pane height to be set; otherwise an {@code AutoLayoutSpec} is
- * produced. The default format is {@link ImageFormat#JPEG}.
+ * produced. The default format is {@link ImageFormat#PNG}.
  */
 public final class LayoutSpecBuilder {
 
     private int widthPx = 900;
     private int heightPx = 500;
-    private ImageFormat format = ImageFormat.JPEG;
+    private ImageFormat format = ImageFormat.PNG;
     private BigDecimal mainPaneHeight;
     private final Map<Pane, BigDecimal> subplotHeights = new LinkedHashMap<>();
 

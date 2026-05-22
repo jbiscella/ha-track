@@ -20,8 +20,8 @@ Dependencies: `heerwisch-api`, `commons`, `indicators`, JFreeChart 1.5.x, an emb
 
 | Format | Content type | When used |
 |---|---|---|
-| PNG | `image/png` | Lossless, supports transparency. Available for the consumer's email-attachment use case |
-| JPEG | `image/jpeg` | Default. Smaller payload when transparency is not needed. Compression level fixed at quality 0.9 |
+| PNG | `image/png` | **Default** (since 0.51.0-alpha). Lossless, supports transparency, crisp dashed lines and text. Empirically smaller than JPEG @ 0.9 for typical chart content (flat-color regions, thin lines) — see the §2 note |
+| JPEG | `image/jpeg` | Opt-in. Lossy, quality fixed at 0.9. Was the default through 0.51.0-alpha |
 
 The format is selected via a new optional field in `ChartSpec` — see §2.
 
@@ -35,10 +35,12 @@ Since `heerwisch-api` declares `ChartImage` with a `contentType` field but does 
 |---|---|
 | Where format is declared | The `LayoutSpec` records (`AutoLayoutSpec`, `ExplicitLayoutSpec`) carry an `ImageFormat format` field (declared in `heerwisch-api`) |
 | Enum `ImageFormat` | `PNG`, `JPEG` — declared in `heerwisch-api` |
-| Default | `JPEG` (preserved when callers use `LayoutSpec.defaults()`) |
-| Consumer who never specifies it | gets `JPEG` |
+| Default | `PNG` (preserved when callers use `LayoutSpec.defaults()`) — since 0.51.0-alpha; was `JPEG` through 0.51.0-alpha |
+| Consumer who never specifies it | gets `PNG` |
 
-The `ImageFormat` enum and the `format` field live in `heerwisch-api`'s `LayoutSpec` (see `heerwisch-api/CLAUDE.md` §1.6). The default format is `JPEG`. The field is shared across both layout variants because it's not pane-specific.
+The `ImageFormat` enum and the `format` field live in `heerwisch-api`'s `LayoutSpec` (see `heerwisch-api/CLAUDE.md` §1.6). The default format is `PNG`. The field is shared across both layout variants because it's not pane-specific.
+
+**Note on the PNG-vs-JPEG default (0.51.0-alpha).** The original spec defaulted to JPEG on a "smaller payload" rationale. Empirically, for the kind of content this driver produces — large flat-color background regions, thin candle/indicator lines, dashed reference levels, and small text — PNG's lossless run-length compression yields *smaller* files than JPEG @ quality 0.9 (which spends bits on DCT artifacts around hard edges), while also rendering lines and text crisply with no ringing. The default was changed to PNG accordingly. JPEG remains available opt-in via `LayoutSpec` for callers who specifically want it.
 
 ## 3. Font strategy — deterministic rendering
 
@@ -184,7 +186,7 @@ Each sub-pane's Y axis is labeled with the indicator(s) it carries, not the gene
 | Annotation | Render strategy |
 |---|---|
 | `BarHighlight(time, price, label)` | A text-only annotation (`XYTextAnnotation`) at `(time, price)`, rendered in `ANNOTATION_NEUTRAL` color. **No glyph is drawn** — for a directional glyph (triangle / arrow) use `EntryExitMarker` instead. The label string is the only visual element |
-| `HorizontalLevel(price, label, style, fillColor)` | A horizontal line across all panes at `price`, with stroke from `style` (`SOLID` / `DASHED` / `DOTTED`). Color: when `fillColor` is empty, the default `HORIZONTAL_LEVEL` (near-black @ 60% alpha); when present, the matching semantic constant — `WIN` → `HORIZONTAL_LEVEL_WIN` (green), `LOSS` → `HORIZONTAL_LEVEL_LOSS` (red), `OPEN` → `HORIZONTAL_LEVEL_OPEN` (blue-grey), `LONG_POSITION` → `HORIZONTAL_LEVEL_LONG_POSITION` (cool teal), `SHORT_POSITION` → `HORIZONTAL_LEVEL_SHORT_POSITION` (warm orange-red), `NEUTRAL` → `HORIZONTAL_LEVEL_NEUTRAL` (dark near-black reference), `CAUTION` → `HORIZONTAL_LEVEL_CAUTION` (amber). These line constants use a stronger ~80% alpha than the translucent `TimeRangeHighlight` band palette: lines are stroked and need to read crisply, bands are washes. `NEUTRAL` is dark (not white) because the canvas is white. Same `FillColor` enum as `TimeRangeHighlight`, different opacity regime. Label rendered at the right margin |
+| `HorizontalLevel(price, label, style, fillColor)` | A horizontal line on the **MAIN pane** at `price` (annotations are MAIN-only in v1), with stroke from `style` (`SOLID` / `DASHED` / `DOTTED`). The main pane's Y auto-range is extended to include every `HorizontalLevel` value (since 0.51.0-alpha), so a level outside the visible price window (e.g. a stop or target beyond the high/low) is still on-chart — matching TradingView/MetaTrader. Implemented by feeding the level values through a non-drawing dataset so the axis only widens when a level actually exceeds the price bounds. Color: when `fillColor` is empty, the default `HORIZONTAL_LEVEL` (near-black @ 60% alpha); when present, the matching semantic constant — `WIN` → `HORIZONTAL_LEVEL_WIN` (green), `LOSS` → `HORIZONTAL_LEVEL_LOSS` (red), `OPEN` → `HORIZONTAL_LEVEL_OPEN` (blue-grey), `LONG_POSITION` → `HORIZONTAL_LEVEL_LONG_POSITION` (cool teal), `SHORT_POSITION` → `HORIZONTAL_LEVEL_SHORT_POSITION` (warm orange-red), `NEUTRAL` → `HORIZONTAL_LEVEL_NEUTRAL` (dark near-black reference), `CAUTION` → `HORIZONTAL_LEVEL_CAUTION` (amber). These line constants use a stronger ~80% alpha than the translucent `TimeRangeHighlight` band palette: lines are stroked and need to read crisply, bands are washes. `NEUTRAL` is dark (not white) because the canvas is white. Same `FillColor` enum as `TimeRangeHighlight`, different opacity regime. Label rendered at the right margin |
 | `FibRetracement(swingHigh, swingLow, levels)` | One horizontal line per `level` in the list, between `swingHigh` and `swingLow`, color `FIB_LEVEL`. Each line labeled with its fraction |
 | `PivotPointLevels(variant, previousPeriodBar)` | Levels computed from `previousPeriodBar` per the formulas of `variant` (`STANDARD`, `CAMARILLA`, `WOODIE`). Rendered as horizontal lines colored `PIVOT_LEVEL`, each labeled (P, S1, S2, R1, R2, etc.) |
 | `EntryExitMarker(time, price, direction, glyphStyle)` | A chunky semantic glyph drawn at `(time, price)` via JFreeChart's `XYShapeAnnotation`. Shape from `glyphStyle` (triangle/arrow, up or down); color from `direction` — `LONG_ENTRY` and `SHORT_EXIT` use `ANNOTATION_BULLISH` (semantic green), `SHORT_ENTRY` and `LONG_EXIT` use `ANNOTATION_BEARISH` (semantic red). Half-extents are computed adaptively from the series and layout (see §8.1 below) so the glyph stays proportional to the rendered candle width on any chart density, any aspect ratio, any device. `ARROW_UP` / `ARROW_DOWN` widen the chevron beyond the triangle's base (1.5× the triangle's half-width at the chevron tip) and narrow the shaft (¼ of the triangle's half-width) so the arrow silhouette stays distinguishable from the triangle while preserving equal filled area |
@@ -238,11 +240,11 @@ For a previous-period bar with high H, low L, close C:
 ```gherkin
 Feature: Output format selection
 
-  Scenario: Default LayoutSpec produces JPEG
+  Scenario: Default LayoutSpec produces PNG
     Given a ChartSpec using LayoutSpec.defaults()
     When I call render(spec)
-    Then ChartImage.contentType = "image/jpeg"
-    And ChartImage.bytes is a valid JPEG (magic bytes 0xFF 0xD8 0xFF)
+    Then ChartImage.contentType = "image/png"
+    And ChartImage.bytes is a valid PNG (magic bytes 0x89 0x50 0x4E 0x47)
 
   Scenario: Explicit PNG format
     Given an ExplicitLayoutSpec with format = PNG

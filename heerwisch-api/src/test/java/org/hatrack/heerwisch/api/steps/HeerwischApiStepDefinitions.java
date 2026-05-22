@@ -286,6 +286,11 @@ public class HeerwischApiStepDefinitions {
         defaultLayout = LayoutSpec.defaults();
     }
 
+    @When("I build a layout from the builder with no format set")
+    public void iBuildALayoutFromTheBuilderWithNoFormat() throws Exception {
+        defaultLayout = LayoutSpec.builder().build();
+    }
+
     @When("I render the spec with the reference renderer")
     public void iRenderWithReferenceRenderer() {
         thrown = null;

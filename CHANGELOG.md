@@ -5,6 +5,21 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.51.0-alpha
+
+### Changed
+
+- **heerwisch-jfreechart:** the chart's Y auto-range now includes the value of every `Annotation.HorizontalLevel`, in addition to the price-series bounds. A level outside the visible price window (e.g. a stop-loss or take-profit beyond the trade window's high/low) is now always on-chart, matching TradingView/MetaTrader/NinjaTrader. Applies to the MAIN pane (where `HorizontalLevel` renders) and only to the auto-ranged axis; there is no consumer-supplied Y-bounds API to override. Implemented by feeding the level values through a non-drawing dataset, so the axis widens (with its normal margins) only when a level actually exceeds the price bounds; charts with no `HorizontalLevel` are unchanged. No API change.
+- **heerwisch-api / heerwisch-jfreechart:** the default `ImageFormat` is now **PNG** (was JPEG through 0.50.0-alpha). `LayoutSpec.defaults()` and the `LayoutSpec` builder default resolve to `PNG`; a consumer that never specifies a format now gets PNG. **Behavior change, not an API break** — `ImageFormat` is unchanged (`PNG`, `JPEG`), explicit `JPEG` still works, and no method signature changed. Rationale: for this driver's content (flat-color regions, thin lines, dashed reference levels, small text) PNG's lossless compression produces *smaller* files than JPEG @ 0.9 while rendering lines and text crisply — the original "JPEG = smaller payload" rationale does not hold for chart content. Consumers depending on the old JPEG default must now pass `ImageFormat.JPEG` explicitly. Spec updated: `heerwisch-api/CLAUDE.md` §1.6, `heerwisch-jfreechart/CLAUDE.md` §1–2.
+
+### Fixed
+
+- **heerwisch-jfreechart docs:** `CLAUDE.md` §8 described `HorizontalLevel` as drawn "across all panes"; in code it has always been MAIN-pane only (annotations are MAIN-only in v1). Corrected.
+
+### Compatibility
+
+- The Y-range change is additive and behaviour-only (no API surface change). The PNG-default change is a documented behaviour change (not an API break): explicit-format callers and the `ImageFormat` enum are unaffected; only the unspecified-format default moved JPEG→PNG. japicmp clean.
+
 ## 0.50.0-alpha
 
 ### Added
