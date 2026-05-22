@@ -1,13 +1,13 @@
 Feature: Output format selection
   Maps heerwisch-jfreechart/CLAUDE.md section 10 (Block 1).
 
-  Scenario: Default LayoutSpec produces JPEG
+  Scenario: Default LayoutSpec produces PNG
     Given a chart with an OHLC series of 60 bars
     And a SMA indicator placed at pane MAIN
     When I render the chart
     Then rendering succeeds
-    And the chart image contentType is "image/jpeg"
-    And the chart image starts with the JPEG magic bytes
+    And the chart image contentType is "image/png"
+    And the chart image starts with the PNG magic bytes
 
   Scenario: Explicit PNG format
     Given a chart with an OHLC series of 60 bars

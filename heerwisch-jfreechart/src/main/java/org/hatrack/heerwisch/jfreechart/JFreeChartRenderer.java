@@ -46,6 +46,8 @@ import org.jfree.data.time.FixedMillisecond;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
@@ -131,7 +133,9 @@ public final class JFreeChartRenderer implements ChartRenderer {
 
     // --- chart construction ---
 
-    private JFreeChart buildChart(ChartSpec spec) {
+    // Package-private for tests: lets a test inspect the JFreeChart (e.g. the
+    // main pane's range axis) without going through PNG encoding.
+    JFreeChart buildChart(ChartSpec spec) {
         DateAxis domainAxis = new DateAxis();
         styleAxis(domainAxis);
         CombinedDomainXYPlot combined = new CombinedDomainXYPlot(domainAxis);
@@ -178,7 +182,42 @@ public final class JFreeChartRenderer implements ChartRenderer {
             }
         }
         addAnnotations(plot, spec);
+        includeHorizontalLevelsInRange(plot, spec, datasetIndex);
         return plot;
+    }
+
+    /**
+     * Extends the main pane's auto-range to include every {@code HorizontalLevel}
+     * value, so a level outside the price window (e.g. a stop or target beyond
+     * the visible high/low) is still on-chart — matching TradingView/MetaTrader.
+     * Implemented by adding a non-drawing dataset (no lines, no shapes) carrying
+     * the level values: JFreeChart's range auto-calc includes it (with the
+     * axis's normal margins) and the axis only widens when a level actually
+     * exceeds the price bounds. No effect when there are no levels, and it never
+     * touches a manually-bounded axis (the main axis is always auto-ranged).
+     */
+    private static void includeHorizontalLevelsInRange(XYPlot plot, ChartSpec spec, int index) {
+        List<Instant> times = times(spec.series());
+        if (times.isEmpty()) {
+            return;
+        }
+        double x = times.get(0).toEpochMilli();
+        XYSeries levels = new XYSeries("levels", false, true);
+        boolean any = false;
+        for (Annotation annotation : spec.annotations()) {
+            if (annotation instanceof Annotation.HorizontalLevel level) {
+                levels.add(x, level.price().doubleValue());
+                any = true;
+            }
+        }
+        if (!any) {
+            return;
+        }
+        XYLineAndShapeRenderer invisible = new XYLineAndShapeRenderer(false, false);
+        invisible.setDataBoundsIncludesVisibleSeriesOnly(false);
+        plot.setDataset(index, new XYSeriesCollection(levels));
+        plot.setRenderer(index, invisible);
+        plot.mapDatasetToRangeAxis(index, 0);
     }
 
     private XYPlot buildSubplot(ChartSpec spec, Pane pane) {

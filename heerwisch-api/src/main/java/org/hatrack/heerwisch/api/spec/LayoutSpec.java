@@ -16,9 +16,9 @@ public sealed interface LayoutSpec {
 
     ImageFormat format();
 
-    /** Default layout: 900x500 auto layout, JPEG output. */
+    /** Default layout: 900x500 auto layout, PNG output. */
     static LayoutSpec defaults() {
-        return new AutoLayoutSpec(900, 500, ImageFormat.JPEG);
+        return new AutoLayoutSpec(900, 500, ImageFormat.PNG);
     }
 
     static LayoutSpecBuilder builder() {

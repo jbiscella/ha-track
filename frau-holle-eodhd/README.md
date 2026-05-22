@@ -21,7 +21,7 @@ For an offline, no-network source see [`frau-holle-csv`](../frau-holle-csv).
 <dependency>
     <groupId>net.jacopobiscella</groupId>
     <artifactId>frau-holle-eodhd</artifactId>
-    <version>0.50.0-alpha</version>
+    <version>0.51.0-alpha</version>
 </dependency>
 ```
 

@@ -1,10 +1,10 @@
 Feature: Layout spec
   Maps heerwisch-api/CLAUDE.md section 8 (Block 3).
 
-  Scenario: Defaults provide auto layout in JPEG
+  Scenario: Defaults provide auto layout in PNG
     When I get the default layout
     Then the default layout is an AutoLayoutSpec with width 900 and height 500
-    And the default layout format is JPEG
+    And the default layout format is PNG
 
   Scenario: Builder omits layout, defaults applied
     Given a chart spec builder
@@ -13,7 +13,7 @@ Feature: Layout spec
     When I build the chart spec
     Then the chart spec builds successfully
     And the layout is an AutoLayoutSpec with width 900 and height 500
-    And the layout format is JPEG
+    And the layout format is PNG
 
   Scenario: Explicit layout heights exactly summing to 1.0 passes
     Given a chart spec builder
