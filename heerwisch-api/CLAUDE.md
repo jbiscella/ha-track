@@ -146,7 +146,7 @@ sealed interface LayoutSpec permits AutoLayoutSpec, ExplicitLayoutSpec
 
 `ImageFormat` is a closed enum (`PNG`, `JPEG`) declaring the output image format. It lives in `heerwisch-api` because it is part of the `LayoutSpec` shape; drivers consume it.
 
-`LayoutSpec.defaults()` returns `AutoLayoutSpec(900, 500, PNG)`. **PNG is the default output format** (since 0.51.0-alpha; it was JPEG through 0.51.0-alpha — see the CHANGELOG behavior-change note).
+`LayoutSpec.defaults()` returns `AutoLayoutSpec(900, 500, PNG)`. **PNG is the default output format** (since 0.51.0-alpha; it was JPEG through 0.50.0-alpha — see the CHANGELOG behavior-change note).
 
 `LayoutSpec.builder()` is an entry point that asks for auto or explicit and exposes the relevant fields; the format defaults to `PNG` when not set. `LayoutSpecBuilder.build()` produces an `ExplicitLayoutSpec` when a main-pane height or any subplot height is set, and an `AutoLayoutSpec` otherwise; setting subplot heights without a main-pane height is rejected as rule V14 (see §3), not as a raw `NullPointerException`.
 

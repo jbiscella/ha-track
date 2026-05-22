@@ -6,6 +6,10 @@ Feature: Layout spec
     Then the default layout is an AutoLayoutSpec with width 900 and height 500
     And the default layout format is PNG
 
+  Scenario: Builder with no format set also defaults to PNG
+    When I build a layout from the builder with no format set
+    Then the default layout format is PNG
+
   Scenario: Builder omits layout, defaults applied
     Given a chart spec builder
     And an OHLC series of 30 bars
