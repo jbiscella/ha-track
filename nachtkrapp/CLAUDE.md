@@ -579,7 +579,7 @@ When `haHigh = haLow` (a bar of zero range — degenerate), the bar is ignored f
 ## 15. Out of scope for `nachtkrapp`
 
 - Compound rules (AND, OR, NOT) — the consumer composes primitive matches in Java
-- Pivot detection — out of v1 in this repo
+- Swing-pivot detection (local price extrema, for chart-structural patterns) — out of v1 in this repo. NB: **pivot-point levels** are a different feature and ARE supported as of 0.52.0-alpha via `PivotPointRule` (§2.2.5)
 - Candlestick classical patterns (hammer, engulfing, etc.) — reserved for v1.1+
 - Chart structural patterns (head & shoulders, triangles, etc.) — reserved for v2
 - Indicator value query API (e.g. "give me RSI series") — out of scope

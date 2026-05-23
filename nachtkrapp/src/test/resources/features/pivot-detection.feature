@@ -53,3 +53,42 @@ Feature: Pivot point detection
     When I detect
     Then the result contains 8 PriceAbovePivot
     And the result contains 0 PriceBelowPivot
+
+  Scenario: WOODIE produces five levels (P, R1, R2, S1, S2)
+    Given a detection spec builder
+    And an OHLC series:
+      | time                 | open | high | low | close |
+      | 2024-01-01T10:00:00Z | 100  | 110  | 90  | 100   |
+      | 2024-01-01T11:00:00Z | 100  | 120  | 95  | 105   |
+      | 2024-01-02T10:00:00Z | 128  | 132  | 125 | 130   |
+    And the rule PivotPointRule with period "1d" variant WOODIE source CLOSE
+    When I detect
+    Then the result contains 4 PriceAbovePivot
+    And the result contains 1 PriceBelowPivot
+
+  Scenario: Weekly pivots use the prior ISO week (Monday boundary)
+    Given a detection spec builder
+    And an OHLC series:
+      | time                 | open | high | low | close |
+      | 2024-01-01T12:00:00Z | 100  | 110  | 90  | 100   |
+      | 2024-01-03T12:00:00Z | 100  | 120  | 95  | 105   |
+      | 2024-01-08T12:00:00Z | 128  | 132  | 125 | 130   |
+    And the rule PivotPointRule with period "1w" variant STANDARD source CLOSE
+    When I detect
+    Then the result contains 5 PriceAbovePivot
+    And the result contains 2 PriceBelowPivot
+    And no match occurs before bar 3
+
+  Scenario: PriceCrossedBelowPivot only at the crossing bar
+    Given a detection spec builder
+    And an OHLC series:
+      | time                 | open | high | low | close |
+      | 2024-01-01T10:00:00Z | 100  | 110  | 90  | 100   |
+      | 2024-01-01T11:00:00Z | 100  | 120  | 95  | 105   |
+      | 2024-01-02T10:00:00Z | 128  | 132  | 125 | 130   |
+      | 2024-01-02T11:00:00Z | 98   | 102  | 95  | 100   |
+    And the rule PivotPointRule with period "1d" variant STANDARD source CLOSE
+    When I detect
+    Then the result contains 2 PriceCrossedBelowPivot
+    And the result contains 0 PriceCrossedAbovePivot
+    And every PriceCrossedBelowPivot match has flavor EVENT

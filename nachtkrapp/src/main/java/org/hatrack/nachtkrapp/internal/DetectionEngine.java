@@ -358,9 +358,19 @@ public final class DetectionEngine {
 
         int n = prices.size();
         PivotLevels[] levelsAt = new PivotLevels[n];
+        // Two-pointer: bars and periodBars are both ascending by time, so the
+        // most-recent closed prior period only advances as t increases. Each
+        // period's levels are computed at most once (O(N + P), not O(N * P)).
+        PivotLevels priorLevels = null;
+        int p = 0;
         for (int t = 0; t < n; t++) {
-            OHLCBar prior = priorClosedPeriod(periodBars, times.get(t), r.pivotPeriod());
-            levelsAt[t] = prior == null ? null : PivotPoints.levels(prior, r.variant());
+            Instant barTime = times.get(t);
+            while (p < periodBars.size()
+                    && !periodEnd(periodBars.get(p).time(), r.pivotPeriod()).isAfter(barTime)) {
+                priorLevels = PivotPoints.levels(periodBars.get(p), r.variant());
+                p++;
+            }
+            levelsAt[t] = priorLevels;
         }
 
         for (PivotLevel level : PivotLevel.values()) {
@@ -401,25 +411,6 @@ public final class DetectionEngine {
                 }
             }
         }
-    }
-
-    /**
-     * The most-recent CLOSED aggregated period at or before {@code barTime} — the
-     * latest period whose end (start + one period length) is {@code <= barTime}.
-     * Returns {@code null} for bars in the first period (no prior closed period).
-     */
-    private static OHLCBar priorClosedPeriod(List<OHLCBar> periodBars, Instant barTime,
-                                             Timeframe period) {
-        OHLCBar prior = null;
-        for (OHLCBar pb : periodBars) {
-            Instant close = periodEnd(pb.time(), period);
-            if (!close.isAfter(barTime)) {
-                prior = pb;
-            } else {
-                break;
-            }
-        }
-        return prior;
     }
 
     private static Instant periodEnd(Instant start, Timeframe period) {

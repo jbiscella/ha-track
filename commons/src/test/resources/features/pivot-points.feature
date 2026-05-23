@@ -28,6 +28,17 @@ Feature: Pivot point computation
     And pivot R4 is absent
     And pivot S4 is absent
 
+  Scenario: A zero-range (flat) prior bar collapses every STANDARD level to the close
+    Given a previous-period OHLC bar with high=100, low=100, close=100
+    When I compute STANDARD pivots
+    Then pivot P is 100
+    And pivot R1 is 100
+    And pivot R2 is 100
+    And pivot R3 is 100
+    And pivot S1 is 100
+    And pivot S2 is 100
+    And pivot S3 is 100
+
   Scenario: CAMARILLA produces R1-R4, S1-S4 and no central P
     Given a previous-period OHLC bar with high=120, low=90, close=108
     When I compute CAMARILLA pivots

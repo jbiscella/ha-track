@@ -156,7 +156,7 @@ public final class DetectionSpecBuilder {
             case RSILevel50CrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
             case MACDSignalCrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
             case MACDZeroCrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
-            case PivotPointRule r -> priceSourceMatches(r.priceSource(), haSeries);
+            case PivotPointRule r -> !haSeries && priceSourceMatches(r.priceSource(), haSeries);
         };
         if (!ok) {
             throw new InvalidDetectionSpecException("V5", rule);
