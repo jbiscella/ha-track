@@ -24,6 +24,7 @@ public class EodhdStepDefinitions {
 
     private static final Instant SINCE = Instant.parse("2024-01-01T00:00:00Z");
     private static final Instant UNTIL = Instant.parse("2024-12-31T00:00:00Z");
+    private static final String API_TOKEN = "test-token";
 
     private MockHttpExecutor mock;
     private EodhdMarketDataSource driver;
@@ -36,7 +37,7 @@ public class EodhdStepDefinitions {
     @Given("an EODHD data source")
     public void anEodhdDataSource() {
         mock = new MockHttpExecutor();
-        driver = new EodhdMarketDataSource("test-token", "https://eodhistoricaldata.com",
+        driver = new EodhdMarketDataSource(API_TOKEN, "https://eodhistoricaldata.com",
                 Duration.ofSeconds(30), mock, new DefaultJsonReader());
         result = null;
         thrown = null;
@@ -184,6 +185,20 @@ public class EodhdStepDefinitions {
     public void theExceptionCauseIsTheTimeoutException() {
         assertTrue(thrown != null && thrown.getCause() == timeoutException,
                 "exception cause is not the timeout exception");
+    }
+
+    @Then("no exception in the chain reveals the API token")
+    public void noExceptionInTheChainRevealsTheApiToken() {
+        assertTrue(thrown != null, "no exception was thrown");
+        for (Throwable t = thrown; t != null; t = t.getCause()) {
+            String message = t.getMessage();
+            assertTrue(message == null || !message.contains(API_TOKEN),
+                    "exception " + t.getClass().getSimpleName()
+                            + " message leaks the API token: [" + message + "]");
+            if (t.getCause() == t) {
+                break;
+            }
+        }
     }
 
     @Then("the request URL contains {string}")
