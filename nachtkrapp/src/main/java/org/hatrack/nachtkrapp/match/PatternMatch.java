@@ -1,6 +1,8 @@
 package org.hatrack.nachtkrapp.match;
 
 import org.hatrack.commons.HABar;
+import org.hatrack.commons.PivotLevel;
+import org.hatrack.commons.PivotPointVariant;
 import org.hatrack.commons.Timeframe;
 import org.hatrack.nachtkrapp.rule.MAType;
 
@@ -41,7 +43,11 @@ public sealed interface PatternMatch
                 PatternMatch.MACDBullishCross,
                 PatternMatch.MACDBearishCross,
                 PatternMatch.MACDCrossedAboveZero,
-                PatternMatch.MACDCrossedBelowZero {
+                PatternMatch.MACDCrossedBelowZero,
+                PatternMatch.PriceAbovePivot,
+                PatternMatch.PriceBelowPivot,
+                PatternMatch.PriceCrossedAbovePivot,
+                PatternMatch.PriceCrossedBelowPivot {
 
     /** Time of the bar that triggered the match. */
     Instant time();
@@ -261,6 +267,48 @@ public sealed interface PatternMatch
 
     record MACDCrossedBelowZero(Instant time, Optional<Timeframe> timeframe,
                                 BigDecimal macdValue, int fastPeriod, int slowPeriod, int signalPeriod)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.EVENT;
+        }
+    }
+
+    // --- Pivot points ---
+
+    record PriceAbovePivot(Instant time, Optional<Timeframe> timeframe,
+                           BigDecimal price, BigDecimal levelValue, PivotLevel level,
+                           PivotPointVariant variant, Timeframe pivotPeriod)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.STATE;
+        }
+    }
+
+    record PriceBelowPivot(Instant time, Optional<Timeframe> timeframe,
+                           BigDecimal price, BigDecimal levelValue, PivotLevel level,
+                           PivotPointVariant variant, Timeframe pivotPeriod)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.STATE;
+        }
+    }
+
+    record PriceCrossedAbovePivot(Instant time, Optional<Timeframe> timeframe,
+                                  BigDecimal price, BigDecimal levelValue, PivotLevel level,
+                                  PivotPointVariant variant, Timeframe pivotPeriod)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.EVENT;
+        }
+    }
+
+    record PriceCrossedBelowPivot(Instant time, Optional<Timeframe> timeframe,
+                                  BigDecimal price, BigDecimal levelValue, PivotLevel level,
+                                  PivotPointVariant variant, Timeframe pivotPeriod)
             implements PatternMatch {
         @Override
         public MatchFlavor flavor() {

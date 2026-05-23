@@ -41,7 +41,8 @@ sealed interface DetectionRule permits
     HAColorChangeRule, HAStrongCandleRule, HADojiRule,
     PriceVsMARule, PriceMACrossRule, MAVsMARule, MACrossMARule,
     RSIThresholdRule, RSILevel50CrossRule,
-    MACDSignalCrossRule, MACDZeroCrossRule
+    MACDSignalCrossRule, MACDZeroCrossRule,
+    PivotPointRule
 ```
 
 Each rule is an immutable record. Each rule declares (a) its parameters and (b) the minimum bars required to produce its first match.
@@ -81,6 +82,14 @@ HA family rules require the series to be `HASeries`. Applied to `OHLCSeries` the
 | `MACDSignalCrossRule` | `int fastPeriod`, `int slowPeriod`, `int signalPeriod` (all ≥ 1, slow > fast), `PriceSource priceSource` | `slowPeriod + signalPeriod + 1` | `MACDBullishCross` or `MACDBearishCross` on the bar of the cross (event) |
 | `MACDZeroCrossRule` | `int fastPeriod`, `int slowPeriod`, `int signalPeriod` (all ≥ 1, slow > fast), `PriceSource priceSource` | `slowPeriod + 1` | `MACDCrossedAboveZero` or `MACDCrossedBelowZero` on the bar of the cross (event) |
 
+#### 2.2.5 Pivot family
+
+| Rule | Fields | Min bars | Emits |
+|---|---|---|---|
+| `PivotPointRule` | `Timeframe pivotPeriod` (`1d` or `1w`), `PivotPointVariant variant` (from `commons`), `PriceSource priceSource` | `1` | `PriceAbovePivot` / `PriceBelowPivot` per applicable level on every bar with a prior closed period (state); `PriceCrossedAbovePivot` / `PriceCrossedBelowPivot` on the crossing bar (event) |
+
+`PivotPointRule` aggregates the input series internally via `commons.OHLCAggregator.toPeriod` to `pivotPeriod`, then for each intraday bar takes the levels of the **most-recent closed prior period** (via `commons.PivotPoints`) and compares the price to every applicable `PivotLevel`. Bars in the first period have no prior closed period and emit nothing. Requires an `OHLCSeries` (enforced via the OHLC `priceSource`, V5). `pivotPeriod` must be `1d` or `1w` (V7). Lookahead-safe: a bar's levels depend only on a strictly-earlier, fully-closed period.
+
 ### 2.3 `PatternMatch` (sealed)
 
 ```
@@ -92,7 +101,9 @@ sealed interface PatternMatch permits
     RSIOverbought, RSIOversold, RSIExitedOverbought, RSIExitedOversold,
     RSICrossedAbove50, RSICrossedBelow50,
     MACDBullishCross, MACDBearishCross,
-    MACDCrossedAboveZero, MACDCrossedBelowZero
+    MACDCrossedAboveZero, MACDCrossedBelowZero,
+    PriceAbovePivot, PriceBelowPivot,
+    PriceCrossedAbovePivot, PriceCrossedBelowPivot
 ```
 
 The `permits` clause is stated **explicitly** in the source (`match/PatternMatch.java`). It is semantically identical to the clause the compiler would infer from the nested records, but makes the closed set visible at the declaration and in the generated javadoc. `match/PatternMatch.java` is the authoritative list of permitted subtypes.
@@ -151,6 +162,17 @@ Plus variant-specific diagnostic payload:
 | `MACDBearishCross` | `BigDecimal macdValue`, `BigDecimal signalValue`, `int fastPeriod`, `int slowPeriod`, `int signalPeriod` | `EVENT` |
 | `MACDCrossedAboveZero` | `BigDecimal macdValue`, `int fastPeriod`, `int slowPeriod`, `int signalPeriod` | `EVENT` |
 | `MACDCrossedBelowZero` | `BigDecimal macdValue`, `int fastPeriod`, `int slowPeriod`, `int signalPeriod` | `EVENT` |
+
+#### 2.3.5 Pivot match payloads
+
+All four carry `(BigDecimal price, BigDecimal levelValue, PivotLevel level, PivotPointVariant variant, Timeframe pivotPeriod)` (`PivotLevel`, `PivotPointVariant` from `commons`):
+
+| Variant | Flavor |
+|---|---|
+| `PriceAbovePivot` | `STATE` |
+| `PriceBelowPivot` | `STATE` |
+| `PriceCrossedAbovePivot` | `EVENT` |
+| `PriceCrossedBelowPivot` | `EVENT` |
 
 ### 2.4 `DetectionSpec`
 

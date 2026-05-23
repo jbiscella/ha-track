@@ -17,6 +17,7 @@ import org.hatrack.nachtkrapp.rule.DetectionRule.MACDSignalCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDZeroCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACrossMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MAVsMARule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.PivotPointRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceMACrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceVsMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.RSILevel50CrossRule;
@@ -132,6 +133,9 @@ public final class DetectionSpecBuilder {
                     && r.signalPeriod() >= 1 && r.slowPeriod() > r.fastPeriod();
             case MACDZeroCrossRule r -> r.fastPeriod() >= 1 && r.slowPeriod() >= 1
                     && r.signalPeriod() >= 1 && r.slowPeriod() > r.fastPeriod();
+            case PivotPointRule r -> r.pivotPeriod().amount() == 1
+                    && (r.pivotPeriod().unit() == Timeframe.Unit.DAY
+                        || r.pivotPeriod().unit() == Timeframe.Unit.WEEK);
         };
         if (!ok) {
             throw new InvalidDetectionSpecException("V7", rule);
@@ -152,6 +156,7 @@ public final class DetectionSpecBuilder {
             case RSILevel50CrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
             case MACDSignalCrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
             case MACDZeroCrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
+            case PivotPointRule r -> priceSourceMatches(r.priceSource(), haSeries);
         };
         if (!ok) {
             throw new InvalidDetectionSpecException("V5", rule);

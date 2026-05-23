@@ -1,6 +1,7 @@
 package org.hatrack.heerwisch.api.spec;
 
 import org.hatrack.commons.OHLCBar;
+import org.hatrack.commons.PivotPointVariant;
 
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -2,8 +2,12 @@ package org.hatrack.nachtkrapp.internal;
 
 import org.hatrack.commons.HABar;
 import org.hatrack.commons.HASeries;
+import org.hatrack.commons.OHLCAggregator;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.commons.OHLCSeries;
+import org.hatrack.commons.PivotLevel;
+import org.hatrack.commons.PivotLevels;
+import org.hatrack.commons.PivotPoints;
 import org.hatrack.commons.PriceSource;
 import org.hatrack.commons.Series;
 import org.hatrack.commons.Timeframe;
@@ -25,8 +29,12 @@ import org.hatrack.nachtkrapp.match.PatternMatch.MACrossedAboveMA;
 import org.hatrack.nachtkrapp.match.PatternMatch.MACrossedBelowMA;
 import org.hatrack.nachtkrapp.match.PatternMatch.PriceAboveMA;
 import org.hatrack.nachtkrapp.match.PatternMatch.PriceBelowMA;
+import org.hatrack.nachtkrapp.match.PatternMatch.PriceAbovePivot;
+import org.hatrack.nachtkrapp.match.PatternMatch.PriceBelowPivot;
 import org.hatrack.nachtkrapp.match.PatternMatch.PriceCrossedAboveMA;
+import org.hatrack.nachtkrapp.match.PatternMatch.PriceCrossedAbovePivot;
 import org.hatrack.nachtkrapp.match.PatternMatch.PriceCrossedBelowMA;
+import org.hatrack.nachtkrapp.match.PatternMatch.PriceCrossedBelowPivot;
 import org.hatrack.nachtkrapp.match.PatternMatch.RSICrossedAbove50;
 import org.hatrack.nachtkrapp.match.PatternMatch.RSICrossedBelow50;
 import org.hatrack.nachtkrapp.match.PatternMatch.RSIExitedOverbought;
@@ -41,6 +49,7 @@ import org.hatrack.nachtkrapp.rule.DetectionRule.MACDSignalCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDZeroCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACrossMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MAVsMARule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.PivotPointRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceMACrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceVsMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.RSILevel50CrossRule;
@@ -51,6 +60,7 @@ import org.hatrack.nachtkrapp.spec.DetectionSpec;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -94,6 +104,7 @@ public final class DetectionEngine {
             case RSILevel50CrossRule r -> rsiLevel50Cross(r, series, tf, out);
             case MACDSignalCrossRule r -> macdSignalCross(r, series, tf, out);
             case MACDZeroCrossRule r -> macdZeroCross(r, series, tf, out);
+            case PivotPointRule r -> pivotPoint(r, series, tf, out);
         }
     }
 
@@ -333,6 +344,90 @@ public final class DetectionEngine {
                         r.fastPeriod(), r.slowPeriod(), r.signalPeriod()));
             }
         }
+    }
+
+    // --- Pivot points ---
+
+    private static void pivotPoint(PivotPointRule r, Series series, Optional<Timeframe> tf,
+                                   List<PatternMatch> out) {
+        // V5 guarantees an OHLC priceSource, hence an OHLCSeries.
+        OHLCSeries ohlc = (OHLCSeries) series;
+        List<BigDecimal> prices = prices(series, r.priceSource());
+        List<Instant> times = times(series);
+        List<OHLCBar> periodBars = OHLCAggregator.toPeriod(ohlc, r.pivotPeriod()).bars();
+
+        int n = prices.size();
+        PivotLevels[] levelsAt = new PivotLevels[n];
+        for (int t = 0; t < n; t++) {
+            OHLCBar prior = priorClosedPeriod(periodBars, times.get(t), r.pivotPeriod());
+            levelsAt[t] = prior == null ? null : PivotPoints.levels(prior, r.variant());
+        }
+
+        for (PivotLevel level : PivotLevel.values()) {
+            for (int t = 0; t < n; t++) {
+                if (levelsAt[t] == null) {
+                    continue;
+                }
+                BigDecimal lv = levelsAt[t].value(level);
+                if (lv == null) {
+                    continue;
+                }
+                int cmp = prices.get(t).compareTo(lv);
+                if (cmp > 0) {
+                    out.add(new PriceAbovePivot(times.get(t), tf, prices.get(t), lv, level,
+                            r.variant(), r.pivotPeriod()));
+                } else if (cmp < 0) {
+                    out.add(new PriceBelowPivot(times.get(t), tf, prices.get(t), lv, level,
+                            r.variant(), r.pivotPeriod()));
+                }
+            }
+            for (int t = 1; t < n; t++) {
+                if (levelsAt[t - 1] == null || levelsAt[t] == null) {
+                    continue;
+                }
+                BigDecimal prevLv = levelsAt[t - 1].value(level);
+                BigDecimal curLv = levelsAt[t].value(level);
+                if (prevLv == null || curLv == null) {
+                    continue;
+                }
+                int prev = prices.get(t - 1).compareTo(prevLv);
+                int cur = prices.get(t).compareTo(curLv);
+                if (prev < 0 && cur >= 0) {
+                    out.add(new PriceCrossedAbovePivot(times.get(t), tf, prices.get(t), curLv, level,
+                            r.variant(), r.pivotPeriod()));
+                } else if (prev > 0 && cur <= 0) {
+                    out.add(new PriceCrossedBelowPivot(times.get(t), tf, prices.get(t), curLv, level,
+                            r.variant(), r.pivotPeriod()));
+                }
+            }
+        }
+    }
+
+    /**
+     * The most-recent CLOSED aggregated period at or before {@code barTime} — the
+     * latest period whose end (start + one period length) is {@code <= barTime}.
+     * Returns {@code null} for bars in the first period (no prior closed period).
+     */
+    private static OHLCBar priorClosedPeriod(List<OHLCBar> periodBars, Instant barTime,
+                                             Timeframe period) {
+        OHLCBar prior = null;
+        for (OHLCBar pb : periodBars) {
+            Instant close = periodEnd(pb.time(), period);
+            if (!close.isAfter(barTime)) {
+                prior = pb;
+            } else {
+                break;
+            }
+        }
+        return prior;
+    }
+
+    private static Instant periodEnd(Instant start, Timeframe period) {
+        return switch (period.unit()) {
+            case DAY -> start.plus(1, ChronoUnit.DAYS);
+            case WEEK -> start.plus(7, ChronoUnit.DAYS);
+            default -> throw new IllegalStateException("unsupported pivot period: " + period.wire());
+        };
     }
 
     // --- helpers ---

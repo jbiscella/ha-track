@@ -4,6 +4,7 @@ import org.hatrack.commons.HABar;
 import org.hatrack.commons.HASeries;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.commons.OHLCSeries;
+import org.hatrack.commons.PivotPoints;
 import org.hatrack.commons.PriceSource;
 import org.hatrack.commons.Series;
 import org.hatrack.heerwisch.api.error.ChartRenderException;
@@ -182,21 +183,22 @@ public final class JFreeChartRenderer implements ChartRenderer {
             }
         }
         addAnnotations(plot, spec);
-        includeHorizontalLevelsInRange(plot, spec, datasetIndex);
+        includeAnnotationLevelsInRange(plot, spec, datasetIndex);
         return plot;
     }
 
     /**
      * Extends the main pane's auto-range to include every {@code HorizontalLevel}
-     * value, so a level outside the price window (e.g. a stop or target beyond
-     * the visible high/low) is still on-chart — matching TradingView/MetaTrader.
-     * Implemented by adding a non-drawing dataset (no lines, no shapes) carrying
-     * the level values: JFreeChart's range auto-calc includes it (with the
-     * axis's normal margins) and the axis only widens when a level actually
-     * exceeds the price bounds. No effect when there are no levels, and it never
-     * touches a manually-bounded axis (the main axis is always auto-ranged).
+     * value and every {@code PivotPointLevels} level, so a reference line outside
+     * the price window (e.g. a stop, target, or pivot beyond the visible
+     * high/low) is still on-chart — matching TradingView/MetaTrader. Implemented
+     * by adding a non-drawing dataset (no lines, no shapes) carrying the level
+     * values: JFreeChart's range auto-calc includes it (with the axis's normal
+     * margins) and the axis only widens when a level actually exceeds the price
+     * bounds. No effect when there are no such annotations, and it never touches a
+     * manually-bounded axis (the main axis is always auto-ranged).
      */
-    private static void includeHorizontalLevelsInRange(XYPlot plot, ChartSpec spec, int index) {
+    private static void includeAnnotationLevelsInRange(XYPlot plot, ChartSpec spec, int index) {
         List<Instant> times = times(spec.series());
         if (times.isEmpty()) {
             return;
@@ -208,6 +210,11 @@ public final class JFreeChartRenderer implements ChartRenderer {
             if (annotation instanceof Annotation.HorizontalLevel level) {
                 levels.add(x, level.price().doubleValue());
                 any = true;
+            } else if (annotation instanceof Annotation.PivotPointLevels pivots) {
+                for (BigDecimal level : pivotLevels(pivots)) {
+                    levels.add(x, level.doubleValue());
+                    any = true;
+                }
             }
         }
         if (!any) {
@@ -809,40 +816,8 @@ public final class JFreeChartRenderer implements ChartRenderer {
     }
 
     private static List<BigDecimal> pivotLevels(Annotation.PivotPointLevels pivots) {
-        OHLCBar bar = pivots.previousPeriodBar();
-        BigDecimal high = bar.high();
-        BigDecimal low = bar.low();
-        BigDecimal close = bar.close();
-        BigDecimal range = high.subtract(low);
-        List<BigDecimal> levels = new ArrayList<>();
-        switch (pivots.variant()) {
-            case STANDARD -> {
-                BigDecimal p = high.add(low).add(close).divide(new BigDecimal(3),
-                        java.math.MathContext.DECIMAL64);
-                levels.add(p);
-                levels.add(p.multiply(new BigDecimal(2)).subtract(low));
-                levels.add(p.multiply(new BigDecimal(2)).subtract(high));
-                levels.add(p.add(range));
-                levels.add(p.subtract(range));
-            }
-            case WOODIE -> {
-                BigDecimal p = high.add(low).add(close).add(close).divide(new BigDecimal(4),
-                        java.math.MathContext.DECIMAL64);
-                levels.add(p);
-                levels.add(p.multiply(new BigDecimal(2)).subtract(low));
-                levels.add(p.multiply(new BigDecimal(2)).subtract(high));
-            }
-            case CAMARILLA -> {
-                BigDecimal factor = new BigDecimal("1.1");
-                for (int divisor : new int[] {12, 6, 4, 2}) {
-                    BigDecimal offset = range.multiply(factor)
-                            .divide(new BigDecimal(divisor), java.math.MathContext.DECIMAL64);
-                    levels.add(close.add(offset));
-                    levels.add(close.subtract(offset));
-                }
-            }
-        }
-        return levels;
+        return new ArrayList<>(
+                PivotPoints.levels(pivots.previousPeriodBar(), pivots.variant()).present().values());
     }
 
     // --- price extraction ---

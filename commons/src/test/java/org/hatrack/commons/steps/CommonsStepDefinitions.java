@@ -8,9 +8,14 @@ import io.cucumber.java.en.When;
 import org.hatrack.commons.HABar;
 import org.hatrack.commons.HASeries;
 import org.hatrack.commons.HeikinAshiCalculator;
+import org.hatrack.commons.OHLCAggregator;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.commons.OHLCInvariantViolationException;
 import org.hatrack.commons.OHLCSeries;
+import org.hatrack.commons.PivotLevel;
+import org.hatrack.commons.PivotLevels;
+import org.hatrack.commons.PivotPointVariant;
+import org.hatrack.commons.PivotPoints;
 import org.hatrack.commons.Timeframe;
 
 import java.math.BigDecimal;
@@ -34,6 +39,8 @@ public class CommonsStepDefinitions {
     private List<HABar> mutableHaList;
     private OHLCSeries ohlcSeries;
     private HASeries haSeries;
+    private PivotLevels pivotLevels;
+    private OHLCSeries aggregatedSeries;
     private Exception thrown;
 
     // --- Heikin Ashi ---
@@ -299,6 +306,55 @@ public class CommonsStepDefinitions {
     public void theHaSeriesStillHasBars(int n) {
         assertTrue(haSeries.bars().size() == n,
                 "HASeries bars: expected " + n + " but was " + haSeries.bars().size());
+    }
+
+    // --- Pivot points ---
+
+    @Given("a previous-period OHLC bar with high={bigdecimal}, low={bigdecimal}, close={bigdecimal}")
+    public void aPreviousPeriodOhlcBar(BigDecimal h, BigDecimal l, BigDecimal c) {
+        ohlc = new OHLCBar(T0, c, h, l, c, Optional.empty());
+    }
+
+    @When("I compute {word} pivots")
+    public void iComputePivots(String variant) {
+        capture(() -> pivotLevels = PivotPoints.levels(ohlc, PivotPointVariant.valueOf(variant)));
+    }
+
+    @Then("pivot {word} is {bigdecimal}")
+    public void pivotLevelIs(String level, BigDecimal expected) {
+        assertNumericEquals(expected, pivotLevels.value(PivotLevel.valueOf(level)), "pivot " + level);
+    }
+
+    @Then("pivot {word} is absent")
+    public void pivotLevelIsAbsent(String level) {
+        assertTrue(pivotLevels.value(PivotLevel.valueOf(level)) == null,
+                "pivot " + level + " expected absent but was " + pivotLevels.value(PivotLevel.valueOf(level)));
+    }
+
+    // --- OHLC aggregation ---
+
+    @When("I aggregate to period {string}")
+    public void iAggregateToPeriod(String period) {
+        capture(() -> aggregatedSeries =
+                OHLCAggregator.toPeriod(new OHLCSeries(ohlcs), Timeframe.fromWire(period)));
+    }
+
+    @Then("the aggregated series has {int} bars")
+    public void theAggregatedSeriesHasBars(int n) {
+        assertTrue(aggregatedSeries.bars().size() == n,
+                "aggregated bars: expected " + n + " but was " + aggregatedSeries.bars().size());
+    }
+
+    @Then("aggregated bar {int} has open={bigdecimal}, high={bigdecimal}, low={bigdecimal}, close={bigdecimal} at time {string}")
+    public void aggregatedBarHas(int index, BigDecimal o, BigDecimal h, BigDecimal l, BigDecimal c,
+                                 String time) {
+        OHLCBar bar = aggregatedSeries.bars().get(index);
+        assertNumericEquals(o, bar.open(), "bar " + index + " open");
+        assertNumericEquals(h, bar.high(), "bar " + index + " high");
+        assertNumericEquals(l, bar.low(), "bar " + index + " low");
+        assertNumericEquals(c, bar.close(), "bar " + index + " close");
+        assertTrue(Instant.parse(time).equals(bar.time()),
+                "bar " + index + " time: expected " + time + " but was " + bar.time());
     }
 
     // --- shared ---
