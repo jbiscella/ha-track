@@ -71,6 +71,34 @@ public sealed interface DetectionRule {
         }
     }
 
+    record MAVsMARule(MAType aType, int aPeriod, MAType bType, int bPeriod, PriceSource priceSource)
+            implements DetectionRule {
+        public MAVsMARule {
+            Objects.requireNonNull(aType, "aType");
+            Objects.requireNonNull(bType, "bType");
+            Objects.requireNonNull(priceSource, "priceSource");
+        }
+
+        @Override
+        public int minBars() {
+            return Math.max(aPeriod, bPeriod);
+        }
+    }
+
+    record MACrossMARule(MAType aType, int aPeriod, MAType bType, int bPeriod, PriceSource priceSource)
+            implements DetectionRule {
+        public MACrossMARule {
+            Objects.requireNonNull(aType, "aType");
+            Objects.requireNonNull(bType, "bType");
+            Objects.requireNonNull(priceSource, "priceSource");
+        }
+
+        @Override
+        public int minBars() {
+            return Math.max(aPeriod, bPeriod) + 1;
+        }
+    }
+
     record RSIThresholdRule(int period, BigDecimal overbought, BigDecimal oversold, PriceSource priceSource)
             implements DetectionRule {
         public RSIThresholdRule {

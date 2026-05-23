@@ -28,6 +28,10 @@ public sealed interface PatternMatch
                 PatternMatch.PriceBelowMA,
                 PatternMatch.PriceCrossedAboveMA,
                 PatternMatch.PriceCrossedBelowMA,
+                PatternMatch.MAAboveMA,
+                PatternMatch.MABelowMA,
+                PatternMatch.MACrossedAboveMA,
+                PatternMatch.MACrossedBelowMA,
                 PatternMatch.RSIOverbought,
                 PatternMatch.RSIOversold,
                 PatternMatch.RSIExitedOverbought,
@@ -123,6 +127,46 @@ public sealed interface PatternMatch
 
     record PriceCrossedBelowMA(Instant time, Optional<Timeframe> timeframe,
                                BigDecimal price, BigDecimal maValue, MAType maType, int period)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.EVENT;
+        }
+    }
+
+    record MAAboveMA(Instant time, Optional<Timeframe> timeframe,
+                     BigDecimal aValue, BigDecimal bValue,
+                     MAType aType, int aPeriod, MAType bType, int bPeriod)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.STATE;
+        }
+    }
+
+    record MABelowMA(Instant time, Optional<Timeframe> timeframe,
+                     BigDecimal aValue, BigDecimal bValue,
+                     MAType aType, int aPeriod, MAType bType, int bPeriod)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.STATE;
+        }
+    }
+
+    record MACrossedAboveMA(Instant time, Optional<Timeframe> timeframe,
+                            BigDecimal aValue, BigDecimal bValue,
+                            MAType aType, int aPeriod, MAType bType, int bPeriod)
+            implements PatternMatch {
+        @Override
+        public MatchFlavor flavor() {
+            return MatchFlavor.EVENT;
+        }
+    }
+
+    record MACrossedBelowMA(Instant time, Optional<Timeframe> timeframe,
+                            BigDecimal aValue, BigDecimal bValue,
+                            MAType aType, int aPeriod, MAType bType, int bPeriod)
             implements PatternMatch {
         @Override
         public MatchFlavor flavor() {
