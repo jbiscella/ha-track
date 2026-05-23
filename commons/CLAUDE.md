@@ -10,7 +10,7 @@ This is the nested spec for the `commons` module. The repo-wide rules (architect
 - Pure stateless functions (`HeikinAshiCalculator`).
 - The OHLC invariant exception (`OHLCInvariantViolationException`).
 
-Out of scope: I/O, persistence, clocks, framework annotations, anything that requires an external dependency. JDK-only is a hard constraint enforced at the module's `pom.xml` level (no `<dependency>` block beyond JUnit for tests).
+Out of scope: I/O, persistence, clocks, framework annotations, anything that requires an external dependency. JDK-only is a hard constraint enforced at the module's `pom.xml` level (no `<dependency>` block beyond the JUnit-platform test stack — JUnit, Cucumber, and jqwik for property-based tests — all `test`-scoped).
 
 ## 1. Data types
 

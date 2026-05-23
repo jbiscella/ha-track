@@ -41,6 +41,7 @@
         <cucumber.version>7.29.0</cucumber.version>
         <junit.platform.version>1.13.4</junit.platform.version>
         <junit.jupiter.version>5.13.4</junit.jupiter.version>
+        <jqwik.version>1.9.2</jqwik.version>
         <jfreechart.version>1.5.6</jfreechart.version>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
@@ -113,6 +114,11 @@
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter</artifactId>
                 <version>${junit.jupiter.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.jqwik</groupId>
+                <artifactId>jqwik</artifactId>
+                <version>${jqwik.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

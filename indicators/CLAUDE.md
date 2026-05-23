@@ -13,7 +13,7 @@ It contains:
 
 The arithmetic is **unchanged** from the pre-extraction calculators: this module is the destination of a move, not a rewrite. `SMA(period)` and every other calculator produce values bit-identical to the formulas previously embedded in the two consumer modules (which were verified arithmetically identical before extraction).
 
-Out of scope: I/O, persistence, clocks, framework annotations, anything that requires an external dependency. JDK-only is a hard constraint enforced at the module's `pom.xml` level (no `<dependency>` block beyond JUnit/Cucumber for tests). The module does not even depend on `commons`: calculators take `List<BigDecimal>` channels, not `commons` bar types — channel extraction stays consumer-side.
+Out of scope: I/O, persistence, clocks, framework annotations, anything that requires an external dependency. JDK-only is a hard constraint enforced at the module's `pom.xml` level (no `<dependency>` block beyond the JUnit-platform test stack — JUnit, Cucumber, and jqwik for property-based tests — all `test`-scoped). The module does not even depend on `commons`: calculators take `List<BigDecimal>` channels, not `commons` bar types — channel extraction stays consumer-side.
 
 ## 1. Runtime profile
 
