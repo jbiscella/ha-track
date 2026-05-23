@@ -19,6 +19,12 @@ import java.util.Optional;
  * buckets by the ISO week starting Monday 00:00:00Z. Other units, and any
  * {@code amount != 1}, are rejected.
  *
+ * <p><b>Precondition:</b> the input bars MUST be ordered ascending by time. As
+ * with the rest of {@code commons}, this is NOT validated here — ordering is a
+ * domain rule enforced by the consuming library's spec builder (e.g. the
+ * {@code nachtkrapp} builder's V3). Passing out-of-order bars produces undefined
+ * bucketing (each run of same-period bars becomes its own output bar).
+ *
  * <p>One output bar is produced per period that contains at least one input
  * bar (empty periods between gaps are skipped); its {@code time} is the period
  * start. Within a period: {@code open} = first bar's open, {@code high} = max

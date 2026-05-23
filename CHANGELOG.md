@@ -18,6 +18,11 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 
 - **heerwisch-jfreechart:** the shipped pivot rendering was incomplete — STANDARD omitted R3/S3 and WOODIE omitted R2/S2. `JFreeChartRenderer` now delegates pivot computation to the shared `commons.PivotPoints`, so it draws the **complete canonical** level set. This intentionally changes rendered pivot output (more, correct lines). One source of truth for pivots across the driver and `nachtkrapp`.
 - **heerwisch-jfreechart:** the main pane's Y auto-range now also includes every `PivotPointLevels` value (extending the 0.51.0-alpha `HorizontalLevel` behavior), so off-window pivot lines stay on-chart. Behavior-only, no API change.
+- **nachtkrapp:** `PivotPointRule` prior-period lookup is now linear (a single forward pointer over the already-sorted bars and periods) instead of an O(N×P) per-bar scan. Same matches, lower hot-path cost.
+
+### Fixed
+
+- **nachtkrapp:** `PivotPointRule` applied to an `HASeries` (with an HA `priceSource`) is now rejected eagerly at `build()` with `InvalidDetectionSpecException` (V5) — pivots are OHLC-only. Previously it passed V5 and failed at `detect()` with a `ClassCastException` wrapped in `DetectionInternalException`. Spec scope clarified in the root and `nachtkrapp` `CLAUDE.md`: pivot-point *levels* (this feature) are distinct from swing-*pivot detection* (still out of v1).
 
 ### Compatibility
 

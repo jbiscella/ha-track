@@ -43,3 +43,10 @@ Feature: MA-vs-MA trend filter detection
     When I detect
     Then the result contains 1 MACrossedBelowMA
     And the result contains 0 MACrossedAboveMA
+
+  Scenario: EMA-vs-SMA exercises the EMA branch and emits matches
+    Given a detection spec builder
+    And an OHLC series with closes 1, 2, 4, 8, 16, 32
+    And the rule MAVsMARule with EMA period 3 and SMA period 3 source CLOSE
+    When I detect
+    Then the result contains at least 1 MAAboveMA

@@ -97,6 +97,48 @@ Feature: DetectionSpecBuilder eager validation
     When I build the detection spec
     Then an InvalidDetectionSpecException is thrown with violatedRule "V10"
 
+  Scenario: HA priceSource on OHLC series fails build for MAVsMARule
+    Given a detection spec builder
+    And an OHLC series of 10 bars with close strictly increasing
+    And the rule MAVsMARule with SMA period 2 and SMA period 4 source HA_CLOSE
+    When I build the detection spec
+    Then an InvalidDetectionSpecException is thrown with violatedRule "V5"
+
+  Scenario: Insufficient bars fails build for MAVsMARule
+    Given a detection spec builder
+    And an OHLC series with closes 1, 2, 3
+    And the rule MAVsMARule with SMA period 2 and SMA period 4 source CLOSE
+    When I build the detection spec
+    Then an InvalidDetectionSpecException is thrown with violatedRule "V6"
+
+  Scenario: Zero period fails build for MAVsMARule
+    Given a detection spec builder
+    And an OHLC series of 10 bars with close strictly increasing
+    And the rule MAVsMARule with SMA period 0 and SMA period 4 source CLOSE
+    When I build the detection spec
+    Then an InvalidDetectionSpecException is thrown with violatedRule "V7"
+
+  Scenario: PivotPointRule on an HA series fails build (pivots are OHLC-only)
+    Given a detection spec builder
+    And an HA series of 10 bars with haClose strictly increasing
+    And the rule PivotPointRule with period "1d" variant STANDARD source HA_CLOSE
+    When I build the detection spec
+    Then an InvalidDetectionSpecException is thrown with violatedRule "V5"
+
+  Scenario: PivotPointRule with an intraday period fails build
+    Given a detection spec builder
+    And an OHLC series of 10 bars with close strictly increasing
+    And the rule PivotPointRule with period "1h" variant STANDARD source CLOSE
+    When I build the detection spec
+    Then an InvalidDetectionSpecException is thrown with violatedRule "V7"
+
+  Scenario: PivotPointRule with a multi-day period fails build
+    Given a detection spec builder
+    And an OHLC series of 10 bars with close strictly increasing
+    And the rule PivotPointRule with period "2d" variant STANDARD source CLOSE
+    When I build the detection spec
+    Then an InvalidDetectionSpecException is thrown with violatedRule "V7"
+
   Scenario: Valid spec builds successfully
     Given a detection spec builder
     And an OHLC series of 10 bars with close strictly increasing

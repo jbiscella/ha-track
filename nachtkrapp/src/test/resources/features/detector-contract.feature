@@ -40,6 +40,24 @@ Feature: PatternDetector contract
     When I detect on the full series and on the series truncated to 30 bars
     Then every truncated match also appears in the full result
 
+  Scenario: Lookahead-safety for MAVsMARule
+    Given a detection spec builder
+    And an OHLC series rising for 25 bars then falling for 25 bars
+    And the rule MAVsMARule with SMA period 5 and SMA period 10 source CLOSE
+    When I detect on the full series and on the series truncated to 30 bars
+    Then every truncated match also appears in the full result
+
+  Scenario: Lookahead-safety for PivotPointRule
+    Given a detection spec builder
+    And an OHLC series:
+      | time                 | open | high | low | close |
+      | 2024-01-01T12:00:00Z | 100  | 120  | 90  | 105   |
+      | 2024-01-02T12:00:00Z | 128  | 132  | 125 | 130   |
+      | 2024-01-03T12:00:00Z | 95   | 100  | 88  | 92    |
+    And the rule PivotPointRule with period "1d" variant STANDARD source CLOSE
+    When I detect on the full series and on the series truncated to 2 bars
+    Then every truncated match also appears in the full result
+
   Scenario: Timeframe tag is propagated to every match
     Given a detection spec builder
     And an OHLC series of 20 bars with close strictly increasing

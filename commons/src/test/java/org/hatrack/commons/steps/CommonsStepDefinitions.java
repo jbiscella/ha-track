@@ -333,6 +333,36 @@ public class CommonsStepDefinitions {
 
     // --- OHLC aggregation ---
 
+    @Given("the following OHLC bars with volume:")
+    public void theFollowingOhlcBarsWithVolume(DataTable table) {
+        ohlcs = new ArrayList<>();
+        for (Map<String, String> row : table.asMaps()) {
+            String vol = row.get("volume");
+            Optional<BigDecimal> volume = (vol == null || vol.isBlank())
+                    ? Optional.empty() : Optional.of(new BigDecimal(vol));
+            ohlcs.add(new OHLCBar(
+                    Instant.parse(row.get("time")),
+                    new BigDecimal(row.get("open")),
+                    new BigDecimal(row.get("high")),
+                    new BigDecimal(row.get("low")),
+                    new BigDecimal(row.get("close")),
+                    volume));
+        }
+    }
+
+    @Then("aggregated bar {int} has volume {bigdecimal}")
+    public void aggregatedBarHasVolume(int index, BigDecimal expected) {
+        Optional<BigDecimal> actual = aggregatedSeries.bars().get(index).volume();
+        assertTrue(actual.isPresent(), "bar " + index + " volume: expected present but was empty");
+        assertNumericEquals(expected, actual.get(), "bar " + index + " volume");
+    }
+
+    @Then("aggregated bar {int} has no volume")
+    public void aggregatedBarHasNoVolume(int index) {
+        Optional<BigDecimal> actual = aggregatedSeries.bars().get(index).volume();
+        assertTrue(actual.isEmpty(), "bar " + index + " volume: expected empty but was " + actual);
+    }
+
     @When("I aggregate to period {string}")
     public void iAggregateToPeriod(String period) {
         capture(() -> aggregatedSeries =
