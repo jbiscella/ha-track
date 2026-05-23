@@ -5,7 +5,7 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
-## 0.52.0-alpha (unreleased)
+## 0.52.0-alpha
 
 ### Added
 
