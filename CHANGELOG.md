@@ -5,6 +5,16 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.52.0-alpha (unreleased)
+
+### Added
+
+- **nachtkrapp:** MA-vs-MA trend filter — two new `DetectionRule` variants comparing two moving averages against each other. `MAVsMARule(MAType aType, int aPeriod, MAType bType, int bPeriod, PriceSource priceSource)` (state) emits `MAAboveMA` when `a > b`, `MABelowMA` when `a < b`, and nothing when `a == b`, on every warm bar. `MACrossMARule(...)` (event) emits `MACrossedAboveMA` / `MACrossedBelowMA` only on the bar where `sign(a − b)` flips, with no re-fire while the relationship holds — identical equality/warmup semantics to `PriceMACrossRule`. Four new `PatternMatch` variants (`MAAboveMA`, `MABelowMA`, `MACrossedAboveMA`, `MACrossedBelowMA`), each carrying `(aValue, bValue, aType, aPeriod, bType, bPeriod)`. `minBars()` is `max(aPeriod, bPeriod)` for the state rule and `+1` for the cross rule. `priceSource`/series-type compatibility (V5) and `aPeriod`/`bPeriod ≥ 1` (V7) validated eagerly. Spec: `nachtkrapp/CLAUDE.md` §2.2.2, §2.3.2, §9, §13.
+
+### Compatibility
+
+- Additive. New nested records extend the `DetectionRule` and `PatternMatch` sealed sets (new `permits` entries); existing variants, the `MatchFlavor` enum (`EVENT`, `STATE`), and all signatures are unchanged. The new state matches are `STATE`, the new cross matches are `EVENT`. japicmp clean.
+
 ## 0.51.0-alpha
 
 ### Changed
