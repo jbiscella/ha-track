@@ -48,3 +48,6 @@ nbdist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# jqwik local run database (records failing samples for reproduction; not source)
+.jqwik-database
