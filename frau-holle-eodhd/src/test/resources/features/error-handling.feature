@@ -102,3 +102,35 @@ Feature: Error mapping
     When I fetch history for "AAPL.US" as "1d"
     Then a MarketDataSchemaException is thrown
     And the exception cause is a JsonParseException
+
+  # The request URL carries ?api_token=<token> (EODHD has no header auth), so an
+  # exception message that embedded the URL would leak the secret into logs /
+  # stack traces. CLAUDE.md section 12 forbids this. Guards every error path.
+  Scenario Outline: HTTP error exceptions never reveal the API token
+    Given an EODHD data source
+    And the endpoint responds with HTTP status <status>
+    When I fetch history for "AAPL.US" as "1d"
+    Then no exception in the chain reveals the API token
+
+    Examples:
+      | status |
+      | 404    |
+      | 401    |
+      | 403    |
+      | 429    |
+      | 503    |
+
+  Scenario: A malformed-JSON exception never reveals the API token
+    Given an EODHD data source
+    And the endpoint returns the JSON body:
+      """
+      not valid json at all
+      """
+    When I fetch history for "AAPL.US" as "1d"
+    Then no exception in the chain reveals the API token
+
+  Scenario: A timeout exception never reveals the API token
+    Given an EODHD data source
+    And the endpoint times out
+    When I fetch history for "AAPL.US" as "1d"
+    Then no exception in the chain reveals the API token

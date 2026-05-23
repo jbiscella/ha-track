@@ -15,7 +15,9 @@ import org.hatrack.frauholle.error.MarketDataUnavailableException;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URLEncoder;
 import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -24,6 +26,9 @@ public class EodhdStepDefinitions {
 
     private static final Instant SINCE = Instant.parse("2024-01-01T00:00:00Z");
     private static final Instant UNTIL = Instant.parse("2024-12-31T00:00:00Z");
+    // Contains reserved characters (/, +, =) so the raw and URL-encoded forms
+    // differ — the leak guard must catch a leak in either form.
+    private static final String API_TOKEN = "test/token+secret=42";
 
     private MockHttpExecutor mock;
     private EodhdMarketDataSource driver;
@@ -36,7 +41,7 @@ public class EodhdStepDefinitions {
     @Given("an EODHD data source")
     public void anEodhdDataSource() {
         mock = new MockHttpExecutor();
-        driver = new EodhdMarketDataSource("test-token", "https://eodhistoricaldata.com",
+        driver = new EodhdMarketDataSource(API_TOKEN, "https://eodhistoricaldata.com",
                 Duration.ofSeconds(30), mock, new DefaultJsonReader());
         result = null;
         thrown = null;
@@ -184,6 +189,28 @@ public class EodhdStepDefinitions {
     public void theExceptionCauseIsTheTimeoutException() {
         assertTrue(thrown != null && thrown.getCause() == timeoutException,
                 "exception cause is not the timeout exception");
+    }
+
+    @Then("no exception in the chain reveals the API token")
+    public void noExceptionInTheChainRevealsTheApiToken() {
+        assertTrue(thrown != null, "no exception was thrown");
+        // The URL carries the token URL-encoded, so a leak could surface as either
+        // the raw token or its percent-encoded form — guard against both.
+        String encoded = URLEncoder.encode(API_TOKEN, StandardCharsets.UTF_8);
+        for (Throwable t = thrown; t != null; t = t.getCause()) {
+            String message = t.getMessage();
+            if (message != null) {
+                assertTrue(!message.contains(API_TOKEN),
+                        "exception " + t.getClass().getSimpleName()
+                                + " leaks the raw API token: [" + message + "]");
+                assertTrue(!message.contains(encoded),
+                        "exception " + t.getClass().getSimpleName()
+                                + " leaks the URL-encoded API token: [" + message + "]");
+            }
+            if (t.getCause() == t) {
+                break;
+            }
+        }
     }
 
     @Then("the request URL contains {string}")
