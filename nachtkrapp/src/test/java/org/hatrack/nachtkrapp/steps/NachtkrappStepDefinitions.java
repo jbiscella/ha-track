@@ -9,6 +9,7 @@ import org.hatrack.commons.HABar;
 import org.hatrack.commons.HASeries;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.commons.OHLCSeries;
+import org.hatrack.commons.PivotPointVariant;
 import org.hatrack.commons.PriceSource;
 import org.hatrack.commons.Timeframe;
 import org.hatrack.nachtkrapp.detector.DetectionResult;
@@ -23,6 +24,7 @@ import org.hatrack.nachtkrapp.rule.DetectionRule.HADojiRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.HAStrongCandleRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDSignalCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDZeroCrossRule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.PivotPointRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceMACrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceVsMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.RSILevel50CrossRule;
@@ -248,6 +250,12 @@ public class NachtkrappStepDefinitions {
     @Given("the rule PriceMACrossRule with {word} period {int} source {word}")
     public void rulePriceMACross(String maType, int period, String source) {
         addRule(new PriceMACrossRule(MAType.valueOf(maType), period, PriceSource.valueOf(source)));
+    }
+
+    @Given("the rule PivotPointRule with period {string} variant {word} source {word}")
+    public void rulePivotPoint(String period, String variant, String source) {
+        addRule(new PivotPointRule(Timeframe.fromWire(period),
+                PivotPointVariant.valueOf(variant), PriceSource.valueOf(source)));
     }
 
     @Given("the rule RSIThresholdRule with period {int} overbought {bigdecimal} oversold {bigdecimal} source {word}")

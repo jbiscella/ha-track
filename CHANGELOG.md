@@ -5,6 +5,23 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.52.0-alpha (unreleased)
+
+### Added
+
+- **commons:** pivot-point primitives. `PivotPointVariant` (relocated here from `heerwisch-api`), a universal `PivotLevel` enum (`P, R1, R2, R3, R4, S1, S2, S3, S4`), a `PivotLevels` record (`null` where a variant does not define a level; `value(PivotLevel)` and `present()` accessors), and a pure `PivotPoints.levels(OHLCBar previousPeriodBar, PivotPointVariant)` calculator. Canonical, complete level sets: STANDARD → P/R1/R2/R3/S1/S2/S3; WOODIE → P/R1/R2/S1/S2; CAMARILLA → R1–R4/S1–S4 (no central P). `BigDecimal` / `DECIMAL64`.
+- **commons:** `OHLCAggregator.toPeriod(OHLCSeries intraday, Timeframe period)` resamples intraday bars to `1d` (UTC calendar day) or `1w` (ISO week, Monday 00:00Z). One output bar per non-empty period (open=first, high=max, low=min, close=last, volume=sum when all present else empty). Other units / `amount != 1` are rejected.
+- **nachtkrapp:** `DetectionRule.PivotPointRule(Timeframe pivotPeriod, PivotPointVariant variant, PriceSource priceSource)`. Aggregates the input intraday series internally via `OHLCAggregator`; at each bar, levels come from the most-recent **closed** prior period (computed via `PivotPoints`), and the price is compared to every applicable level. Four new `PatternMatch` variants — `PriceAbovePivot` / `PriceBelowPivot` (`STATE`) and `PriceCrossedAbovePivot` / `PriceCrossedBelowPivot` (`EVENT`) — each carrying `(price, levelValue, level, variant, pivotPeriod)`. Cross/equality/warmup semantics match Price-vs-MA. Bars in the first period emit nothing (no prior closed period). `pivotPeriod ∈ {1d, 1w}` validated (V7); OHLC series required (V5). Lookahead-safe.
+
+### Changed
+
+- **heerwisch-jfreechart:** the shipped pivot rendering was incomplete — STANDARD omitted R3/S3 and WOODIE omitted R2/S2. `JFreeChartRenderer` now delegates pivot computation to the shared `commons.PivotPoints`, so it draws the **complete canonical** level set. This intentionally changes rendered pivot output (more, correct lines). One source of truth for pivots across the driver and `nachtkrapp`.
+- **heerwisch-jfreechart:** the main pane's Y auto-range now also includes every `PivotPointLevels` value (extending the 0.51.0-alpha `HorizontalLevel` behavior), so off-window pivot lines stay on-chart. Behavior-only, no API change.
+
+### Compatibility
+
+- **Breaking (FQN):** `PivotPointVariant` moved from `org.hatrack.heerwisch.api.spec` to `org.hatrack.commons` (necessary so both the driver and `nachtkrapp` share one definition without a `commons → heerwisch-api` cycle). Source-incompatible for callers importing the old FQN; the enum name and constants are unchanged. Accepted in the 0.x alpha line. The nachtkrapp additions are otherwise additive (new sealed `permits` entries, new `PatternMatch` variants; `MatchFlavor` unchanged). The pivot-rendering output change is intentional. japicmp at 0.x skips the semver gate for the relocation.
+
 ## 0.51.0-alpha
 
 ### Changed

@@ -98,6 +98,30 @@ Behavior:
 - The canonical constructor performs null-check only on the list reference, then replaces it with `List.copyOf(...)`. A caller's later mutation of their original list MUST NOT affect the record. A list that itself contains a `null` element is rejected with `NullPointerException` (a consequence of `List.copyOf`).
 - `commons` does NOT enforce ordering, uniqueness, or non-emptiness of the bars. Those are domain rules validated by the consuming library's spec builder (e.g. `heerwisch-api` V2–V4, `nachtkrapp` V2–V4).
 
+### 1.6 Pivot-point types
+
+Relocated to / added in `commons` in 0.52.0-alpha so both `heerwisch-jfreechart`
+(rendering) and `nachtkrapp` (the `PivotPointRule`) share one definition without
+a `commons → heerwisch-api` cycle.
+
+| Type | Shape |
+|---|---|
+| `PivotPointVariant` | Closed enum: `STANDARD`, `CAMARILLA`, `WOODIE`. (Was `org.hatrack.heerwisch.api.spec.PivotPointVariant` through 0.51.0-alpha — breaking FQN move, alpha-ok.) |
+| `PivotLevel` | Closed enum: `P`, `R1`, `R2`, `R3`, `R4`, `S1`, `S2`, `S3`, `S4`. The universal superset; not every variant defines every level. |
+| `PivotLevels` | Record `(BigDecimal p, r1, r2, r3, r4, s1, s2, s3, s4)`; a component is `null` when the variant does not define it. `value(PivotLevel)` returns one value or `null`; `present()` returns a `LinkedHashMap` of the non-null levels in canonical enum order. |
+
+`PivotPoints` is a pure calculator: `static PivotLevels levels(OHLCBar previousPeriodBar, PivotPointVariant variant)`. No I/O, no state. Arithmetic uses `MathContext.DECIMAL64`. For previous-period high `H`, low `L`, close `C`, range `H − L`:
+
+| Variant | Levels (others `null`) |
+|---|---|
+| `STANDARD` | P=(H+L+C)/3; R1=2P−L; S1=2P−H; R2=P+range; S2=P−range; R3=H+2(P−L); S3=L−2(H−P) |
+| `WOODIE` | P=(H+L+2C)/4; R1=2P−L; S1=2P−H; R2=P+range; S2=P−range |
+| `CAMARILLA` | R1=C+range·1.1/12; R2=C+range·1.1/6; R3=C+range·1.1/4; R4=C+range·1.1/2; S1..S4 symmetric with `−`; no central P |
+
+### 1.7 `OHLCAggregator`
+
+Pure resampler: `static OHLCSeries toPeriod(OHLCSeries intraday, Timeframe period)`. UTC-only (v1): `period` must be `1d` (UTC calendar-day boundary, 00:00:00Z) or `1w` (ISO week starting Monday 00:00:00Z); any other unit, or `amount != 1`, throws `IllegalArgumentException`. One output bar per period containing at least one input bar (empty periods between gaps are skipped); its `time` is the period start. Within a period: `open` = first bar's open, `high` = max high, `low` = min low, `close` = last bar's close, `volume` = sum when every bar carries volume else empty. Output ordered ascending by time. Lookahead-safe: each output bar is a pure function of the inputs inside its period. RTH/session filtering is out of scope.
+
 ## 2. OHLC invariants
 
 Enforced by `OHLCBar.validateInvariants()`. On violation, throws `OHLCInvariantViolationException` (extends `RuntimeException`).

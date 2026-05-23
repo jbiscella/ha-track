@@ -1,6 +1,8 @@
 package org.hatrack.nachtkrapp.rule;
 
+import org.hatrack.commons.PivotPointVariant;
 import org.hatrack.commons.PriceSource;
+import org.hatrack.commons.Timeframe;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -117,6 +119,20 @@ public sealed interface DetectionRule {
         @Override
         public int minBars() {
             return slowPeriod + 1;
+        }
+    }
+
+    record PivotPointRule(Timeframe pivotPeriod, PivotPointVariant variant, PriceSource priceSource)
+            implements DetectionRule {
+        public PivotPointRule {
+            Objects.requireNonNull(pivotPeriod, "pivotPeriod");
+            Objects.requireNonNull(variant, "variant");
+            Objects.requireNonNull(priceSource, "priceSource");
+        }
+
+        @Override
+        public int minBars() {
+            return 1;
         }
     }
 }
