@@ -24,6 +24,8 @@ import org.hatrack.nachtkrapp.rule.DetectionRule.HADojiRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.HAStrongCandleRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDSignalCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDZeroCrossRule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.MACrossMARule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.MAVsMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PivotPointRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceMACrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceVsMARule;
@@ -250,6 +252,18 @@ public class NachtkrappStepDefinitions {
     @Given("the rule PriceMACrossRule with {word} period {int} source {word}")
     public void rulePriceMACross(String maType, int period, String source) {
         addRule(new PriceMACrossRule(MAType.valueOf(maType), period, PriceSource.valueOf(source)));
+    }
+
+    @Given("the rule MAVsMARule with {word} period {int} and {word} period {int} source {word}")
+    public void ruleMaVsMa(String aType, int aPeriod, String bType, int bPeriod, String source) {
+        addRule(new MAVsMARule(MAType.valueOf(aType), aPeriod,
+                MAType.valueOf(bType), bPeriod, PriceSource.valueOf(source)));
+    }
+
+    @Given("the rule MACrossMARule with {word} period {int} and {word} period {int} source {word}")
+    public void ruleMaCrossMa(String aType, int aPeriod, String bType, int bPeriod, String source) {
+        addRule(new MACrossMARule(MAType.valueOf(aType), aPeriod,
+                MAType.valueOf(bType), bPeriod, PriceSource.valueOf(source)));
     }
 
     @Given("the rule PivotPointRule with period {string} variant {word} source {word}")

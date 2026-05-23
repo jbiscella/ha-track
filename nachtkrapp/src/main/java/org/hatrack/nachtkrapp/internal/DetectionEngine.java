@@ -23,6 +23,10 @@ import org.hatrack.nachtkrapp.match.PatternMatch.MACDBearishCross;
 import org.hatrack.nachtkrapp.match.PatternMatch.MACDBullishCross;
 import org.hatrack.nachtkrapp.match.PatternMatch.MACDCrossedAboveZero;
 import org.hatrack.nachtkrapp.match.PatternMatch.MACDCrossedBelowZero;
+import org.hatrack.nachtkrapp.match.PatternMatch.MAAboveMA;
+import org.hatrack.nachtkrapp.match.PatternMatch.MABelowMA;
+import org.hatrack.nachtkrapp.match.PatternMatch.MACrossedAboveMA;
+import org.hatrack.nachtkrapp.match.PatternMatch.MACrossedBelowMA;
 import org.hatrack.nachtkrapp.match.PatternMatch.PriceAboveMA;
 import org.hatrack.nachtkrapp.match.PatternMatch.PriceBelowMA;
 import org.hatrack.nachtkrapp.match.PatternMatch.PriceAbovePivot;
@@ -43,6 +47,8 @@ import org.hatrack.nachtkrapp.rule.DetectionRule.HADojiRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.HAStrongCandleRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDSignalCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDZeroCrossRule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.MACrossMARule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.MAVsMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PivotPointRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceMACrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceVsMARule;
@@ -92,6 +98,8 @@ public final class DetectionEngine {
             case HADojiRule r -> haDoji(r, series, tf, out);
             case PriceVsMARule r -> priceVsMA(r, series, tf, out);
             case PriceMACrossRule r -> priceMACross(r, series, tf, out);
+            case MAVsMARule r -> maVsMA(r, series, tf, out);
+            case MACrossMARule r -> maCrossMA(r, series, tf, out);
             case RSIThresholdRule r -> rsiThreshold(r, series, tf, out);
             case RSILevel50CrossRule r -> rsiLevel50Cross(r, series, tf, out);
             case MACDSignalCrossRule r -> macdSignalCross(r, series, tf, out);
@@ -200,6 +208,49 @@ public final class DetectionEngine {
                 out.add(new PriceCrossedAboveMA(times.get(t), tf, prices.get(t), ma[t], r.maType(), r.period()));
             } else if (prev > 0 && cur <= 0) {
                 out.add(new PriceCrossedBelowMA(times.get(t), tf, prices.get(t), ma[t], r.maType(), r.period()));
+            }
+        }
+    }
+
+    private static void maVsMA(MAVsMARule r, Series series, Optional<Timeframe> tf,
+                               List<PatternMatch> out) {
+        List<BigDecimal> prices = prices(series, r.priceSource());
+        List<Instant> times = times(series);
+        BigDecimal[] a = movingAverage(r.aType(), prices, r.aPeriod());
+        BigDecimal[] b = movingAverage(r.bType(), prices, r.bPeriod());
+        for (int t = 0; t < prices.size(); t++) {
+            if (a[t] == null || b[t] == null) {
+                continue;
+            }
+            int cmp = a[t].compareTo(b[t]);
+            if (cmp > 0) {
+                out.add(new MAAboveMA(times.get(t), tf, a[t], b[t],
+                        r.aType(), r.aPeriod(), r.bType(), r.bPeriod()));
+            } else if (cmp < 0) {
+                out.add(new MABelowMA(times.get(t), tf, a[t], b[t],
+                        r.aType(), r.aPeriod(), r.bType(), r.bPeriod()));
+            }
+        }
+    }
+
+    private static void maCrossMA(MACrossMARule r, Series series, Optional<Timeframe> tf,
+                                  List<PatternMatch> out) {
+        List<BigDecimal> prices = prices(series, r.priceSource());
+        List<Instant> times = times(series);
+        BigDecimal[] a = movingAverage(r.aType(), prices, r.aPeriod());
+        BigDecimal[] b = movingAverage(r.bType(), prices, r.bPeriod());
+        for (int t = 1; t < prices.size(); t++) {
+            if (a[t - 1] == null || b[t - 1] == null || a[t] == null || b[t] == null) {
+                continue;
+            }
+            int prev = a[t - 1].compareTo(b[t - 1]);
+            int cur = a[t].compareTo(b[t]);
+            if (prev < 0 && cur >= 0) {
+                out.add(new MACrossedAboveMA(times.get(t), tf, a[t], b[t],
+                        r.aType(), r.aPeriod(), r.bType(), r.bPeriod()));
+            } else if (prev > 0 && cur <= 0) {
+                out.add(new MACrossedBelowMA(times.get(t), tf, a[t], b[t],
+                        r.aType(), r.aPeriod(), r.bType(), r.bPeriod()));
             }
         }
     }

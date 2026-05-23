@@ -39,7 +39,7 @@ Closed enum: `SMA`, `EMA`. Additional MA types reserved for future minor version
 ```
 sealed interface DetectionRule permits
     HAColorChangeRule, HAStrongCandleRule, HADojiRule,
-    PriceVsMARule, PriceMACrossRule,
+    PriceVsMARule, PriceMACrossRule, MAVsMARule, MACrossMARule,
     RSIThresholdRule, RSILevel50CrossRule,
     MACDSignalCrossRule, MACDZeroCrossRule,
     PivotPointRule
@@ -65,6 +65,8 @@ HA family rules require the series to be `HASeries`. Applied to `OHLCSeries` the
 |---|---|---|---|
 | `PriceVsMARule` | `MAType maType`, `int period` (≥ 1), `PriceSource priceSource` | `period` | `PriceAboveMA` or `PriceBelowMA` on every bar (state) |
 | `PriceMACrossRule` | `MAType maType`, `int period` (≥ 1), `PriceSource priceSource` | `period + 1` | `PriceCrossedAboveMA` or `PriceCrossedBelowMA` on the bar of the cross (event) |
+| `MAVsMARule` | `MAType aType`, `int aPeriod` (≥ 1), `MAType bType`, `int bPeriod` (≥ 1), `PriceSource priceSource` | `max(aPeriod, bPeriod)` | `MAAboveMA` (a > b) or `MABelowMA` (a < b) on every warm bar (state); `a == b` emits nothing |
+| `MACrossMARule` | `MAType aType`, `int aPeriod` (≥ 1), `MAType bType`, `int bPeriod` (≥ 1), `PriceSource priceSource` | `max(aPeriod, bPeriod) + 1` | `MACrossedAboveMA` or `MACrossedBelowMA` on the bar where `sign(a − b)` flips (event); no re-fire while on one side |
 
 #### 2.2.3 RSI family
 
@@ -95,6 +97,7 @@ sealed interface PatternMatch permits
     HABullishReversal, HABearishReversal,
     HABullishStrong, HABearishStrong, HADoji,
     PriceAboveMA, PriceBelowMA, PriceCrossedAboveMA, PriceCrossedBelowMA,
+    MAAboveMA, MABelowMA, MACrossedAboveMA, MACrossedBelowMA,
     RSIOverbought, RSIOversold, RSIExitedOverbought, RSIExitedOversold,
     RSICrossedAbove50, RSICrossedBelow50,
     MACDBullishCross, MACDBearishCross,
@@ -135,6 +138,10 @@ Plus variant-specific diagnostic payload:
 | `PriceBelowMA` | `BigDecimal price`, `BigDecimal maValue`, `MAType maType`, `int period` | `STATE` |
 | `PriceCrossedAboveMA` | `BigDecimal price`, `BigDecimal maValue`, `MAType maType`, `int period` | `EVENT` |
 | `PriceCrossedBelowMA` | `BigDecimal price`, `BigDecimal maValue`, `MAType maType`, `int period` | `EVENT` |
+| `MAAboveMA` | `BigDecimal aValue`, `BigDecimal bValue`, `MAType aType`, `int aPeriod`, `MAType bType`, `int bPeriod` | `STATE` |
+| `MABelowMA` | `BigDecimal aValue`, `BigDecimal bValue`, `MAType aType`, `int aPeriod`, `MAType bType`, `int bPeriod` | `STATE` |
+| `MACrossedAboveMA` | `BigDecimal aValue`, `BigDecimal bValue`, `MAType aType`, `int aPeriod`, `MAType bType`, `int bPeriod` | `EVENT` |
+| `MACrossedBelowMA` | `BigDecimal aValue`, `BigDecimal bValue`, `MAType aType`, `int aPeriod`, `MAType bType`, `int bPeriod` | `EVENT` |
 
 #### 2.3.3 RSI match payloads
 
@@ -423,6 +430,25 @@ Feature: Moving Average pattern detection
     And one PriceVsMARule(SMA, p, source) and one PriceVsMARule(EMA, p, source)
     When I detect
     Then the maValue payload differs between matches emitted by the two rules
+
+  Scenario: MAAboveMA emitted while the fast MA sits above the slow MA
+    Given a series of 5 bars and MAVsMARule(SMA, 2, SMA, 4, CLOSE)
+    When I detect
+    Then matches contains a MAAboveMA for every warm bar where SMA2 > SMA4
+    And matches contains a MABelowMA for every warm bar where SMA2 < SMA4
+    And no match has time before bar max(2, 4)
+
+  Scenario: Equal MA configurations emit nothing
+    Given MAVsMARule(SMA, 3, SMA, 3, CLOSE)
+    When I detect
+    Then no MAAboveMA and no MABelowMA are emitted (a == b on every bar)
+
+  Scenario: MACrossedAboveMA emitted only at the crossing bar
+    Given a series where SMA2 crosses SMA4 from below at bar T
+    And MACrossMARule(SMA, 2, SMA, 4, CLOSE)
+    When I detect
+    Then matches contains exactly one MACrossedAboveMA with time = T
+    And no MACrossedAboveMA is emitted on subsequent bars while SMA2 stays above SMA4
 ```
 
 ## 10. Block 4 — RSI detection behavior
@@ -535,6 +561,8 @@ The indicator calculators (SMA, EMA, RSI, MACD) live in the shared `indicators` 
 | `MACD(fast, slow, signal, source)` | `macdLine = EMA(fast, source) - EMA(slow, source)`; `signalLine = EMA(signal, macdLine)`; `histogram = macdLine - signalLine` |
 
 A cross from below to above at bar `t` is detected when the value at `t-1` is `< threshold` and the value at `t` is `≥ threshold`. Symmetric for cross from above to below. The exact rule applies for `PriceMACrossRule`, `RSILevel50CrossRule`, `MACDSignalCrossRule`, `MACDZeroCrossRule`, `RSIExitedOverbought`, `RSIExitedOversold`.
+
+For the MA-vs-MA family the compared "value" is the pair `(a, b)` (the two moving averages). `MAVsMARule` emits `MAAboveMA` when `a > b`, `MABelowMA` when `a < b`, and nothing when `a == b`. `MACrossMARule` is the cross form with `value = a − b` and `threshold = 0`: `MACrossedAboveMA` when `a − b` goes from `< 0` to `≥ 0`, `MACrossedBelowMA` when it goes from `> 0` to `≤ 0` — identical equality/warmup semantics to `PriceMACrossRule`, so there is no re-fire while the relationship holds.
 
 ## 14. HA pattern detection — canonical definitions
 

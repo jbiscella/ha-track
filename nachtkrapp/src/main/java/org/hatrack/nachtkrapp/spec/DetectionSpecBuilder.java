@@ -15,6 +15,8 @@ import org.hatrack.nachtkrapp.rule.DetectionRule.HADojiRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.HAStrongCandleRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDSignalCrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.MACDZeroCrossRule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.MACrossMARule;
+import org.hatrack.nachtkrapp.rule.DetectionRule.MAVsMARule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PivotPointRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceMACrossRule;
 import org.hatrack.nachtkrapp.rule.DetectionRule.PriceVsMARule;
@@ -121,6 +123,8 @@ public final class DetectionSpecBuilder {
             case HADojiRule r -> inOpenUnitInterval(r.maxBodyRatio());
             case PriceVsMARule r -> r.period() >= 1;
             case PriceMACrossRule r -> r.period() >= 1;
+            case MAVsMARule r -> r.aPeriod() >= 1 && r.bPeriod() >= 1;
+            case MACrossMARule r -> r.aPeriod() >= 1 && r.bPeriod() >= 1;
             case RSIThresholdRule r -> r.period() >= 1
                     && r.overbought().compareTo(FIFTY) > 0 && r.overbought().compareTo(HUNDRED) < 0
                     && r.oversold().signum() > 0 && r.oversold().compareTo(FIFTY) < 0;
@@ -146,6 +150,8 @@ public final class DetectionSpecBuilder {
             case HADojiRule ignored -> haSeries;
             case PriceVsMARule r -> priceSourceMatches(r.priceSource(), haSeries);
             case PriceMACrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
+            case MAVsMARule r -> priceSourceMatches(r.priceSource(), haSeries);
+            case MACrossMARule r -> priceSourceMatches(r.priceSource(), haSeries);
             case RSIThresholdRule r -> priceSourceMatches(r.priceSource(), haSeries);
             case RSILevel50CrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
             case MACDSignalCrossRule r -> priceSourceMatches(r.priceSource(), haSeries);
