@@ -25,6 +25,8 @@ public final class ThemeConstants {
     public static final Color SMA_LINE = new Color(0x1976D2);
     public static final Color EMA_LINE = new Color(0xF57C00);
     public static final Color BB_BAND = new Color(0x9E9E9E);
+    public static final Color ROLLING_MAX_LINE = new Color(0x00838F);
+    public static final Color ROLLING_MIN_LINE = new Color(0xAD1457);
     // Per-placement palettes for multiple same-type overlays on one pane.
     // Element [0] equals the scalar base color above, so a lone indicator
     // renders identically (backward compat); [1..3] are same-hue lightness

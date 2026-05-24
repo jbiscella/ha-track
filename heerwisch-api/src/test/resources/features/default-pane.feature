@@ -47,3 +47,13 @@ Feature: Default pane assignment for indicators
     Then the chart spec has 2 indicators
     And indicator 0 is placed at pane MAIN
     And indicator 1 is placed at pane MAIN
+
+  Scenario: Rolling-extremum overlays default to MAIN
+    Given a chart spec builder
+    And an OHLC series of 60 bars
+    And a RollingMax indicator with period 20 and source HIGH
+    And a RollingMin indicator with period 20 and source LOW
+    When I build the chart spec
+    Then the chart spec has 2 indicators
+    And indicator 0 is placed at pane MAIN
+    And indicator 1 is placed at pane MAIN

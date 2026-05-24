@@ -65,6 +65,8 @@ Rationale: rendering tests, byte-identical comparisons, and email-attachment con
 |---|---|
 | `SMA` | `MAIN` (overlay on price) or `SUBPLOT_*` |
 | `EMA` | `MAIN` or `SUBPLOT_*` |
+| `RollingMax` | `MAIN` or `SUBPLOT_*` |
+| `RollingMin` | `MAIN` or `SUBPLOT_*` |
 | `BollingerBands` | `MAIN` or `SUBPLOT_*` |
 | `RSI` | `SUBPLOT_*` only |
 | `MACD` | `SUBPLOT_*` only |
@@ -97,6 +99,8 @@ The driver exposes a public class `ThemeConstants` with `public static final` fi
 | `WICK` | `#303030` | candle wick lines |
 | `SMA_LINE` | `#1976D2` (blue) | SMA overlay |
 | `EMA_LINE` | `#F57C00` (orange) | EMA overlay |
+| `ROLLING_MAX_LINE` | `#00838F` (dark cyan) | RollingMax (highest-high/close channel) overlay |
+| `ROLLING_MIN_LINE` | `#AD1457` (dark magenta) | RollingMin (lowest-low/close channel) overlay |
 | `BB_BAND` | `#9E9E9E` (medium grey) | Bollinger Bands upper / lower bands |
 | `BB_FILL` | `#9E9E9E` at 10% alpha | optional fill between BB bands |
 | `RSI_LINE` | `#7B1FA2` (purple) | RSI line |
@@ -196,6 +200,8 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 |---|---|
 | `SMA(period, priceSource)` | Single line on the target pane using `SMA_LINE` color and `STROKE_INDICATOR` |
 | `EMA(period, priceSource)` | Single line using `EMA_LINE` color |
+| `RollingMax(period, priceSource)` | Single main-pane line using `ROLLING_MAX_LINE` color and `STROKE_INDICATOR`; rolling maximum of `priceSource` over the trailing `period` window (via `indicators.rollingMax`). Legend/axis label `HHV(<period>)`. Pair with `RollingMin` for a Donchian-style channel |
+| `RollingMin(period, priceSource)` | Single main-pane line using `ROLLING_MIN_LINE` color; rolling minimum (via `indicators.rollingMin`). Legend/axis label `LLV(<period>)` |
 | `BollingerBands(period, mult, priceSource)` | Three lines (upper, middle, lower); upper and lower in `BB_BAND` color; middle implicit (already shown as SMA if present, otherwise rendered) |
 | `MACD(fast, slow, signal, priceSource)` | Two lines (MACD and signal) plus histogram bars |
 | `RSI(period, ob, os, priceSource, visualization)` | Single line in `RSI_LINE` color; two horizontal threshold lines at `overbought` (`RSI_OVERBOUGHT_LEVEL`) and `oversold` (`RSI_OVERSOLD_LEVEL`); sub-pane Y axis bounded to `[0, 100]` when the pane contains only RSI indicator(s) (mixed panes keep auto-range so unbounded siblings such as MACD/ATR are not clipped). When `visualization` is `Optional.of(RsiVisualization(dangerZones = true))`, the regions above `overbought` and below `oversold` are additionally shaded using `RSI_OVERBOUGHT_ZONE` / `RSI_OVERSOLD_ZONE` (15% alpha) at `Layer.BACKGROUND` |
@@ -330,6 +336,11 @@ Feature: Driver V12 strict enforcement
     Given a ChartSpec placing SMA(20, CLOSE) at MAIN
     When I call render(spec)
     Then render succeeds and the SMA line is drawn on the main pane
+
+  Scenario: RollingMax / RollingMin on MAIN pane are accepted
+    Given a ChartSpec placing RollingMax(20, HIGH) and RollingMin(20, LOW) at MAIN
+    When I call render(spec)
+    Then render succeeds and both channel lines are drawn on the main pane
 
   Scenario: Subplot indicators on a subplot are accepted
     Given a ChartSpec placing RSI(14, 70, 30, CLOSE) at SUBPLOT_1

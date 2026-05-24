@@ -15,6 +15,21 @@ Feature: Shared indicator calculators
     When I compute SMA with period 1
     Then the indicator series equals "7, 8, 9"
 
+  Scenario: Rolling maximum over the trailing window
+    Given the price series "3, 1, 4, 1, 5, 9, 2, 6"
+    When I compute RollingMax with period 3
+    Then the indicator series equals "null, null, 4, 4, 5, 9, 9, 9"
+
+  Scenario: Rolling minimum over the trailing window
+    Given the price series "3, 1, 4, 1, 5, 9, 2, 6"
+    When I compute RollingMin with period 3
+    Then the indicator series equals "null, null, 1, 1, 1, 1, 2, 2"
+
+  Scenario: Rolling extrema with period 1 echo the source series
+    Given the price series "7, 8, 9"
+    When I compute RollingMax with period 1
+    Then the indicator series equals "7, 8, 9"
+
   Scenario: EMA seeds on the SMA of the first period values
     Given the price series "1, 2, 3, 4, 5"
     When I compute EMA with period 3

@@ -35,6 +35,25 @@ Feature: Driver V12 strict enforcement
     When I render the chart
     Then rendering succeeds
 
+  Scenario: RollingMax on MAIN pane is accepted and renders
+    Given a chart with an OHLC series of 60 bars
+    And a RollingMax indicator placed at pane MAIN
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: RollingMin on MAIN pane is accepted and renders
+    Given a chart with an OHLC series of 60 bars
+    And a RollingMin indicator placed at pane MAIN
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: A RollingMax + RollingMin channel renders on the main pane
+    Given a chart with an OHLC series of 60 bars
+    And a RollingMax indicator placed at pane MAIN
+    And a RollingMin indicator placed at pane MAIN
+    When I render the chart
+    Then rendering succeeds
+
   Scenario: RSI on a subplot is accepted
     Given a chart with an OHLC series of 60 bars
     And a RSI indicator placed at pane SUBPLOT_1

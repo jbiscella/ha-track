@@ -53,6 +53,16 @@ public class IndicatorsStepDefinitions {
         capture(() -> series = Indicators.ema(prices, period));
     }
 
+    @When("I compute RollingMax with period {int}")
+    public void iComputeRollingMax(int period) {
+        capture(() -> series = Indicators.rollingMax(prices, period));
+    }
+
+    @When("I compute RollingMin with period {int}")
+    public void iComputeRollingMin(int period) {
+        capture(() -> series = Indicators.rollingMin(prices, period));
+    }
+
     @When("I compute RSI with period {int}")
     public void iComputeRsi(int period) {
         capture(() -> series = Indicators.rsi(prices, period));

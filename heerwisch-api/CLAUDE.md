@@ -31,13 +31,15 @@ The `commons` constructor enforces only the defensive copy. The ordering / no-du
 ### 1.2 `Indicator` (sealed)
 
 ```
-sealed interface Indicator permits SMA, EMA, MACD, RSI, BollingerBands, ADX, Stochastic, ATR, VolumePane
+sealed interface Indicator permits SMA, EMA, RollingMax, RollingMin, MACD, RSI, BollingerBands, ADX, Stochastic, ATR, VolumePane
 ```
 
 | Variant | Fields | Default `Pane` |
 |---|---|---|
 | `SMA` | `int period`, `PriceSource priceSource` | `MAIN` |
 | `EMA` | `int period`, `PriceSource priceSource` | `MAIN` |
+| `RollingMax` | `int period`, `PriceSource priceSource` | `MAIN` |
+| `RollingMin` | `int period`, `PriceSource priceSource` | `MAIN` |
 | `BollingerBands` | `int period`, `BigDecimal stdDevMultiplier`, `PriceSource priceSource` | `MAIN` |
 | `MACD` | `int fastPeriod`, `int slowPeriod`, `int signalPeriod`, `PriceSource priceSource` | `SUBPLOT_1` |
 | `RSI` | `int period`, `BigDecimal overbought`, `BigDecimal oversold`, `PriceSource priceSource`, `Optional<RsiVisualization> visualization` | `SUBPLOT_1` |
@@ -410,6 +412,12 @@ Feature: Default pane assignment for indicators
     Then the placement has pane = MAIN
 
     When I addIndicator(BollingerBands(20, 2.0, CLOSE)) on an OHLCSeries-based builder
+    Then the placement has pane = MAIN
+
+    When I addIndicator(RollingMax(20, HIGH)) on an OHLCSeries-based builder
+    Then the placement has pane = MAIN
+
+    When I addIndicator(RollingMin(20, LOW)) on an OHLCSeries-based builder
     Then the placement has pane = MAIN
 
   Scenario: Subplot indicators default to SUBPLOT_1

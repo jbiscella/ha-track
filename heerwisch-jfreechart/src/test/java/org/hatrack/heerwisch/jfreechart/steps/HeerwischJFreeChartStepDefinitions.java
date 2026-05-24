@@ -321,6 +321,8 @@ public class HeerwischJFreeChartStepDefinitions {
         return switch (name) {
             case "SMA" -> new Indicator.SMA(20, PriceSource.CLOSE);
             case "EMA" -> new Indicator.EMA(50, PriceSource.CLOSE);
+            case "RollingMax" -> new Indicator.RollingMax(20, PriceSource.HIGH);
+            case "RollingMin" -> new Indicator.RollingMin(20, PriceSource.LOW);
             case "BollingerBands" -> new Indicator.BollingerBands(20, TWO, PriceSource.CLOSE);
             case "RSI" -> new Indicator.RSI(14, new BigDecimal("70"), new BigDecimal("30"),
                     PriceSource.CLOSE);

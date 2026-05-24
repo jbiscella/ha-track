@@ -8,7 +8,7 @@ This is the nested spec for the `indicators` module. The repo-wide rules (archit
 
 It contains:
 
-- A single public calculator class `Indicators` with one static method per indicator (`sma`, `ema`, `rsi`, `macd`, `bollinger`, `atr`, `stochastic`, `adx`).
+- A single public calculator class `Indicators` with one static method per indicator (`sma`, `ema`, `rsi`, `macd`, `bollinger`, `atr`, `stochastic`, `adx`, `rollingMax`, `rollingMin`).
 - Result records for the multi-output indicators (`MacdResult`, `BollingerBands`, `StochasticResult`).
 
 The arithmetic is **unchanged** from the pre-extraction calculators: this module is the destination of a move, not a rewrite. `SMA(period)` and every other calculator produce values bit-identical to the formulas previously embedded in the two consumer modules (which were verified arithmetically identical before extraction).
@@ -42,6 +42,8 @@ Out of scope: I/O, persistence, clocks, framework annotations, anything that req
 | `atr` | `atr(List<BigDecimal> high, List<BigDecimal> low, List<BigDecimal> close, int period)` | `BigDecimal[]` — null before index `period - 1` |
 | `stochastic` | `stochastic(List<BigDecimal> high, List<BigDecimal> low, List<BigDecimal> close, int kPeriod, int dPeriod, int smoothing)` | `StochasticResult` |
 | `adx` | `adx(List<BigDecimal> high, List<BigDecimal> low, List<BigDecimal> close, int period)` | `BigDecimal[]` — needs at least `2 * period + 1` bars |
+| `rollingMax` | `rollingMax(List<BigDecimal> src, int period)` | `BigDecimal[]` — null before index `period - 1` |
+| `rollingMin` | `rollingMin(List<BigDecimal> src, int period)` | `BigDecimal[]` — null before index `period - 1` |
 
 Eager validation: every source list is `Objects.requireNonNull`-checked, `multiplier` is null-checked, and every period argument must be `>= 1`. A period `< 1` throws `IllegalArgumentException` before any computation; a null list throws `NullPointerException`. This is the repo-wide eager-validation convention applied to a static-function surface.
 
@@ -53,7 +55,7 @@ Eager validation: every source list is `Objects.requireNonNull`-checked, `multip
 | `BollingerBands` | `BigDecimal[] upper`, `BigDecimal[] middle`, `BigDecimal[] lower` |
 | `StochasticResult` | `BigDecimal[] percentK`, `BigDecimal[] percentD` |
 
-Single-output indicators (`sma`, `ema`, `rsi`, `atr`, `adx`) return a bare `BigDecimal[]` — wrapping them in a one-component record would add no value.
+Single-output indicators (`sma`, `ema`, `rsi`, `atr`, `adx`, `rollingMax`, `rollingMin`) return a bare `BigDecimal[]` — wrapping them in a one-component record would add no value.
 
 ### 2.3 Why no sealed `Indicator` spec hierarchy
 
@@ -73,6 +75,8 @@ The implementation MUST use these formulas. They are the same formulas previousl
 | `atr(period)` | true range `TR[t] = max(high - low, |high - close[t-1]|, |low - close[t-1]|)` with `TR[0] = high[0] - low[0]`; ATR is Wilder-smoothed TR: seed = simple average of the first `period` TRs, then `ATR = (prevATR * (period - 1) + TR) / period` |
 | `stochastic(kPeriod, dPeriod, smoothing)` | raw `%K = (close - lowestLow) / (highestHigh - lowestLow) * 100` over `kPeriod` bars (50 when the range is zero); `percentK` = SMA of raw %K over `smoothing`; `percentD` = SMA of `percentK` over `dPeriod` |
 | `adx(period)` | directional movement `+DM` / `-DM`, Wilder-smoothed alongside TR into `+DI` / `-DI`; `DX = 100 * |+DI - -DI| / (+DI + -DI)`; ADX is Wilder-smoothed DX seeded at index `2 * period` |
+| `rollingMax(period)` at bar `t` | the greatest value of `src` over the window `[t - period + 1, t]`; null before index `period - 1`. Pure comparison — no arithmetic, no rounding |
+| `rollingMin(period)` at bar `t` | the smallest value of `src` over the window `[t - period + 1, t]`; null before index `period - 1`. Pure comparison — no arithmetic, no rounding |
 
 ## 4. Block — Indicator reference values
 
@@ -90,6 +94,16 @@ Feature: Shared indicator calculators
     Given the price series "7, 8, 9"
     When I compute SMA with period 1
     Then the indicator series equals "7, 8, 9"
+
+  Scenario: Rolling maximum over the trailing window
+    Given the price series "3, 1, 4, 1, 5, 9, 2, 6"
+    When I compute RollingMax with period 3
+    Then the indicator series equals "null, null, 4, 4, 5, 9, 9, 9"
+
+  Scenario: Rolling minimum over the trailing window
+    Given the price series "3, 1, 4, 1, 5, 9, 2, 6"
+    When I compute RollingMin with period 3
+    Then the indicator series equals "null, null, 1, 1, 1, 1, 2, 2"
 
   Scenario: EMA seeds on the SMA of the first period values
     Given the price series "1, 2, 3, 4, 5"
