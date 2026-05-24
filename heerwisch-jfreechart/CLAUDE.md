@@ -130,6 +130,25 @@ Strokes:
 
 The constants are exposed as `java.awt.Color` for compatibility with JFreeChart, with hex notation in the documentation.
 
+## 5.1 Domain axis mode (`AxisMode`)
+
+`LayoutSpec.axisMode()` (declared in `heerwisch-api`, see its §1.6) selects how this driver builds the shared domain axis. The default is `ORDINAL`.
+
+| Mode | Domain axis | Price dataset | Indicator/volume dataset | Bar x-coordinate |
+|---|---|---|---|---|
+| `ORDINAL` (default) | a private `OrdinalTimeAxis` (a `NumberAxis`) ranged `[-0.5, N-0.5]` | numeric-x `OrdinalOHLCDataset` | `XYSeriesCollection` | the bar **index** `0..N-1` |
+| `TIME` | JFreeChart `DateAxis` | time-keyed `OHLCSeriesCollection` | `TimeSeries`/`TimeSeriesCollection` | the bar **time** (epoch millis) |
+
+`ORDINAL` collapses non-trading time: every bar is one unit wide regardless of the wall-clock gap before it, so weekends / overnight / halts take no horizontal space and an indicator line connects consecutive bars without drawing a misleading slope across a gap. This matches TradingView / MetaTrader and is the behavior the default produces.
+
+**Tick labels and separators (ORDINAL).** `OrdinalTimeAxis` places a tick at each bar index where the **UTC calendar day changes** from the previous bar (always including index 0), labelled `d-MMM` (e.g. `18-Mar`). The set is thinned to at most ~12 labels so a long daily series does not crowd. The domain gridlines fall on those ticks, so they double as faint day/session **separators** — restoring the "a new day started / a gap occurred here" cue that collapsing the axis would otherwise remove. A single-day intraday series yields a single date tick (sparse but correct).
+
+**Annotation positioning (ORDINAL).** Time-positioned annotations (`BarHighlight`, `EntryExitMarker`, `EntryExitMarkerAuto`, `TimeRangeHighlight`) map their `Instant`(s) to the domain via the bar index: a bar's own time maps to its exact integer index; an instant strictly between two bars (e.g. a mid-bar `TimeRangeHighlight` endpoint) interpolates linearly by time between the surrounding indices; instants at/beyond the ends clamp. Range-only annotations (`HorizontalLevel`, `FibRetracement`, `PivotPointLevels`) are unaffected (they have no x).
+
+**Glyph half-extents (ORDINAL).** `dx = 0.4` (index units — ~80% of one bar, matching `WIDTHMETHOD_SMALLEST` on a 1-unit grid); `dy = dx · (priceSpan / (N-1)) · (widthPx / heightPx)` so the glyph still reads roughly square. The §8.1 time-mode formula is unchanged for `TIME`.
+
+`TIME` reproduces the pre-`AxisMode` rendering exactly (the `DateAxis` path is untouched), so a caller that passes `AxisMode.TIME` gets byte-for-byte the old output.
+
 ## 6. Layout rendering semantics
 
 When `LayoutSpec` is an `AutoLayoutSpec`:

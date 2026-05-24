@@ -17,6 +17,7 @@ public final class LayoutSpecBuilder {
     private int widthPx = 900;
     private int heightPx = 500;
     private ImageFormat format = ImageFormat.PNG;
+    private AxisMode axisMode = AxisMode.ORDINAL;
     private BigDecimal mainPaneHeight;
     private final Map<Pane, BigDecimal> subplotHeights = new LinkedHashMap<>();
 
@@ -28,6 +29,11 @@ public final class LayoutSpecBuilder {
 
     public LayoutSpecBuilder withFormat(ImageFormat format) {
         this.format = Objects.requireNonNull(format, "format");
+        return this;
+    }
+
+    public LayoutSpecBuilder withAxisMode(AxisMode axisMode) {
+        this.axisMode = Objects.requireNonNull(axisMode, "axisMode");
         return this;
     }
 
@@ -54,8 +60,8 @@ public final class LayoutSpecBuilder {
         }
         if (mainPaneHeight != null || !subplotHeights.isEmpty()) {
             return new LayoutSpec.ExplicitLayoutSpec(widthPx, heightPx, mainPaneHeight,
-                    subplotHeights, format);
+                    subplotHeights, format, axisMode);
         }
-        return new LayoutSpec.AutoLayoutSpec(widthPx, heightPx, format);
+        return new LayoutSpec.AutoLayoutSpec(widthPx, heightPx, format, axisMode);
     }
 }

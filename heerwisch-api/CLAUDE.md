@@ -141,14 +141,18 @@ sealed interface LayoutSpec permits AutoLayoutSpec, ExplicitLayoutSpec
 
 | Variant | Fields | Behavior |
 |---|---|---|
-| `AutoLayoutSpec` | `int widthPx` (≥ 100), `int heightPx` (≥ 100), `ImageFormat format` | The driver auto-distributes pane heights: main pane 60%, the rest evenly across subplots |
-| `ExplicitLayoutSpec` | `int widthPx`, `int heightPx`, `BigDecimal mainPaneHeight`, `Map<Pane, BigDecimal> subplotHeights`, `ImageFormat format` | Caller controls heights; sum must equal 1.0 (within an explicit tolerance of `10^-6`) |
+| `AutoLayoutSpec` | `int widthPx` (≥ 100), `int heightPx` (≥ 100), `ImageFormat format`, `AxisMode axisMode` | The driver auto-distributes pane heights: main pane 60%, the rest evenly across subplots |
+| `ExplicitLayoutSpec` | `int widthPx`, `int heightPx`, `BigDecimal mainPaneHeight`, `Map<Pane, BigDecimal> subplotHeights`, `ImageFormat format`, `AxisMode axisMode` | Caller controls heights; sum must equal 1.0 (within an explicit tolerance of `10^-6`) |
 
 `ImageFormat` is a closed enum (`PNG`, `JPEG`) declaring the output image format. It lives in `heerwisch-api` because it is part of the `LayoutSpec` shape; drivers consume it.
 
-`LayoutSpec.defaults()` returns `AutoLayoutSpec(900, 500, PNG)`. **PNG is the default output format** (since 0.51.0-alpha; it was JPEG through 0.50.0-alpha — see the CHANGELOG behavior-change note).
+`AxisMode` is a closed enum (`ORDINAL`, `TIME`) declaring how the domain axis treats time. **`ORDINAL` is the default**: bars are equally spaced by position (bar index), so non-trading periods (weekends, overnight, halts) take no horizontal space and an indicator line never draws a misleading slope across a gap — matching mainstream trading platforms (TradingView, MetaTrader). `TIME` is the time-proportional axis (gaps render as empty horizontal stretches); use it when proportional duration matters more than the trading-platform look. The driver places date labels at period boundaries in `ORDINAL` mode (see `heerwisch-jfreechart/CLAUDE.md`).
 
-`LayoutSpec.builder()` is an entry point that asks for auto or explicit and exposes the relevant fields; the format defaults to `PNG` when not set. `LayoutSpecBuilder.build()` produces an `ExplicitLayoutSpec` when a main-pane height or any subplot height is set, and an `AutoLayoutSpec` otherwise; setting subplot heights without a main-pane height is rejected as rule V14 (see §3), not as a raw `NullPointerException`.
+Each record has a **backward-compatible constructor** omitting `axisMode` (the pre-`AxisMode` arities `AutoLayoutSpec(w, h, format)` and `ExplicitLayoutSpec(w, h, main, subs, format)`); it defaults `axisMode` to `ORDINAL`. Existing callers built against the old arity keep compiling, but their rendered output changes (gaps now collapse) unless they pass `AxisMode.TIME` explicitly.
+
+`LayoutSpec.defaults()` returns `AutoLayoutSpec(900, 500, PNG)` → `ORDINAL` axis. **PNG is the default output format** (since 0.51.0-alpha; it was JPEG through 0.50.0-alpha — see the CHANGELOG behavior-change note).
+
+`LayoutSpec.builder()` is an entry point that asks for auto or explicit and exposes the relevant fields; the format defaults to `PNG` and the axis mode to `ORDINAL` when not set (`withAxisMode(AxisMode)` overrides). `LayoutSpecBuilder.build()` produces an `ExplicitLayoutSpec` when a main-pane height or any subplot height is set, and an `AutoLayoutSpec` otherwise; setting subplot heights without a main-pane height is rejected as rule V14 (see §3), not as a raw `NullPointerException`.
 
 ### 1.7 `ChartSpec`
 
