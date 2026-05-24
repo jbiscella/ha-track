@@ -5,6 +5,20 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.53.0-alpha
+
+### Added
+
+- **heerwisch-api / heerwisch-jfreechart:** gap-collapsing **ordinal axis** mode. A new closed enum `AxisMode { ORDINAL, TIME }` is added to `LayoutSpec` (both `AutoLayoutSpec` and `ExplicitLayoutSpec`, with a backward-compatible constructor omitting it and a `LayoutSpecBuilder.withAxisMode(...)`). In `ORDINAL` mode the driver places bars at integer positions, so non-trading periods (weekends, overnight, halts) take no horizontal space and an indicator line no longer draws a misleading slope across a gap — matching TradingView / MetaTrader. The driver labels the x-axis with dates at UTC calendar-day boundaries (`d-MMM`, thinned to ≤ ~12), and the domain gridlines on those ticks double as faint day/session separators. `TIME` keeps the prior time-proportional `DateAxis` rendering byte-for-byte. Spec: `heerwisch-api/CLAUDE.md` §1.6, `heerwisch-jfreechart/CLAUDE.md` §5.1.
+
+### Changed
+
+- **heerwisch-jfreechart:** the default domain axis is now **`ORDINAL`** (was time-proportional). `LayoutSpec.defaults()` and the no-arg `LayoutSpecBuilder` resolve to `AxisMode.ORDINAL`, and the backward-compatible `LayoutSpec` constructors default to it. **This is a visible behavior change** — every chart built without an explicit axis mode now collapses non-trading gaps and shows equally-spaced bars. Callers who want the old behavior pass `AxisMode.TIME` (the rendering is unchanged in that mode). No method signature was removed; the change is additive plus a default flip.
+
+### Compatibility
+
+- Additive API: the new `AxisMode` enum, the `LayoutSpec.axisMode()` accessor, and the `withAxisMode` builder method. Existing `LayoutSpec` constructors keep compiling via overloads that default to `ORDINAL`. The only behavior change is the default axis mode (above); `AxisMode.TIME` reproduces pre-0.53 output exactly. japicmp at 0.x skips the semver gate.
+
 ## 0.52.1-alpha
 
 ### Added

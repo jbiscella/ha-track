@@ -12,6 +12,7 @@ import org.hatrack.heerwisch.api.error.DriverInternalException;
 import org.hatrack.heerwisch.api.error.UnsupportedFeatureException;
 import org.hatrack.heerwisch.api.port.ChartRenderer;
 import org.hatrack.heerwisch.api.spec.Annotation;
+import org.hatrack.heerwisch.api.spec.AxisMode;
 import org.hatrack.heerwisch.api.spec.ChartImage;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
 import org.hatrack.heerwisch.api.spec.FillColor;
@@ -32,20 +33,26 @@ import org.hatrack.indicators.StochasticResult;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.annotations.XYShapeAnnotation;
 import org.jfree.chart.annotations.XYTextAnnotation;
+import org.jfree.chart.axis.AxisState;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.axis.NumberTick;
 import org.jfree.chart.axis.ValueAxis;
 import org.jfree.chart.plot.CombinedDomainXYPlot;
 import org.jfree.chart.plot.IntervalMarker;
 import org.jfree.chart.plot.ValueMarker;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.ui.Layer;
+import org.jfree.chart.ui.RectangleEdge;
+import org.jfree.chart.ui.TextAnchor;
 import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.chart.renderer.xy.XYBarRenderer;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.time.FixedMillisecond;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
+import org.jfree.data.xy.AbstractXYDataset;
+import org.jfree.data.xy.OHLCDataset;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
@@ -67,6 +74,9 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -137,19 +147,21 @@ public final class JFreeChartRenderer implements ChartRenderer {
     // Package-private for tests: lets a test inspect the JFreeChart (e.g. the
     // main pane's range axis) without going through PNG encoding.
     JFreeChart buildChart(ChartSpec spec) {
-        DateAxis domainAxis = new DateAxis();
+        boolean ordinal = spec.layout().axisMode() == AxisMode.ORDINAL;
+        List<Instant> times = times(spec.series());
+        ValueAxis domainAxis = ordinal ? new OrdinalTimeAxis(times) : new DateAxis();
         styleAxis(domainAxis);
         CombinedDomainXYPlot combined = new CombinedDomainXYPlot(domainAxis);
         combined.setGap(8.0);
         combined.setBackgroundPaint(ThemeConstants.BACKGROUND);
 
-        combined.add(buildMainPlot(spec), 60);
+        combined.add(buildMainPlot(spec, ordinal, times), 60);
 
         List<Pane> subplotPanes = referencedSubplotPanes(spec);
         if (!subplotPanes.isEmpty()) {
             int weight = Math.max(1, 40 / subplotPanes.size());
             for (Pane pane : subplotPanes) {
-                combined.add(buildSubplot(spec, pane), weight);
+                combined.add(buildSubplot(spec, pane, ordinal, times), weight);
             }
         }
 
@@ -159,7 +171,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
         return chart;
     }
 
-    private XYPlot buildMainPlot(ChartSpec spec) {
+    private XYPlot buildMainPlot(ChartSpec spec, boolean ordinal, List<Instant> times) {
         CandlestickRenderer candleRenderer = new CandlestickRenderer();
         candleRenderer.setUpPaint(ThemeConstants.BULLISH_CANDLE);
         candleRenderer.setDownPaint(ThemeConstants.BEARISH_CANDLE);
@@ -170,7 +182,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
         styleAxis(rangeAxis);
         rangeAxis.setAutoRangeIncludesZero(false);
 
-        XYPlot plot = new XYPlot(buildPriceDataset(spec.series()), null, rangeAxis, candleRenderer);
+        XYPlot plot = new XYPlot(buildPriceDataset(spec.series(), ordinal), null, rangeAxis, candleRenderer);
         stylePlot(plot);
 
         int datasetIndex = 1;
@@ -179,11 +191,11 @@ public final class JFreeChartRenderer implements ChartRenderer {
             IndicatorPlacement placement = placements.get(i);
             if (placement.pane() == Pane.MAIN) {
                 datasetIndex = addIndicator(plot, datasetIndex, spec.series(),
-                        placement.indicator(), paletteColorAt(spec, i));
+                        placement.indicator(), paletteColorAt(spec, i), ordinal, times);
             }
         }
-        addAnnotations(plot, spec);
-        includeAnnotationLevelsInRange(plot, spec, datasetIndex);
+        addAnnotations(plot, spec, ordinal, times);
+        includeAnnotationLevelsInRange(plot, spec, datasetIndex, ordinal, times);
         return plot;
     }
 
@@ -198,12 +210,12 @@ public final class JFreeChartRenderer implements ChartRenderer {
      * bounds. No effect when there are no such annotations, and it never touches a
      * manually-bounded axis (the main axis is always auto-ranged).
      */
-    private static void includeAnnotationLevelsInRange(XYPlot plot, ChartSpec spec, int index) {
-        List<Instant> times = times(spec.series());
+    private static void includeAnnotationLevelsInRange(XYPlot plot, ChartSpec spec, int index,
+                                                       boolean ordinal, List<Instant> times) {
         if (times.isEmpty()) {
             return;
         }
-        double x = times.get(0).toEpochMilli();
+        double x = ordinal ? 0.0 : times.get(0).toEpochMilli();
         XYSeries levels = new XYSeries("levels", false, true);
         boolean any = false;
         for (Annotation annotation : spec.annotations()) {
@@ -227,7 +239,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
         plot.mapDatasetToRangeAxis(index, 0);
     }
 
-    private XYPlot buildSubplot(ChartSpec spec, Pane pane) {
+    private XYPlot buildSubplot(ChartSpec spec, Pane pane, boolean ordinal, List<Instant> times) {
         NumberAxis rangeAxis = new NumberAxis(subplotLabel(spec, pane));
         styleAxis(rangeAxis);
         rangeAxis.setAutoRangeIncludesZero(false);
@@ -253,7 +265,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
             IndicatorPlacement placement = placements.get(i);
             if (placement.pane() == pane) {
                 datasetIndex = addIndicator(plot, datasetIndex, spec.series(),
-                        placement.indicator(), paletteColorAt(spec, i));
+                        placement.indicator(), paletteColorAt(spec, i), ordinal, times);
             }
         }
         return plot;
@@ -425,7 +437,10 @@ public final class JFreeChartRenderer implements ChartRenderer {
 
     // --- datasets ---
 
-    private static OHLCSeriesCollection buildPriceDataset(Series series) {
+    private static OHLCDataset buildPriceDataset(Series series, boolean ordinal) {
+        if (ordinal) {
+            return new OrdinalOHLCDataset(series);
+        }
         org.jfree.data.time.ohlc.OHLCSeries jfSeries = new org.jfree.data.time.ohlc.OHLCSeries("price");
         switch (series) {
             case OHLCSeries ohlc -> {
@@ -449,32 +464,31 @@ public final class JFreeChartRenderer implements ChartRenderer {
     }
 
     private int addIndicator(XYPlot plot, int index, Series series, Indicator indicator,
-                             Color overrideColor) {
-        List<Instant> times = times(series);
+                             Color overrideColor, boolean ordinal, List<Instant> times) {
         switch (indicator) {
             case Indicator.SMA sma -> {
                 return addLine(plot, index, "SMA", times,
                         Indicators.sma(prices(series, sma.priceSource()), sma.period()),
-                        overrideColor != null ? overrideColor : ThemeConstants.SMA_LINE);
+                        overrideColor != null ? overrideColor : ThemeConstants.SMA_LINE, ordinal);
             }
             case Indicator.EMA ema -> {
                 return addLine(plot, index, "EMA", times,
                         Indicators.ema(prices(series, ema.priceSource()), ema.period()),
-                        overrideColor != null ? overrideColor : ThemeConstants.EMA_LINE);
+                        overrideColor != null ? overrideColor : ThemeConstants.EMA_LINE, ordinal);
             }
             case Indicator.BollingerBands bb -> {
                 Color band = overrideColor != null ? overrideColor : ThemeConstants.BB_BAND;
                 BollingerBands bands = Indicators.bollinger(
                         prices(series, bb.priceSource()), bb.period(), bb.stdDevMultiplier());
-                int next = addLine(plot, index, "BB upper", times, bands.upper(), band);
-                next = addLine(plot, next, "BB middle", times, bands.middle(), band);
-                return addLine(plot, next, "BB lower", times, bands.lower(), band);
+                int next = addLine(plot, index, "BB upper", times, bands.upper(), band, ordinal);
+                next = addLine(plot, next, "BB middle", times, bands.middle(), band, ordinal);
+                return addLine(plot, next, "BB lower", times, bands.lower(), band, ordinal);
             }
             case Indicator.MACD macd -> {
                 MacdResult lines = Indicators.macd(prices(series, macd.priceSource()),
                         macd.fastPeriod(), macd.slowPeriod(), macd.signalPeriod());
-                int next = addLine(plot, index, "MACD", times, lines.macdLine(), ThemeConstants.MACD_LINE);
-                return addLine(plot, next, "Signal", times, lines.signalLine(), ThemeConstants.MACD_SIGNAL);
+                int next = addLine(plot, index, "MACD", times, lines.macdLine(), ThemeConstants.MACD_LINE, ordinal);
+                return addLine(plot, next, "Signal", times, lines.signalLine(), ThemeConstants.MACD_SIGNAL, ordinal);
             }
             case Indicator.RSI rsi -> {
                 // Optional shaded danger zones (drawn first so they sit
@@ -499,75 +513,96 @@ public final class JFreeChartRenderer implements ChartRenderer {
                         ThemeConstants.RSI_OVERSOLD_LEVEL));
                 return addLine(plot, index, "RSI", times,
                         Indicators.rsi(prices(series, rsi.priceSource()), rsi.period()),
-                        ThemeConstants.RSI_LINE);
+                        ThemeConstants.RSI_LINE, ordinal);
             }
             case Indicator.ADX adx -> {
                 return addLine(plot, index, "ADX", times,
                         Indicators.adx(highs(series), lows(series), closes(series), adx.period()),
-                        ThemeConstants.ADX_LINE);
+                        ThemeConstants.ADX_LINE, ordinal);
             }
             case Indicator.Stochastic stoch -> {
                 StochasticResult lines = Indicators.stochastic(highs(series), lows(series),
                         closes(series), stoch.kPeriod(), stoch.dPeriod(), stoch.smoothing());
-                int next = addLine(plot, index, "%K", times, lines.percentK(), ThemeConstants.STOCHASTIC_K);
-                return addLine(plot, next, "%D", times, lines.percentD(), ThemeConstants.STOCHASTIC_D);
+                int next = addLine(plot, index, "%K", times, lines.percentK(), ThemeConstants.STOCHASTIC_K, ordinal);
+                return addLine(plot, next, "%D", times, lines.percentD(), ThemeConstants.STOCHASTIC_D, ordinal);
             }
             case Indicator.ATR atr -> {
                 return addLine(plot, index, "ATR", times,
                         Indicators.atr(highs(series), lows(series), closes(series), atr.period()),
-                        ThemeConstants.ATR_LINE);
+                        ThemeConstants.ATR_LINE, ordinal);
             }
             case Indicator.VolumePane ignored -> {
-                return addVolumeBars(plot, index, series);
+                return addVolumeBars(plot, index, series, ordinal);
             }
         }
     }
 
     private static int addLine(XYPlot plot, int index, String name, List<Instant> times,
-                               BigDecimal[] values, Color color) {
-        TimeSeries series = new TimeSeries(name);
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] != null) {
-                series.add(new FixedMillisecond(times.get(i).toEpochMilli()), values[i].doubleValue());
-            }
-        }
-        TimeSeriesCollection dataset = new TimeSeriesCollection();
-        dataset.addSeries(series);
+                               BigDecimal[] values, Color color, boolean ordinal) {
         XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer(true, false);
         renderer.setSeriesPaint(0, color);
         renderer.setSeriesStroke(0, ThemeConstants.STROKE_INDICATOR);
-        plot.setDataset(index, dataset);
+        if (ordinal) {
+            XYSeries series = new XYSeries(name, false, false);
+            for (int i = 0; i < values.length; i++) {
+                if (values[i] != null) {
+                    series.add((double) i, values[i].doubleValue());
+                }
+            }
+            plot.setDataset(index, new XYSeriesCollection(series));
+        } else {
+            TimeSeries series = new TimeSeries(name);
+            for (int i = 0; i < values.length; i++) {
+                if (values[i] != null) {
+                    series.add(new FixedMillisecond(times.get(i).toEpochMilli()), values[i].doubleValue());
+                }
+            }
+            TimeSeriesCollection dataset = new TimeSeriesCollection();
+            dataset.addSeries(series);
+            plot.setDataset(index, dataset);
+        }
         plot.setRenderer(index, renderer);
         return index + 1;
     }
 
-    private static int addVolumeBars(XYPlot plot, int index, Series series) {
-        TimeSeries volume = new TimeSeries("Volume");
-        if (series instanceof OHLCSeries ohlc) {
-            for (OHLCBar bar : ohlc.bars()) {
-                volume.add(new FixedMillisecond(bar.time().toEpochMilli()),
-                        bar.volume().map(BigDecimal::doubleValue).orElse(0.0));
-            }
-        }
-        TimeSeriesCollection dataset = new TimeSeriesCollection();
-        dataset.addSeries(volume);
+    private static int addVolumeBars(XYPlot plot, int index, Series series, boolean ordinal) {
         XYBarRenderer renderer = new XYBarRenderer();
         renderer.setShadowVisible(false);
         renderer.setSeriesPaint(0, ThemeConstants.VOLUME_BAR_UP);
-        plot.setDataset(index, dataset);
+        if (ordinal) {
+            XYSeries volume = new XYSeries("Volume", false, false);
+            if (series instanceof OHLCSeries ohlc) {
+                List<OHLCBar> bars = ohlc.bars();
+                for (int i = 0; i < bars.size(); i++) {
+                    volume.add((double) i, bars.get(i).volume().map(BigDecimal::doubleValue).orElse(0.0));
+                }
+            }
+            plot.setDataset(index, new XYSeriesCollection(volume));
+        } else {
+            TimeSeries volume = new TimeSeries("Volume");
+            if (series instanceof OHLCSeries ohlc) {
+                for (OHLCBar bar : ohlc.bars()) {
+                    volume.add(new FixedMillisecond(bar.time().toEpochMilli()),
+                            bar.volume().map(BigDecimal::doubleValue).orElse(0.0));
+                }
+            }
+            TimeSeriesCollection dataset = new TimeSeriesCollection();
+            dataset.addSeries(volume);
+            plot.setDataset(index, dataset);
+        }
         plot.setRenderer(index, renderer);
         return index + 1;
     }
 
     // --- annotations (MAIN pane only) ---
 
-    private void addAnnotations(XYPlot plot, ChartSpec spec) {
-        GlyphExtents glyphExtents = computeGlyphExtents(spec);
+    private void addAnnotations(XYPlot plot, ChartSpec spec, boolean ordinal, List<Instant> times) {
+        GlyphExtents glyphExtents = computeGlyphExtents(spec, ordinal);
         for (Annotation annotation : spec.annotations()) {
             switch (annotation) {
                 case Annotation.BarHighlight highlight -> {
                     XYTextAnnotation text = new XYTextAnnotation(highlight.label(),
-                            highlight.time().toEpochMilli(), highlight.price().doubleValue());
+                            domainX(highlight.time(), ordinal, times), highlight.price().doubleValue());
                     text.setFont(baseFont.deriveFont(10f));
                     text.setPaint(ThemeConstants.ANNOTATION_NEUTRAL);
                     plot.addAnnotation(text);
@@ -589,7 +624,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 case Annotation.EntryExitMarker entryExit -> {
                     Color color = entryExitColor(entryExit.direction());
                     Shape glyph = glyphShape(entryExit.glyphStyle(),
-                            entryExit.time().toEpochMilli(),
+                            domainX(entryExit.time(), ordinal, times),
                             entryExit.price().doubleValue(),
                             glyphExtents.dx(), glyphExtents.dy());
                     XYShapeAnnotation shape = new XYShapeAnnotation(glyph,
@@ -605,7 +640,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
                         case LONG_EXIT, SHORT_ENTRY -> hl[0] + padding; // above bar.high
                     };
                     Shape glyph = glyphShape(entryExit.glyphStyle(),
-                            entryExit.time().toEpochMilli(),
+                            domainX(entryExit.time(), ordinal, times),
                             yPosition,
                             glyphExtents.dx(), glyphExtents.dy());
                     XYShapeAnnotation shape = new XYShapeAnnotation(glyph,
@@ -617,8 +652,8 @@ public final class JFreeChartRenderer implements ChartRenderer {
                     int alpha = range.opacity().multiply(new BigDecimal("255")).intValue();
                     Color fill = new Color(base.getRed(), base.getGreen(), base.getBlue(), alpha);
                     IntervalMarker band = new IntervalMarker(
-                            range.startTime().toEpochMilli(),
-                            range.endTime().toEpochMilli(),
+                            domainX(range.startTime(), ordinal, times),
+                            domainX(range.endTime(), ordinal, times),
                             fill);
                     band.setOutlinePaint(null);
                     plot.addDomainMarker(band, Layer.BACKGROUND);
@@ -653,7 +688,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
     // horizontal slivers on zoomed-in or narrow charts).
     private record GlyphExtents(double dx, double dy) {}
 
-    private static GlyphExtents computeGlyphExtents(ChartSpec spec) {
+    private static GlyphExtents computeGlyphExtents(ChartSpec spec, boolean ordinal) {
         Series series = spec.series();
         long firstT, lastT;
         double priceMin = Double.POSITIVE_INFINITY;
@@ -695,41 +730,40 @@ public final class JFreeChartRenderer implements ChartRenderer {
             }
         }
 
+        double priceSpan = Math.max(priceMax - priceMin, 1e-9);
+        int widthPx = spec.layout().widthPx();
+        int heightPx = spec.layout().heightPx();
+
         // Single-bar series (legal under V2) provides no period or aspect
-        // information. Fall back to the pre-fix fixed extents — there is
-        // nothing meaningful to scale to.
+        // information. Fall back to fixed extents — there is nothing
+        // meaningful to scale to. (In ordinal space the x fallback is one
+        // bar-width fraction; in time space it is a fixed 12h.)
         if (barCount < 2) {
-            double fallbackDx = 12.0 * 3_600_000;
+            double fallbackDx = ordinal ? 0.4 : 12.0 * 3_600_000;
             double fallbackDy = Math.max(priceMin * 0.005, 1e-3);
             return new GlyphExtents(fallbackDx, fallbackDy);
         }
 
+        // dy chosen so the glyph appears roughly square in pixel space:
+        //   glyph_width_px  = (2·dx / domainSpan) · widthPx
+        //   glyph_height_px = (2·dy / priceSpan)  · heightPx
+        // setting them equal: dy = dx · (priceSpan / domainSpan) · (widthPx / heightPx).
+        if (ordinal) {
+            // Bars are equally spaced one index-unit apart, so the smallest
+            // interval is 1.0 and the domain span is (barCount - 1).
+            double dx = 0.4;
+            double dy = dx * (priceSpan / (double) (barCount - 1))
+                    * ((double) widthPx / (double) heightPx);
+            return new GlyphExtents(dx, dy);
+        }
+
+        // Time axis: dx = 40% of the *smallest* bar interval (matches
+        // CandlestickRenderer.WIDTHMETHOD_SMALLEST so the glyph tracks candle
+        // width on irregular timelines).
         long timeSpan = lastT - firstT;
-        double priceSpan = Math.max(priceMax - priceMin, 1e-9);
-
-        LayoutSpec layout = spec.layout();
-        int widthPx = (layout instanceof LayoutSpec.AutoLayoutSpec auto) ? auto.widthPx()
-                : ((LayoutSpec.ExplicitLayoutSpec) layout).widthPx();
-        int heightPx = (layout instanceof LayoutSpec.AutoLayoutSpec auto) ? auto.heightPx()
-                : ((LayoutSpec.ExplicitLayoutSpec) layout).heightPx();
-
-        // dx = 40% of the *smallest* bar interval. JFreeChart's
-        // CandlestickRenderer uses WIDTHMETHOD_SMALLEST, so candle width
-        // tracks the minimum interval — we match it. On irregular timelines
-        // (e.g. daily data with weekend gaps) the average interval would
-        // overstate the candle width and the glyph would extend past
-        // adjacent candles.
         double dx = 0.4 * minIntervalMillis;
-
-        // dy chosen so glyph appears roughly square in pixel space:
-        //   glyph_width_px  = (2·dx / timeSpan) · widthPx
-        //   glyph_height_px = (2·dy / priceSpan) · heightPx
-        // Setting them equal and solving for dy:
-        //   dy = dx · (priceSpan / timeSpan) · (widthPx / heightPx)
-        // This adapts to any chart aspect, any zoom, any device.
         double dy = dx * (priceSpan / (double) timeSpan)
                 * ((double) widthPx / (double) heightPx);
-
         return new GlyphExtents(dx, dy);
     }
 
@@ -827,6 +861,45 @@ public final class JFreeChartRenderer implements ChartRenderer {
             case OHLCSeries o -> o.bars().stream().map(OHLCBar::time).toList();
             case HASeries h -> h.bars().stream().map(HABar::time).toList();
         };
+    }
+
+    /** Domain x-coordinate for an instant: bar index in ORDINAL mode, epoch-millis in TIME mode. */
+    private static double domainX(Instant t, boolean ordinal, List<Instant> times) {
+        return ordinal ? ordinalX(times, t) : (double) t.toEpochMilli();
+    }
+
+    /**
+     * Maps an instant to a (possibly fractional) bar index. A bar's own time maps
+     * to its exact integer index; an instant strictly between two bars (e.g. a
+     * mid-bar trade exit) interpolates linearly by time; instants at or beyond the
+     * ends clamp to the first / last index.
+     */
+    private static double ordinalX(List<Instant> times, Instant t) {
+        int n = times.size();
+        if (n == 0 || t.compareTo(times.get(0)) <= 0) {
+            return 0.0;
+        }
+        if (t.compareTo(times.get(n - 1)) >= 0) {
+            return n - 1;
+        }
+        int lo = 0;
+        int hi = n - 1;
+        while (lo + 1 < hi) {
+            int mid = (lo + hi) >>> 1;
+            if (times.get(mid).compareTo(t) <= 0) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        Instant a = times.get(lo);
+        if (t.equals(a)) {
+            return lo;
+        }
+        Instant b = times.get(lo + 1);
+        double frac = (double) (t.toEpochMilli() - a.toEpochMilli())
+                / (double) (b.toEpochMilli() - a.toEpochMilli());
+        return lo + frac;
     }
 
     /**
@@ -981,6 +1054,190 @@ public final class JFreeChartRenderer implements ChartRenderer {
             return Font.createFont(Font.TRUETYPE_FONT, stream);
         } catch (IOException | FontFormatException e) {
             throw new DriverInternalException(e);
+        }
+    }
+
+    // --- ORDINAL (gap-collapsing) axis support ---
+
+    /**
+     * Domain axis for ORDINAL mode. Bars sit at integer positions {@code 0..N-1},
+     * so non-trading gaps take no horizontal space. Ticks are placed at UTC
+     * calendar-day boundaries and labelled with the date; the domain gridlines
+     * that fall on those ticks double as faint day / session separators.
+     */
+    static final class OrdinalTimeAxis extends NumberAxis {
+
+        private static final DateTimeFormatter DAY_LABEL =
+                DateTimeFormatter.ofPattern("d-MMM").withZone(ZoneOffset.UTC);
+        private static final int MAX_TICKS = 12;
+
+        private final List<NumberTick> dayTicks;
+
+        OrdinalTimeAxis(List<Instant> times) {
+            super(null);
+            int n = times.size();
+            setAutoRange(false);
+            setRange(-0.5, Math.max(0.5, n - 0.5));
+            setLowerMargin(0.0);
+            setUpperMargin(0.0);
+            this.dayTicks = buildDayTicks(times);
+        }
+
+        @Override
+        @SuppressWarnings("rawtypes")
+        public List refreshTicks(java.awt.Graphics2D g2, AxisState state,
+                                 java.awt.geom.Rectangle2D dataArea, RectangleEdge edge) {
+            return dayTicks;
+        }
+
+        private static List<NumberTick> buildDayTicks(List<Instant> times) {
+            List<Integer> boundaries = new ArrayList<>();
+            LocalDate prev = null;
+            for (int i = 0; i < times.size(); i++) {
+                LocalDate day = times.get(i).atZone(ZoneOffset.UTC).toLocalDate();
+                if (!day.equals(prev)) {
+                    boundaries.add(i);
+                    prev = day;
+                }
+            }
+            // Thin to at most MAX_TICKS labels so a long daily series does not crowd.
+            int step = Math.max(1, (boundaries.size() + MAX_TICKS - 1) / MAX_TICKS);
+            List<NumberTick> ticks = new ArrayList<>();
+            for (int k = 0; k < boundaries.size(); k += step) {
+                int idx = boundaries.get(k);
+                ticks.add(new NumberTick(Double.valueOf(idx), DAY_LABEL.format(times.get(idx)),
+                        TextAnchor.TOP_CENTER, TextAnchor.CENTER, 0.0));
+            }
+            return ticks;
+        }
+    }
+
+    /**
+     * Numeric-x OHLC dataset for ORDINAL mode: each bar's x-value is its integer
+     * index, so {@link CandlestickRenderer} draws equally-spaced candles with no
+     * regard to wall-clock gaps. Range bounds derive from high/low as usual.
+     */
+    static final class OrdinalOHLCDataset extends AbstractXYDataset implements OHLCDataset {
+
+        private final int n;
+        private final double[] open;
+        private final double[] high;
+        private final double[] low;
+        private final double[] close;
+
+        OrdinalOHLCDataset(Series series) {
+            int count = (series instanceof OHLCSeries o) ? o.bars().size()
+                    : ((HASeries) series).bars().size();
+            this.n = count;
+            this.open = new double[count];
+            this.high = new double[count];
+            this.low = new double[count];
+            this.close = new double[count];
+            if (series instanceof OHLCSeries o) {
+                List<OHLCBar> bars = o.bars();
+                for (int i = 0; i < count; i++) {
+                    OHLCBar b = bars.get(i);
+                    open[i] = b.open().doubleValue();
+                    high[i] = b.high().doubleValue();
+                    low[i] = b.low().doubleValue();
+                    close[i] = b.close().doubleValue();
+                }
+            } else {
+                List<HABar> bars = ((HASeries) series).bars();
+                for (int i = 0; i < count; i++) {
+                    HABar b = bars.get(i);
+                    open[i] = b.haOpen().doubleValue();
+                    high[i] = b.haHigh().doubleValue();
+                    low[i] = b.haLow().doubleValue();
+                    close[i] = b.haClose().doubleValue();
+                }
+            }
+        }
+
+        @Override
+        public int getSeriesCount() {
+            return 1;
+        }
+
+        @Override
+        @SuppressWarnings("rawtypes")
+        public Comparable getSeriesKey(int series) {
+            return "price";
+        }
+
+        @Override
+        public int getItemCount(int series) {
+            return n;
+        }
+
+        @Override
+        public Number getX(int series, int item) {
+            return Double.valueOf(item);
+        }
+
+        @Override
+        public double getXValue(int series, int item) {
+            return item;
+        }
+
+        @Override
+        public Number getY(int series, int item) {
+            return Double.valueOf(close[item]);
+        }
+
+        @Override
+        public double getYValue(int series, int item) {
+            return close[item];
+        }
+
+        @Override
+        public Number getOpen(int series, int item) {
+            return Double.valueOf(open[item]);
+        }
+
+        @Override
+        public double getOpenValue(int series, int item) {
+            return open[item];
+        }
+
+        @Override
+        public Number getHigh(int series, int item) {
+            return Double.valueOf(high[item]);
+        }
+
+        @Override
+        public double getHighValue(int series, int item) {
+            return high[item];
+        }
+
+        @Override
+        public Number getLow(int series, int item) {
+            return Double.valueOf(low[item]);
+        }
+
+        @Override
+        public double getLowValue(int series, int item) {
+            return low[item];
+        }
+
+        @Override
+        public Number getClose(int series, int item) {
+            return Double.valueOf(close[item]);
+        }
+
+        @Override
+        public double getCloseValue(int series, int item) {
+            return close[item];
+        }
+
+        @Override
+        public Number getVolume(int series, int item) {
+            return null;
+        }
+
+        @Override
+        public double getVolumeValue(int series, int item) {
+            return Double.NaN;
         }
     }
 }
