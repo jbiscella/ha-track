@@ -5,11 +5,20 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
-## 0.53.0-alpha
+## 0.54.0-alpha
 
 ### Added
 
 - **heerwisch-api / heerwisch-jfreechart / indicators:** rolling-extremum (Donchian-style) overlay indicators. Two new `Indicator` records — `RollingMax(int period, PriceSource source)` and `RollingMin(int period, PriceSource source)` — plot the rolling maximum / minimum of a price field over a trailing window as a single main-pane line (cyan / magenta; legend labels `HHV(n)` / `LLV(n)`). A consumer composes a visual channel by adding both. This makes `highest_high(n)` / `lowest_low(n)` / `highest_close(n)` / `lowest_close(n)` channels plottable as a per-bar stepping overlay (previously only a single flat `HorizontalLevel` snapshot was possible). Backed by two new pure calculators `Indicators.rollingMax` / `rollingMin`. `PriceSource` already exposes `HIGH` / `LOW` / `CLOSE`, so no enum change was needed. Additive and japicmp-clean. Spec: `heerwisch-api/CLAUDE.md` §1.2, `heerwisch-jfreechart/CLAUDE.md` §4/§7, `indicators/CLAUDE.md` §2.1/§3.
+
+### Compatibility
+
+- Additive API: two new `Indicator` records (`RollingMax`, `RollingMin`) extend the sealed set; two new `Indicators` calculators; two new `ThemeConstants` colors. No existing signature changed; japicmp at 0.x skips the semver gate.
+
+## 0.53.0-alpha
+
+### Added
+
 - **heerwisch-api / heerwisch-jfreechart:** gap-collapsing **ordinal axis** mode. A new closed enum `AxisMode { ORDINAL, TIME }` is added to `LayoutSpec` (both `AutoLayoutSpec` and `ExplicitLayoutSpec`, with a backward-compatible constructor omitting it and a `LayoutSpecBuilder.withAxisMode(...)`). In `ORDINAL` mode the driver places bars at integer positions, so non-trading periods (weekends, overnight, halts) take no horizontal space and an indicator line no longer draws a misleading slope across a gap — matching TradingView / MetaTrader. The driver labels the x-axis with dates at UTC calendar-day boundaries (`d-MMM`, thinned to ≤ ~12), and the domain gridlines on those ticks double as faint day/session separators. `TIME` keeps the prior time-proportional `DateAxis` rendering byte-for-byte. Spec: `heerwisch-api/CLAUDE.md` §1.6, `heerwisch-jfreechart/CLAUDE.md` §5.1.
 
 ### Changed
