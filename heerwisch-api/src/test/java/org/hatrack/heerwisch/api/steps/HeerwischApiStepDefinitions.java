@@ -291,6 +291,12 @@ public class HeerwischApiStepDefinitions {
         defaultLayout = LayoutSpec.builder().build();
     }
 
+    @When("I build a layout from the builder with axis mode {word}")
+    public void iBuildALayoutFromTheBuilderWithAxisMode(String mode) throws Exception {
+        defaultLayout = LayoutSpec.builder()
+                .withAxisMode(org.hatrack.heerwisch.api.spec.AxisMode.valueOf(mode)).build();
+    }
+
     @When("I render the spec with the reference renderer")
     public void iRenderWithReferenceRenderer() {
         thrown = null;
@@ -385,6 +391,12 @@ public class HeerwischApiStepDefinitions {
     public void theDefaultLayoutFormatIs(String format) {
         assertTrue(defaultLayout.format().name().equals(format),
                 "default layout format: expected " + format + " but was " + defaultLayout.format());
+    }
+
+    @Then("the default layout axis mode is {word}")
+    public void theDefaultLayoutAxisModeIs(String mode) {
+        assertTrue(defaultLayout.axisMode().name().equals(mode),
+                "default layout axis mode: expected " + mode + " but was " + defaultLayout.axisMode());
     }
 
     @Then("the chart image is not null")

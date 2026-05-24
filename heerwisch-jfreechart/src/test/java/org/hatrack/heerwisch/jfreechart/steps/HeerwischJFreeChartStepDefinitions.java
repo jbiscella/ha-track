@@ -79,6 +79,12 @@ public class HeerwischJFreeChartStepDefinitions {
         builder.withLayout(new LayoutSpec.AutoLayoutSpec(width, height, ImageFormat.valueOf(format)));
     }
 
+    @Given("the layout is auto {int} by {int} with format {word} and axis mode {word}")
+    public void theLayoutIsAutoWithAxisMode(int width, int height, String format, String axisMode) {
+        builder.withLayout(new LayoutSpec.AutoLayoutSpec(width, height, ImageFormat.valueOf(format),
+                org.hatrack.heerwisch.api.spec.AxisMode.valueOf(axisMode)));
+    }
+
     @Given("a HorizontalLevel at price {bigdecimal} with style {word}")
     public void aHorizontalLevel(BigDecimal price, String style) {
         builder.addAnnotation(new Annotation.HorizontalLevel(price, "", LevelStyle.valueOf(style)));
@@ -146,6 +152,17 @@ public class HeerwischJFreeChartStepDefinitions {
         ChartSpec spec = builder.build();
         image = new JFreeChartRenderer().render(spec);
         image2 = new JFreeChartRenderer().render(spec);
+    }
+
+    @When("I render the chart with axis modes {word} and {word}")
+    public void iRenderTheChartWithAxisModes(String modeA, String modeB) throws Exception {
+        JFreeChartRenderer renderer = new JFreeChartRenderer();
+        builder.withLayout(new LayoutSpec.AutoLayoutSpec(900, 500, ImageFormat.PNG,
+                org.hatrack.heerwisch.api.spec.AxisMode.valueOf(modeA)));
+        image = renderer.render(builder.build());
+        builder.withLayout(new LayoutSpec.AutoLayoutSpec(900, 500, ImageFormat.PNG,
+                org.hatrack.heerwisch.api.spec.AxisMode.valueOf(modeB)));
+        image2 = renderer.render(builder.build());
     }
 
     @When("I construct a renderer with a missing font resource")
@@ -254,6 +271,12 @@ public class HeerwischJFreeChartStepDefinitions {
     public void bothChartImagesAreByteIdentical() {
         assertTrue(Arrays.equals(image.bytes(), image2.bytes()),
                 "chart images are not byte-identical");
+    }
+
+    @Then("the two chart images differ")
+    public void theTwoChartImagesDiffer() {
+        assertTrue(!Arrays.equals(image.bytes(), image2.bytes()),
+                "chart images were expected to differ but are byte-identical");
     }
 
     @Then("a DriverInternalException is thrown")
