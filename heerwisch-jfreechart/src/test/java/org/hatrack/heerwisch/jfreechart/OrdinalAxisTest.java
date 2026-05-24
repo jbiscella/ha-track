@@ -130,10 +130,10 @@ class OrdinalAxisTest {
         long day = 0;
         while (out.size() < n) {
             Instant t = BASE.plusSeconds(day * 86400L);
-            int dow = (int) (((day % 7) + 4) % 7); // 2024-01-01 is a Monday => index 0..6
             day++;
-            if (dow >= 5) {
-                continue; // skip Sat/Sun
+            java.time.DayOfWeek dow = t.atZone(java.time.ZoneOffset.UTC).getDayOfWeek();
+            if (dow == java.time.DayOfWeek.SATURDAY || dow == java.time.DayOfWeek.SUNDAY) {
+                continue; // skip weekends -> real gaps between Fri and Mon
             }
             double open = price;
             double close = price + ((out.size() % 3 == 0) ? 1.1 : -0.7);

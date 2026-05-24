@@ -10,6 +10,18 @@ Feature: Layout spec
     When I build a layout from the builder with no format set
     Then the default layout format is PNG
 
+  Scenario: Defaults use the ordinal (gap-collapsing) axis
+    When I get the default layout
+    Then the default layout axis mode is ORDINAL
+
+  Scenario: Builder with no axis mode set defaults to ordinal
+    When I build a layout from the builder with no format set
+    Then the default layout axis mode is ORDINAL
+
+  Scenario: withAxisMode overrides the default to TIME
+    When I build a layout from the builder with axis mode TIME
+    Then the default layout axis mode is TIME
+
   Scenario: Builder omits layout, defaults applied
     Given a chart spec builder
     And an OHLC series of 30 bars

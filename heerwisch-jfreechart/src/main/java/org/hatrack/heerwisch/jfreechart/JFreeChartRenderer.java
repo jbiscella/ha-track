@@ -1068,7 +1068,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
     static final class OrdinalTimeAxis extends NumberAxis {
 
         private static final DateTimeFormatter DAY_LABEL =
-                DateTimeFormatter.ofPattern("d-MMM").withZone(ZoneOffset.UTC);
+                DateTimeFormatter.ofPattern("d-MMM", java.util.Locale.US).withZone(ZoneOffset.UTC);
         private static final int MAX_TICKS = 12;
 
         private final List<NumberTick> dayTicks;

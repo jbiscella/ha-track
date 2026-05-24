@@ -149,6 +149,28 @@ The constants are exposed as `java.awt.Color` for compatibility with JFreeChart,
 
 `TIME` reproduces the pre-`AxisMode` rendering exactly (the `DateAxis` path is untouched), so a caller that passes `AxisMode.TIME` gets byte-for-byte the old output.
 
+```gherkin
+Feature: Domain axis mode
+
+  Scenario: Default layout renders with the ordinal axis
+    Given a chart with an OHLC series and a MAIN-pane indicator
+    When I render the chart (default layout)
+    Then rendering succeeds
+
+  Scenario: TIME axis mode renders successfully
+    Given a chart with an OHLC series and a MAIN-pane indicator
+    And the layout axisMode is TIME
+    When I render the chart
+    Then rendering succeeds
+
+  Scenario: Ordinal and time axis modes produce different output
+    Given a chart with an OHLC series and a MAIN-pane indicator
+    When I render the chart in ORDINAL mode and in TIME mode
+    Then the two chart images differ
+```
+
+The structural details that are not recoverable from the PNG bytes — the domain axis is an `OrdinalTimeAxis`, candles use the numeric-x `OrdinalOHLCDataset`, indicator lines are index-based `XYSeriesCollection`s, and the ordinal domain range is `[-0.5, N-0.5]` — are asserted by the JUnit `OrdinalAxisTest` (consistent with the range-axis tests, which are likewise JUnit because the rendered axis is not recoverable from the image).
+
 ## 6. Layout rendering semantics
 
 When `LayoutSpec` is an `AutoLayoutSpec`:

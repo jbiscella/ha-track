@@ -466,6 +466,20 @@ Feature: Layout spec
     And an indicator placed at SUBPLOT_1
     When I withLayout(layout) and build()
     Then build() succeeds
+
+  Scenario: Defaults use the ordinal (gap-collapsing) axis
+    When I call LayoutSpec.defaults()
+    Then its axisMode is ORDINAL
+
+  Scenario: Builder with no axis mode set defaults to ordinal
+    Given a LayoutSpecBuilder with no withAxisMode call
+    When I build the layout
+    Then its axisMode is ORDINAL
+
+  Scenario: withAxisMode overrides the default to TIME
+    Given a LayoutSpecBuilder with withAxisMode(TIME)
+    When I build the layout
+    Then its axisMode is TIME
 ```
 
 ## 9. Block 4 — Render contract
