@@ -5,6 +5,20 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.52.1-alpha
+
+### Added
+
+- **frau-holle:** a shared `MarketDataSource` conformance suite, published as a `test-jar`. The abstract JUnit class `org.hatrack.frauholle.contract.MarketDataSourceContract` codifies the port's **output** invariants (`frau-holle/CLAUDE.md` §2.1.1) on well-formed input: non-null list of non-null bars, strictly-ascending (hence unique) `time`, every bar within the requested `[since, until]`, and empty range → empty list (not an error). Every `MarketDataSource` implementation runs it via a concrete subclass; `frau-holle-csv` and `frau-holle-eodhd` do so today. The test-jar is trimmed to the `contract` package only, so consuming it does not drag frau-holle's own Cucumber suite onto a consumer's classpath. Driver-specific normalization (sorting, de-duplication, skipping malformed rows, schema rejection) stays in each driver's own tests, not the shared contract.
+
+### Tooling
+
+- **build:** a JaCoCo per-module coverage floor (instruction ≥ 70%, branch ≥ 65%) is wired into the root POM (`jacoco-maven-plugin` 0.8.13: `prepare-agent` + `report` + a `check` gate at `verify`). A deliberately conservative ratchet — raise as coverage grows, never lower. The IT-only EODHD smoke CI job (which disables unit tests) skips the gate via `-Djacoco.skip=true` so the live ITs still run; the main `build & verify` job and the release pipeline gate normally.
+
+### Compatibility
+
+- All changes are additive. The new `frau-holle-<version>-tests.jar` is a new published artifact; no existing artifact, type, or API surface changed. No production code changed in this increment.
+
 ## 0.52.0-alpha
 
 ### Added
