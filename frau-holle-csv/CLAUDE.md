@@ -240,6 +240,7 @@ Claude Code is responsible for:
 - Mapping rows to `OHLCBar` instances using `BigDecimal` and `Instant`
 - Implementing error reporting with line numbers
 - Test infrastructure with example CSV fixtures (small files in test resources)
+- Running the shared `MarketDataSourceContract` suite (from the `frau-holle` test-jar) via a concrete subclass — see `frau-holle/CLAUDE.md` §2.1.1. The CSV driver's own normalization behavior (no sort, no OHLC-invariant check, no ordering police — those are downstream `BacktestSpec.builder()` concerns) stays in this module's dedicated tests, separate from the shared contract
 
 What Claude Code MUST NOT do unilaterally:
 

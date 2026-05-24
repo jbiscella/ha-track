@@ -59,12 +59,14 @@ jobs:
       # EODHD's public demo endpoint. -Dtest=NONE with
       # -Dsurefire.failIfNoSpecifiedTests=false makes Surefire match no unit
       # tests across the reactor while Failsafe still runs the live smoke ITs.
+      # -Djacoco.skip=true: no unit tests run here, so the coverage gate would
+      # otherwise see ~0% and abort the build before the live ITs execute.
       - name: Run EODHD live smoke tests
         id: smoke
         continue-on-error: true
         run: >-
           ./mvnw -pl frau-holle-eodhd -am --batch-mode --no-transfer-progress
-          -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false verify
+          -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false -Djacoco.skip=true verify
 
       - name: Annotate smoke failure as a warning (soft-fail)
         if: steps.smoke.outcome == 'failure'
