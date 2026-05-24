@@ -15,12 +15,16 @@ import org.jfree.chart.plot.CombinedDomainXYPlot;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
 import org.jfree.data.xy.XYSeriesCollection;
+import org.jfree.chart.axis.Tick;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -84,6 +88,46 @@ class OrdinalAxisTest {
         // end-to-end: a gappy series still renders without error in ORDINAL mode
         byte[] png = render(buildSpec(AxisMode.ORDINAL));
         assertTrue(png.length > 0, "ordinal render must produce bytes");
+    }
+
+    /**
+     * Regression for the locale-determinism defect: the ordinal day labels must be
+     * locale-independent (English month abbreviations) regardless of the JVM
+     * default locale, or rendered tick text — and thus image bytes — would vary
+     * across environments. Fails if the date formatter is not pinned to a fixed
+     * locale (e.g. under a German default it would read "18-Mär"/"18-März").
+     */
+    @Test
+    void ordinalDayLabelsAreLocaleIndependent() {
+        List<Instant> times = List.of(
+                Instant.parse("2024-03-18T09:00:00Z"),
+                Instant.parse("2024-03-18T10:00:00Z"),
+                Instant.parse("2024-03-19T09:00:00Z"));
+        Locale original = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.GERMANY);
+            JFreeChartRenderer.OrdinalTimeAxis axis = new JFreeChartRenderer.OrdinalTimeAxis(times);
+            List<?> ticks = axis.refreshTicks(null, null, null, null);
+            String firstLabel = ((Tick) ticks.get(0)).getText();
+            assertEquals("18-Mar", firstLabel,
+                    "ordinal day labels must be English/locale-independent (was: " + firstLabel + ")");
+        } finally {
+            Locale.setDefault(original);
+        }
+    }
+
+    /**
+     * Regression for the test-fixture weekday bug: {@link #gappyDaily(int)} must
+     * actually skip Saturdays and Sundays (not arbitrary weekdays), so the
+     * gap-collapsing coverage exercises real weekend gaps.
+     */
+    @Test
+    void gappyFixtureSkipsWeekends() {
+        for (OHLCBar bar : gappyDaily(40)) {
+            DayOfWeek dow = bar.time().atZone(ZoneOffset.UTC).getDayOfWeek();
+            assertTrue(dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY,
+                    "fixture must skip weekends, but a bar falls on " + dow + " at " + bar.time());
+        }
     }
 
     // --- helpers ---
