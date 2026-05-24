@@ -29,13 +29,13 @@ Feature: BacktestSpecBuilder eager validation
     When I build the backtest spec
     Then an InvalidBacktestSpecException is thrown with violatedRule "V4"
 
-  Scenario: Irregular bar spacing fails build
+  Scenario: Irregularly-spaced but monotonic bars build (rhythm from the most-common gap)
     Given a backtest builder
     And an OHLC series with irregular spacing
     And the strategy holds every bar
     And initial cash 10000
     When I build the backtest spec
-    Then an InvalidBacktestSpecException is thrown with violatedRule "V5"
+    Then the backtest spec builds successfully
 
   Scenario: Single-bar series fails build
     Given a backtest builder

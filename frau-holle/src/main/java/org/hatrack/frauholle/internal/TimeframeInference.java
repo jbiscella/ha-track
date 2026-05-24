@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,8 +12,14 @@ import java.util.Optional;
 
 /**
  * Infers {@code periodsPerYear} from bar spacing (frau-holle/CLAUDE.md
- * section 3.1). Returns empty when the series is unordered, has duplicate
- * times or is not uniformly spaced — the V5 condition.
+ * section 3.1). It uses the MOST COMMON consecutive gap (the modal Δt) so that
+ * the rare larger gaps every real feed has — overnight, weekend, holiday,
+ * Easter, the odd multi-day closure — are ignored. The modal gap is matched
+ * against the known-timeframe table (so daily stays the 252 trading-day
+ * convention); an unrecognized cadence degrades to a calendar estimate with a
+ * console warning rather than failing. Only genuinely broken input — fewer than
+ * two bars, an out-of-order gap (Δt &lt; 0) or a duplicate timestamp (Δt = 0) —
+ * returns empty, which the builder surfaces as V5.
  */
 public final class TimeframeInference {
 
@@ -43,28 +49,38 @@ public final class TimeframeInference {
         if (times.size() < 2) {
             return Optional.empty();
         }
-        long[] deltas = new long[times.size() - 1];
+        Map<Long, Integer> counts = new HashMap<>();
         for (int i = 1; i < times.size(); i++) {
             long delta = Duration.between(times.get(i - 1), times.get(i)).getSeconds();
             if (delta <= 0) {
+                // out-of-order or duplicate timestamp: genuine corruption, not a rhythm question
                 return Optional.empty();
             }
-            deltas[i - 1] = delta;
+            counts.merge(delta, 1, Integer::sum);
         }
-        long[] sorted = deltas.clone();
-        Arrays.sort(sorted);
-        long median = sorted[sorted.length / 2];
-        double tolerance = median * 0.01;
-        for (long delta : deltas) {
-            if (Math.abs(delta - median) > tolerance) {
-                return Optional.empty();
-            }
-        }
+        long modal = modalGap(counts);
         for (Map.Entry<Long, BigDecimal> entry : KNOWN.entrySet()) {
-            if (Math.abs(median - entry.getKey()) <= entry.getKey() * 0.01) {
+            if (Math.abs(modal - entry.getKey()) <= entry.getKey() * 0.01) {
                 return Optional.of(entry.getValue());
             }
         }
-        return Optional.of(SECONDS_PER_YEAR.divide(new BigDecimal(median), MC));
+        System.err.println("[frau-holle] unrecognized bar cadence (" + modal
+                + "s); using a calendar-based periodsPerYear estimate");
+        return Optional.of(SECONDS_PER_YEAR.divide(new BigDecimal(modal), MC));
+    }
+
+    /** The most-frequent gap; ties broken deterministically by the smaller gap. */
+    private static long modalGap(Map<Long, Integer> counts) {
+        long modal = Long.MAX_VALUE;
+        int best = -1;
+        for (Map.Entry<Long, Integer> entry : counts.entrySet()) {
+            int count = entry.getValue();
+            long gap = entry.getKey();
+            if (count > best || (count == best && gap < modal)) {
+                best = count;
+                modal = gap;
+            }
+        }
+        return modal;
     }
 }

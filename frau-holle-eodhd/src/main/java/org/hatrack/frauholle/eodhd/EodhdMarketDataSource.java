@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 
 /**
  * Reference {@link MarketDataSource} backed by the EODHD End-of-Day API.
@@ -177,74 +178,108 @@ public final class EodhdMarketDataSource implements MarketDataSource {
     }
 
     private List<OHLCBar> parseBars(String body, String symbol) throws MarketDataException {
-        List<Map<String, String>> rows;
-        try {
-            rows = jsonReader.readArrayOfObjects(body);
-        } catch (RuntimeException e) {
-            throw new MarketDataSchemaException(symbol, "malformed JSON response from EODHD", e);
-        }
-        List<OHLCBar> bars = new ArrayList<>(rows.size());
-        Instant previous = null;
-        int index = 0;
-        for (Map<String, String> row : rows) {
-            OHLCBar bar = mapRow(row, symbol);
-            if (previous != null && !bar.time().isAfter(previous)) {
-                throw new MarketDataSchemaException(symbol,
-                        "EODHD bars are not in strict ascending date order: row " + index
-                                + " has date " + bar.time() + " which is not after the previous bar");
-            }
-            previous = bar.time();
-            bars.add(bar);
-            index++;
-        }
-        return List.copyOf(bars);
-    }
-
-    private static OHLCBar mapRow(Map<String, String> row, String symbol)
-            throws MarketDataSchemaException {
-        Instant time = parseDate(required(row, "date", symbol), symbol);
-        BigDecimal open = parsePrice(required(row, "open", symbol), "open", symbol);
-        BigDecimal high = parsePrice(required(row, "high", symbol), "high", symbol);
-        BigDecimal low = parsePrice(required(row, "low", symbol), "low", symbol);
-        BigDecimal close = parsePrice(required(row, "close", symbol), "close", symbol);
-        Optional<BigDecimal> volume = parseVolume(row.get("volume"), symbol);
-        return new OHLCBar(time, open, high, low, close, volume);
+        return assemble(readRows(body, symbol), symbol, row -> mapRow(row, symbol));
     }
 
     private List<OHLCBar> parseIntradayBars(String body, String symbol) throws MarketDataException {
-        List<Map<String, String>> rows;
+        return assemble(readRows(body, symbol), symbol, row -> mapIntradayRow(row, symbol));
+    }
+
+    private List<Map<String, String>> readRows(String body, String symbol)
+            throws MarketDataSchemaException {
         try {
-            rows = jsonReader.readArrayOfObjects(body);
+            return jsonReader.readArrayOfObjects(body);
         } catch (RuntimeException e) {
             throw new MarketDataSchemaException(symbol, "malformed JSON response from EODHD", e);
         }
-        List<OHLCBar> bars = new ArrayList<>(rows.size());
-        Instant previous = null;
-        int index = 0;
-        for (Map<String, String> row : rows) {
-            OHLCBar bar = mapIntradayRow(row, symbol);
-            if (previous != null && !bar.time().isAfter(previous)) {
-                throw new MarketDataSchemaException(symbol,
-                        "EODHD intraday bars are not in strict ascending timestamp order: row "
-                                + index + " has time " + bar.time()
-                                + " which is not after the previous bar");
-            }
-            previous = bar.time();
-            bars.add(bar);
-            index++;
-        }
-        return List.copyOf(bars);
     }
 
-    private static OHLCBar mapIntradayRow(Map<String, String> row, String symbol)
+    @FunctionalInterface
+    private interface RowMapper {
+        Optional<OHLCBar> map(Map<String, String> row) throws MarketDataSchemaException;
+    }
+
+    /**
+     * Maps every row, then normalizes the feed so the user never suffers for an
+     * EODHD-side defect. A bar with any null/blank OHLC field is a halt/no-trade
+     * bar and is skipped (not fatal). The kept bars are re-sequenced into strict
+     * ascending time order (EODHD occasionally ships bars out of order); a
+     * duplicated timestamp (a DST-transition artifact) is de-duplicated by
+     * keeping the last bar. The output therefore honors the {@code
+     * MarketDataSource} contract (ascending, unique times). Any skip / re-order
+     * / de-dup is reported once on the console.
+     */
+    private static List<OHLCBar> assemble(List<Map<String, String>> rows, String symbol,
+                                          RowMapper mapper) throws MarketDataSchemaException {
+        TreeMap<Instant, OHLCBar> byTime = new TreeMap<>();
+        int skipped = 0;
+        int kept = 0;
+        boolean outOfOrder = false;
+        Instant previousArrival = null;
+        for (Map<String, String> row : rows) {
+            Optional<OHLCBar> maybe = mapper.map(row);
+            if (maybe.isEmpty()) {
+                skipped++;
+                continue;
+            }
+            OHLCBar bar = maybe.get();
+            if (previousArrival != null && bar.time().isBefore(previousArrival)) {
+                outOfOrder = true;
+            }
+            previousArrival = bar.time();
+            byTime.put(bar.time(), bar); // ascending by time; duplicate timestamp → last wins
+            kept++;
+        }
+        int deduped = kept - byTime.size();
+        if (skipped > 0 || deduped > 0 || outOfOrder) {
+            System.err.println("[frau-holle-eodhd] " + symbol + ": normalized feed - skipped "
+                    + skipped + " null-OHLC bar(s); de-duplicated " + deduped + " timestamp(s)"
+                    + (outOfOrder ? "; re-sequenced out-of-order bars" : ""));
+        }
+        return List.copyOf(byTime.values());
+    }
+
+    private static Optional<OHLCBar> mapRow(Map<String, String> row, String symbol)
+            throws MarketDataSchemaException {
+        Instant time = parseDate(required(row, "date", symbol), symbol);
+        if (anyOhlcMissing(row)) {
+            return Optional.empty();
+        }
+        BigDecimal open = parsePrice(row.get("open"), "open", symbol);
+        BigDecimal high = parsePrice(row.get("high"), "high", symbol);
+        BigDecimal low = parsePrice(row.get("low"), "low", symbol);
+        BigDecimal close = parsePrice(row.get("close"), "close", symbol);
+        Optional<BigDecimal> volume = parseVolume(row.get("volume"), symbol);
+        return Optional.of(new OHLCBar(time, open, high, low, close, volume));
+    }
+
+    private static Optional<OHLCBar> mapIntradayRow(Map<String, String> row, String symbol)
             throws MarketDataSchemaException {
         Instant time = parseTimestamp(required(row, "timestamp", symbol), symbol);
-        BigDecimal open = parsePrice(required(row, "open", symbol), "open", symbol);
-        BigDecimal high = parsePrice(required(row, "high", symbol), "high", symbol);
-        BigDecimal low = parsePrice(required(row, "low", symbol), "low", symbol);
-        BigDecimal close = parsePrice(required(row, "close", symbol), "close", symbol);
+        if (anyOhlcMissing(row)) {
+            return Optional.empty();
+        }
+        BigDecimal open = parsePrice(row.get("open"), "open", symbol);
+        BigDecimal high = parsePrice(row.get("high"), "high", symbol);
+        BigDecimal low = parsePrice(row.get("low"), "low", symbol);
+        BigDecimal close = parsePrice(row.get("close"), "close", symbol);
         Optional<BigDecimal> volume = parseVolume(row.get("volume"), symbol);
-        return new OHLCBar(time, open, high, low, close, volume);
+        return Optional.of(new OHLCBar(time, open, high, low, close, volume));
+    }
+
+    /** True when any of open/high/low/close is null, blank or a no-data marker. */
+    private static boolean anyOhlcMissing(Map<String, String> row) {
+        return isNoData(row.get("open")) || isNoData(row.get("high"))
+                || isNoData(row.get("low")) || isNoData(row.get("close"));
+    }
+
+    private static boolean isNoData(String text) {
+        if (text == null) {
+            return true;
+        }
+        String t = text.trim();
+        return t.isEmpty() || t.equalsIgnoreCase("null") || t.equalsIgnoreCase("nan")
+                || t.equalsIgnoreCase("na");
     }
 
     private static Instant parseTimestamp(String text, String symbol)
