@@ -1067,8 +1067,6 @@ public final class JFreeChartRenderer implements ChartRenderer {
      */
     static final class OrdinalTimeAxis extends NumberAxis {
 
-        private static final DateTimeFormatter DAY_LABEL =
-                DateTimeFormatter.ofPattern("d-MMM", java.util.Locale.US).withZone(ZoneOffset.UTC);
         private static final int MAX_TICKS = 12;
 
         private final List<NumberTick> dayTicks;
@@ -1091,6 +1089,12 @@ public final class JFreeChartRenderer implements ChartRenderer {
         }
 
         private static List<NumberTick> buildDayTicks(List<Instant> times) {
+            // Locale.US is pinned explicitly (and the formatter is built per call,
+            // not captured at class-load) so the month abbreviation — and thus the
+            // rendered tick text and image bytes — is independent of the JVM default
+            // locale, per the byte-identical-rendering contract.
+            DateTimeFormatter dayLabel = DateTimeFormatter.ofPattern("d-MMM", java.util.Locale.US)
+                    .withZone(ZoneOffset.UTC);
             List<Integer> boundaries = new ArrayList<>();
             LocalDate prev = null;
             for (int i = 0; i < times.size(); i++) {
@@ -1105,7 +1109,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
             List<NumberTick> ticks = new ArrayList<>();
             for (int k = 0; k < boundaries.size(); k += step) {
                 int idx = boundaries.get(k);
-                ticks.add(new NumberTick(Double.valueOf(idx), DAY_LABEL.format(times.get(idx)),
+                ticks.add(new NumberTick(Double.valueOf(idx), dayLabel.format(times.get(idx)),
                         TextAnchor.TOP_CENTER, TextAnchor.CENTER, 0.0));
             }
             return ticks;
