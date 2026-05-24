@@ -182,6 +182,8 @@ public final class ChartSpecBuilder {
         PriceSource source = switch (indicator) {
             case Indicator.SMA sma -> sma.priceSource();
             case Indicator.EMA ema -> ema.priceSource();
+            case Indicator.RollingMax max -> max.priceSource();
+            case Indicator.RollingMin min -> min.priceSource();
             case Indicator.BollingerBands bb -> bb.priceSource();
             case Indicator.MACD macd -> macd.priceSource();
             case Indicator.RSI rsi -> rsi.priceSource();

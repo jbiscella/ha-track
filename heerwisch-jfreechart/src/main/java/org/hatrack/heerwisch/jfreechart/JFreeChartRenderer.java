@@ -139,7 +139,9 @@ public final class JFreeChartRenderer implements ChartRenderer {
     private static boolean isOverlayCompatible(Indicator indicator) {
         return indicator instanceof Indicator.SMA
                 || indicator instanceof Indicator.EMA
-                || indicator instanceof Indicator.BollingerBands;
+                || indicator instanceof Indicator.BollingerBands
+                || indicator instanceof Indicator.RollingMax
+                || indicator instanceof Indicator.RollingMin;
     }
 
     // --- chart construction ---
@@ -387,6 +389,8 @@ public final class JFreeChartRenderer implements ChartRenderer {
         return switch (spec.indicators().get(position).indicator()) {
             case Indicator.SMA ignored -> ThemeConstants.SMA_LINE;
             case Indicator.EMA ignored -> ThemeConstants.EMA_LINE;
+            case Indicator.RollingMax ignored -> ThemeConstants.ROLLING_MAX_LINE;
+            case Indicator.RollingMin ignored -> ThemeConstants.ROLLING_MIN_LINE;
             case Indicator.BollingerBands ignored -> ThemeConstants.BB_BAND;
             case Indicator.MACD ignored -> ThemeConstants.MACD_LINE;
             case Indicator.RSI ignored -> ThemeConstants.RSI_LINE;
@@ -401,6 +405,8 @@ public final class JFreeChartRenderer implements ChartRenderer {
         return switch (indicator) {
             case Indicator.SMA sma -> "SMA(" + sma.period() + ")";
             case Indicator.EMA ema -> "EMA(" + ema.period() + ")";
+            case Indicator.RollingMax max -> "HHV(" + max.period() + ")";
+            case Indicator.RollingMin min -> "LLV(" + min.period() + ")";
             case Indicator.BollingerBands bb -> "BB(" + bb.period() + "," + bb.stdDevMultiplier() + ")";
             case Indicator.MACD macd -> "MACD(" + macd.fastPeriod() + ","
                     + macd.slowPeriod() + "," + macd.signalPeriod() + ")";
@@ -483,6 +489,16 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 int next = addLine(plot, index, "BB upper", times, bands.upper(), band, ordinal);
                 next = addLine(plot, next, "BB middle", times, bands.middle(), band, ordinal);
                 return addLine(plot, next, "BB lower", times, bands.lower(), band, ordinal);
+            }
+            case Indicator.RollingMax max -> {
+                return addLine(plot, index, "HHV", times,
+                        Indicators.rollingMax(prices(series, max.priceSource()), max.period()),
+                        ThemeConstants.ROLLING_MAX_LINE, ordinal);
+            }
+            case Indicator.RollingMin min -> {
+                return addLine(plot, index, "LLV", times,
+                        Indicators.rollingMin(prices(series, min.priceSource()), min.period()),
+                        ThemeConstants.ROLLING_MIN_LINE, ordinal);
             }
             case Indicator.MACD macd -> {
                 MacdResult lines = Indicators.macd(prices(series, macd.priceSource()),

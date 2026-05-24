@@ -295,6 +295,48 @@ public final class Indicators {
         return out;
     }
 
+    /**
+     * Rolling maximum over the trailing {@code period} window: {@code out[t]} is
+     * the greatest value of {@code src} over {@code [t - period + 1, t]}; null
+     * before index {@code period - 1}. Pure comparison — no arithmetic, no
+     * rounding. Used for highest-high / highest-close style channels.
+     */
+    public static BigDecimal[] rollingMax(List<BigDecimal> src, int period) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(period, "period");
+        int n = src.size();
+        BigDecimal[] out = new BigDecimal[n];
+        for (int i = period - 1; i < n; i++) {
+            BigDecimal extreme = src.get(i - period + 1);
+            for (int j = i - period + 2; j <= i; j++) {
+                extreme = extreme.max(src.get(j));
+            }
+            out[i] = extreme;
+        }
+        return out;
+    }
+
+    /**
+     * Rolling minimum over the trailing {@code period} window: {@code out[t]} is
+     * the smallest value of {@code src} over {@code [t - period + 1, t]}; null
+     * before index {@code period - 1}. Pure comparison — no arithmetic, no
+     * rounding. Used for lowest-low / lowest-close style channels.
+     */
+    public static BigDecimal[] rollingMin(List<BigDecimal> src, int period) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(period, "period");
+        int n = src.size();
+        BigDecimal[] out = new BigDecimal[n];
+        for (int i = period - 1; i < n; i++) {
+            BigDecimal extreme = src.get(i - period + 1);
+            for (int j = i - period + 2; j <= i; j++) {
+                extreme = extreme.min(src.get(j));
+            }
+            out[i] = extreme;
+        }
+        return out;
+    }
+
     private static BigDecimal[] trueRange(List<BigDecimal> high, List<BigDecimal> low,
                                           List<BigDecimal> close) {
         int n = high.size();

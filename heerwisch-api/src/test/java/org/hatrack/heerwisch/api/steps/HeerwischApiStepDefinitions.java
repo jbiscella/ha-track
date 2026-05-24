@@ -123,6 +123,16 @@ public class HeerwischApiStepDefinitions {
         builder.addIndicator(new Indicator.EMA(period, PriceSource.valueOf(source)));
     }
 
+    @Given("a RollingMax indicator with period {int} and source {word}")
+    public void rollingMaxIndicator(int period, String source) {
+        builder.addIndicator(new Indicator.RollingMax(period, PriceSource.valueOf(source)));
+    }
+
+    @Given("a RollingMin indicator with period {int} and source {word}")
+    public void rollingMinIndicator(int period, String source) {
+        builder.addIndicator(new Indicator.RollingMin(period, PriceSource.valueOf(source)));
+    }
+
     @Given("a BollingerBands indicator with period {int} stdDev {bigdecimal} and source {word}")
     public void bollingerBandsIndicator(int period, BigDecimal stdDev, String source) {
         builder.addIndicator(new Indicator.BollingerBands(period, stdDev, PriceSource.valueOf(source)));

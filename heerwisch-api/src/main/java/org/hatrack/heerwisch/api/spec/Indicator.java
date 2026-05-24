@@ -68,6 +68,51 @@ public sealed interface Indicator {
         }
     }
 
+    /**
+     * Rolling maximum of {@code priceSource} over a trailing {@code period}
+     * window, drawn as a single main-pane line (highest-high / highest-close
+     * style channel). Pair with {@link RollingMin} to form a Donchian-style
+     * channel; there is no band-with-fill variant.
+     */
+    record RollingMax(int period, PriceSource priceSource) implements Indicator {
+        public RollingMax {
+            requirePeriod(period, "period");
+            Objects.requireNonNull(priceSource, "priceSource");
+        }
+
+        @Override
+        public int minBars() {
+            return period;
+        }
+
+        @Override
+        public Pane defaultPane() {
+            return Pane.MAIN;
+        }
+    }
+
+    /**
+     * Rolling minimum of {@code priceSource} over a trailing {@code period}
+     * window, drawn as a single main-pane line (lowest-low / lowest-close style
+     * channel). Pair with {@link RollingMax} to form a Donchian-style channel.
+     */
+    record RollingMin(int period, PriceSource priceSource) implements Indicator {
+        public RollingMin {
+            requirePeriod(period, "period");
+            Objects.requireNonNull(priceSource, "priceSource");
+        }
+
+        @Override
+        public int minBars() {
+            return period;
+        }
+
+        @Override
+        public Pane defaultPane() {
+            return Pane.MAIN;
+        }
+    }
+
     record BollingerBands(int period, BigDecimal stdDevMultiplier, PriceSource priceSource)
             implements Indicator {
         public BollingerBands {
