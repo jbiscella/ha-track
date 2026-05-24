@@ -1,9 +1,24 @@
 name: Release
 
-# Publishes every reactor module to Maven Central whenever the project
-# version in the root pom.xml changes on main (i.e. a version bump commit),
-# or on a manual "Run workflow" (workflow_dispatch) for a re-attempt.
+# Publishes every reactor module to Maven Central when a GitHub Release is
+# PUBLISHED (tag `v<version>`, e.g. v0.52.1-alpha), or on a manual
+# "Run workflow" (workflow_dispatch) re-attempt.
+#
+# Decoupled from merges to main on purpose: a version bump landing on main no
+# longer publishes by itself. You publish explicitly by cutting a release once
+# main is complete. This removes the failure mode where an INCOMPLETE main got
+# published because a bump commit merged before the rest of the work.
+#
+# iOS / no-CLI flow: GitHub mobile app -> Releases -> Draft a new release ->
+# create tag `v<version>` targeting `main` -> Publish release. That fires this
+# workflow. (Publishing the GitHub Release does NOT auto-publish on Central:
+# autoPublish is false in the root pom `release` profile, so after the deploy
+# step succeeds you click Publish in the Central Portal UI.)
+#
 # SNAPSHOT versions are skipped — Maven Central only accepts release versions.
+# The release tag MUST equal the root pom version prefixed with `v` (so
+# `v<version>`); a mismatch fails the run so a mistagged release can't publish
+# the wrong artifacts.
 #
 # Central verifies the GPG signatures by fetching the public key from a
 # keyserver. The public half of the key in GPG_PRIVATE_KEY MUST be uploaded
@@ -22,10 +37,9 @@ name: Release
 # then released manually from the Central Portal UI.
 
 on:
-  push:
-    branches: [main]
-    paths: ['pom.xml']
-  workflow_dispatch:        # manual re-attempt without a version bump
+  release:
+    types: [published]
+  workflow_dispatch:        # manual re-attempt (run from main or a tag)
 
 permissions:
   contents: read
@@ -44,33 +58,34 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect a version bump
+      - name: Decide whether to publish
         id: version
         env:
-          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
-          # Compare the root POM version across the whole pushed range
-          # (push base -> tip), not just HEAD~1 — a multi-commit push whose
-          # tip commit leaves pom.xml untouched must still be detected.
           version_of() { grep -m1 '<version>' | sed -E 's/.*<version>(.+)<\/version>.*/\1/'; }
           new=$(version_of < pom.xml)
-          old=""
-          if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-            old=$(git show "${BEFORE}:pom.xml" 2>/dev/null | version_of || true)
-          fi
-          echo "old version: ${old:-<none>}"
-          echo "new version: $new"
-          # Publish only from main (a manual workflow_dispatch can be aimed
-          # at any branch), and only a non-SNAPSHOT version, on a manual run
-          # or when the version changed across the pushed range.
-          if [ -n "$new" ] && [[ "$new" != *SNAPSHOT* ]] \
-              && [ "$GITHUB_REF" = "refs/heads/main" ] \
-              && { [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || [ "$new" != "$old" ]; }; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          else
+          echo "pom version: ${new:-<none>}"
+          echo "event: $EVENT   release tag: ${TAG:-<none>}"
+          if [ -z "$new" ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "No release version change — skipping publish."
+            echo "No version found in the root pom — skipping."
+            exit 0
           fi
+          if [[ "$new" == *SNAPSHOT* ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "SNAPSHOT version — Maven Central only accepts releases. Skipping."
+            exit 0
+          fi
+          # On a published GitHub Release, the tag must match the pom version as
+          # v<version>. (A workflow_dispatch re-attempt has no tag to check.)
+          if [ "$EVENT" = "release" ] && [ "$TAG" != "v$new" ]; then
+            echo "::error::Release tag '$TAG' does not match the root pom version (expected 'v$new'). Re-tag the release as v$new."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 25 (Amazon Corretto)
         if: steps.version.outputs.publish == 'true'
