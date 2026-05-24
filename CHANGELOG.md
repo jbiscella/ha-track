@@ -11,13 +11,20 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 
 - **frau-holle:** a shared `MarketDataSource` conformance suite, published as a `test-jar`. The abstract JUnit class `org.hatrack.frauholle.contract.MarketDataSourceContract` codifies the port's **output** invariants (`frau-holle/CLAUDE.md` §2.1.1) on well-formed input: non-null list of non-null bars, strictly-ascending (hence unique) `time`, every bar within the requested `[since, until]`, and empty range → empty list (not an error). Every `MarketDataSource` implementation runs it via a concrete subclass; `frau-holle-csv` and `frau-holle-eodhd` do so today. The test-jar is trimmed to the `contract` package only, so consuming it does not drag frau-holle's own Cucumber suite onto a consumer's classpath. Driver-specific normalization (sorting, de-duplication, skipping malformed rows, schema rejection) stays in each driver's own tests, not the shared contract.
 
+### Fixed
+
+- **frau-holle-eodhd:** real EODHD intraday feeds could not be loaded. Two producer-side data quirks are now normalized in the driver instead of aborting the whole fetch (verified against the live `demo` token, 1h, over a 4-month window):
+  - **Halt / no-trade bars** — a bar whose `open`/`high`/`low`/`close` is `null`, blank or a no-data marker (`"null"`/`"NaN"`/`"NA"`) is **skipped** rather than throwing `missing 'open' field` (BTC had 22 such bars in 3004; AAPL 0). A `null`/absent **volume** on an otherwise-valid bar is unchanged — it maps to `Optional.empty()` and the bar is **kept** (BTC has 1382 such bars; skipping them would have dropped ~46% of the feed).
+  - **Out-of-order / duplicate timestamps** — kept bars are **re-sequenced** into ascending order and a duplicated timestamp (a DST-transition artifact; BTC had one at 2024-03-10 01:00) is **de-duplicated keeping the last** bar, so output still honors the `MarketDataSource` ascending/unique contract. The driver no longer throws on ordering. Normalization is reported once on the console (stderr).
+- **frau-holle:** market-hours intraday and weekend-gapped daily series could never be backtested — `TimeframeInference` required near-uniform spacing, so any overnight/weekend/holiday gap produced `InvalidBacktestSpecException [V5]`. It now infers `periodsPerYear` from the **most-common (modal)** consecutive gap, ignoring the rare large gaps every real feed has. The known-timeframe table is preserved (daily stays **252**), an unrecognized cadence degrades to a calendar estimate with a console warning rather than failing, and `[V5]` now fires only for genuinely broken input (<2 bars, out-of-order, or duplicate timestamps).
+
 ### Tooling
 
 - **build:** a JaCoCo per-module coverage floor (instruction ≥ 70%, branch ≥ 65%) is wired into the root POM (`jacoco-maven-plugin` 0.8.13: `prepare-agent` + `report` + a `check` gate at `verify`). A deliberately conservative ratchet — raise as coverage grows, never lower. The IT-only EODHD smoke CI job (which disables unit tests) skips the gate via `-Djacoco.skip=true` so the live ITs still run; the main `build & verify` job and the release pipeline gate normally.
 
 ### Compatibility
 
-- All changes are additive. The new `frau-holle-<version>-tests.jar` is a new published artifact; no existing artifact, type, or API surface changed. No production code changed in this increment.
+- All changes are additive or behavior-only; **no public API change**, japicmp clean. The new `frau-holle-<version>-tests.jar` is a new published artifact (no existing artifact, type, or API surface changed). The EODHD/inference fixes live behind `private` methods / the `internal` `TimeframeInference` class: gapped series now build, null-OHLC bars are skipped, and out-of-order/duplicate EODHD bars are normalized rather than rejected. The existing "out-of-order/duplicate → V5" and "duplicate dates → schema error" scenarios were updated to the new resilient behavior; out-of-order/duplicate at the *backtester* boundary still yields `[V5]` (the core validates its input; the eodhd adapter normalizes the producer's quirks). Warnings go to the console (stderr) only — no logging framework added.
 
 ## 0.52.0-alpha
 

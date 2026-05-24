@@ -57,31 +57,32 @@ Feature: Error mapping
     Then a MarketDataUnavailableException is thrown
     And exactly 1 HTTP request was made
 
-  Scenario: Bars out of ascending date order map to MarketDataSchemaException
+  Scenario: Bars out of order are re-sequenced into ascending order (not rejected)
     Given an EODHD data source
     And the endpoint returns the JSON body:
       """
       [
         {"date":"2024-01-04","open":1,"high":2,"low":0.5,"close":1.5,"volume":100},
-        {"date":"2024-01-02","open":1,"high":2,"low":0.5,"close":1.5,"volume":100}
+        {"date":"2024-01-02","open":1.6,"high":2.6,"low":1.1,"close":1.9,"volume":200}
       ]
       """
     When I fetch history for "AAPL.US" as "1d"
-    Then a MarketDataSchemaException is thrown
-    And the exception message mentions "ascending date order"
+    Then the result has 2 bars
+    And bar 0 has time "2024-01-02T00:00:00Z"
+    And bar 1 has time "2024-01-04T00:00:00Z"
 
-  Scenario: Duplicate consecutive dates map to MarketDataSchemaException
+  Scenario: Duplicate consecutive dates keep the last bar (no error)
     Given an EODHD data source
     And the endpoint returns the JSON body:
       """
       [
         {"date":"2024-01-02","open":1,"high":2,"low":0.5,"close":1.5,"volume":100},
-        {"date":"2024-01-02","open":1,"high":2,"low":0.5,"close":1.5,"volume":100}
+        {"date":"2024-01-02","open":1.6,"high":2.6,"low":1.1,"close":1.9,"volume":200}
       ]
       """
     When I fetch history for "AAPL.US" as "1d"
-    Then a MarketDataSchemaException is thrown
-    And the exception message mentions "ascending date order"
+    Then the result has 1 bar
+    And bar 0 has close 1.9
 
   Scenario: A record missing the date field maps to MarketDataSchemaException
     Given an EODHD data source

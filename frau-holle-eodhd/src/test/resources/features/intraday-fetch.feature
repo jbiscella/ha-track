@@ -62,18 +62,19 @@ Feature: Intraday endpoint successful fetch and response parsing
     Then the result has 0 bars
     And no exception is thrown
 
-  Scenario: Intraday bars out of ascending order is rejected
+  Scenario: Intraday bars out of order are re-sequenced into ascending order
     Given an EODHD data source
     And the endpoint returns the JSON body:
       """
       [
         {"timestamp": 1704070800, "open": 100, "high": 101, "low": 99, "close": 100, "volume": 100},
-        {"timestamp": 1704067200, "open": 100, "high": 101, "low": 99, "close": 100, "volume": 100}
+        {"timestamp": 1704067200, "open": 102, "high": 103, "low": 98, "close": 99, "volume": 200}
       ]
       """
     When I fetch history for "AAPL.US" as "1h"
-    Then a MarketDataSchemaException is thrown
-    And the exception message mentions "ascending"
+    Then the result has 2 bars
+    And bar 0 has time "2024-01-01T00:00:00Z"
+    And bar 1 has time "2024-01-01T01:00:00Z"
 
   Scenario: Intraday row missing timestamp is rejected
     Given an EODHD data source

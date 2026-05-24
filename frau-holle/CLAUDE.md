@@ -216,7 +216,7 @@ All `BigDecimal` arithmetic uses `MathContext.DECIMAL64`.
 | `1y` | 1 |
 | (other) | derived from the duration of the timeframe in seconds: `31536000 / timeframeSeconds`, with daily as the exception above |
 
-The backtester infers `periodsPerYear` from the timeframe of the series. Since the series in `BacktestSpec` is just `List<OHLCBar>` without an attached timeframe, the timeframe is derived by `Backtester` from the spacing between bars: it takes the median of consecutive `time()` deltas and matches against known timeframes within a 1% tolerance. If no match is found, the backtester throws `InvalidBacktestSpecException` with `violatedRule = "V5"`.
+The backtester infers `periodsPerYear` from the timeframe of the series. Since the series in `BacktestSpec` is just `List<OHLCBar>` without an attached timeframe, the timeframe is derived by `Backtester` from the spacing between bars: it takes the **most-common (modal)** consecutive `time()` delta (ties broken by the smaller gap) and matches it against the known timeframes within a 1% tolerance. Using the modal gap means the rare larger gaps every real feed has — overnight, weekend, holiday, Easter, multi-day closures — are ignored, so market-hours-only intraday and weekend-gapped daily series infer correctly. The modal match preserves the table values (so daily stays the 252 trading-day convention). If the modal gap matches **no** known timeframe, the rhythm is **not** rejected: `periodsPerYear` degrades to the calendar estimate `31536000 / modalGapSeconds` with a one-line console warning (better an approximate annualization than a backtest that cannot run). `periodsPerYear` is empty — surfacing as `V5` — only for genuinely broken input: fewer than two bars, an out-of-order gap (`Δt < 0`), or a duplicate timestamp (`Δt = 0`).
 
 ## 4. Fill timing
 
@@ -263,7 +263,7 @@ The series in `BacktestSpec` is already loaded. `Backtester` does NOT call `Mark
 | V2 | `series` MUST be non-empty | empty list |
 | V3 | `signalGenerator` MUST be set | builder.build() with no signal generator |
 | V4 | `initialCash` MUST be > 0 | initialCash ≤ 0 |
-| V5 | series bars MUST be ordered ascending by `time` with unique times AND with a uniform spacing that maps to a known `Timeframe` (per §3.1, within 1% tolerance) | unordered, duplicate, or irregular bars |
+| V5 | series bars MUST be ordered ascending by `time` with unique times, and a rhythm MUST be inferable from the most-common gap (per §3.1). Non-uniform / gapped spacing is **allowed** (the modal gap drives inference; unknown cadences degrade to a calendar estimate). V5 fires only when the rhythm cannot be inferred — an out-of-order gap or a duplicate timestamp | unordered or duplicate-timestamp bars (gapped-but-monotonic series are accepted) |
 | V6 | series MUST have ≥ 2 bars | series of 1 bar (cannot compute returns) |
 | V7 | every `OHLCBar` in the series MUST satisfy its OHLC invariants — positive prices, `high ≥ low`, `high ≥ open/close`, `low ≤ open/close`, `volume ≥ 0` when present (the `commons` invariant set, §2 of `commons/CLAUDE.md`) | a bar with `high < low` |
 
