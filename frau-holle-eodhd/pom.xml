@@ -46,6 +46,13 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Shared MarketDataSourceContract conformance suite. -->
+        <dependency>
+            <groupId>net.jacopobiscella</groupId>
+            <artifactId>frau-holle</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -44,4 +44,37 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- Publish a test-jar carrying the shared MarketDataSourceContract
+                 conformance suite. Sibling driver modules (frau-holle-csv,
+                 frau-holle-eodhd, and any future frau-holle-<source>) depend on
+                 it with <type>test-jar</type> and run the contract against their
+                 own MarketDataSource implementation. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven-jar-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-test-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Ship ONLY the contract suite. Bundling the
+                                 module's Cucumber feature files and step glue
+                                 would pollute the consuming driver's Cucumber
+                                 classpath scan (it would discover and re-run
+                                 frau-holle's own scenarios). -->
+                            <includes>
+                                <include>org/hatrack/frauholle/contract/**</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

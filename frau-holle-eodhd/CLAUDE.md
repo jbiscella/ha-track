@@ -326,6 +326,7 @@ Claude Code is responsible for:
 - Numeric parsing to `BigDecimal` from JSON text (not float)
 - Status-code-to-exception mapping per §3
 - Test infrastructure using a mock `HttpExecutor` (no real network in tests)
+- Running the shared `MarketDataSourceContract` suite (from the `frau-holle` test-jar) via a concrete subclass backed by a canned `HttpExecutor` — see `frau-holle/CLAUDE.md` §2.1.1. The driver's EODHD-specific normalization (ordering checks, missing-field handling, status-code mapping) stays in this module's dedicated tests, separate from the shared contract. Any captured EODHD payload used in tests MUST be anonymized (synthetic symbol and values)
 
 What Claude Code MUST NOT do unilaterally:
 

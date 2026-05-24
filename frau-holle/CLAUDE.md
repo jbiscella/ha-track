@@ -55,6 +55,14 @@ Contract:
 
 `MarketDataSource` is an interface in `frau-holle`. The reference implementations (`frau-holle-csv`, `frau-holle-eodhd`) live in sibling modules.
 
+#### 2.1.1 Shared conformance suite
+
+`frau-holle` publishes a `test-jar` containing an abstract JUnit class `org.hatrack.frauholle.contract.MarketDataSourceContract`. It codifies the **output** invariants of this port on well-formed input: the result is a non-null list of non-null bars, ordered by strictly-ascending (hence unique) `time`, every bar within the requested `[since, until]`, and an empty range returns an empty list rather than throwing.
+
+Every `MarketDataSource` implementation MUST run this suite: a driver module depends on the test-jar (`<type>test-jar</type>`, `test` scope) and adds a concrete subclass that wires its source to well-formed data plus one populated and one guaranteed-empty query. `frau-holle-csv` and `frau-holle-eodhd` both do this today; any future `frau-holle-<source>` MUST too.
+
+The suite covers only the **port-contract** invariants, which are shared. A driver's **normalization policy** — how it reaches those invariants from a messy feed (sorting, de-duplication, skipping malformed rows, schema rejection) — is driver-specific and is exercised by that driver's own tests, not the shared contract.
+
 ### 2.2 `SignalGenerator` port
 
 ```

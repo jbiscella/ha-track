@@ -221,7 +221,7 @@ The root **does not** specify:
 
 - Per-module behavioral scenarios (Gherkin GWT) — those live in `<module>/CLAUDE.md`
 - Per-module data model details (exact field lists, computed properties) — those live in `<module>/CLAUDE.md`
-- Test pyramid, coverage gates, test infrastructure — out of v1
+- Test pyramid and most test infrastructure — out of v1. **Two exceptions are now in place:** (1) a JaCoCo per-module coverage floor (instruction ≥ 70%, branch ≥ 65%) wired into the root POM and enforced at `verify` — a deliberately conservative ratchet (raise as coverage grows, never lower); the IT-only EODHD smoke job skips it via `-Djacoco.skip=true`. (2) a shared `MarketDataSourceContract` conformance suite (published from `frau-holle` as a test-jar) that every `MarketDataSource` driver MUST run — see `frau-holle/CLAUDE.md` §2.1. The coverage target curve beyond "green today" is unspecified
 - CI behaviour beyond the committed `build & verify` workflow — a GitHub Actions workflow (`.github/workflows/ci.yml`) runs the full test suite on every push and pull request; the root does not specify CI/CD further
 - Release cadence and version-bump policy — Maven Central publishing **is** in scope (artifacts published under the `net.jacopobiscella` namespace; the machinery lives in the root POM `release` profile), but *when* releases are cut and how versions are bumped is left unspecified
 - Swing-pivot detection (any local-extrema algorithm, for chart-structural patterns) — out of v1; reserved for v2. This does NOT cover **pivot-point levels** (S/R from the prior period's H/L/C), which are in scope as of 0.52.0-alpha (`commons.PivotPoints`, `nachtkrapp`'s `PivotPointRule`)
