@@ -182,6 +182,31 @@ public final class Indicators {
         return new BollingerBands(upper, middle, lower);
     }
 
+    /**
+     * Rolling population standard deviation of {@code src} over the trailing
+     * {@code period} window: {@code sqrt(sum of squared deviations from the
+     * window mean / period)}; null before index {@code period - 1}. Same
+     * population-stddev arithmetic as the band offset in {@link #bollinger}.
+     */
+    public static BigDecimal[] stdDev(List<BigDecimal> src, int period) {
+        Objects.requireNonNull(src, "src");
+        requirePeriod(period, "period");
+        int n = src.size();
+        BigDecimal[] out = new BigDecimal[n];
+        BigDecimal[] mean = sma(src, period);
+        BigDecimal divisor = new BigDecimal(period);
+        for (int i = period - 1; i < n; i++) {
+            BigDecimal m = mean[i];
+            BigDecimal sumSq = BigDecimal.ZERO;
+            for (int j = i - period + 1; j <= i; j++) {
+                BigDecimal dev = src.get(j).subtract(m, MC);
+                sumSq = sumSq.add(dev.multiply(dev, MC), MC);
+            }
+            out[i] = sumSq.divide(divisor, MC).sqrt(MC);
+        }
+        return out;
+    }
+
     /** Wilder-smoothed Average True Range; null before index {@code period - 1}. */
     public static BigDecimal[] atr(List<BigDecimal> high, List<BigDecimal> low,
                                    List<BigDecimal> close, int period) {

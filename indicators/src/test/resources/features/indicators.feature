@@ -15,6 +15,16 @@ Feature: Shared indicator calculators
     When I compute SMA with period 1
     Then the indicator series equals "7, 8, 9"
 
+  Scenario: Standard deviation over the trailing window
+    Given the price series "2, 4, 4, 4"
+    When I compute StdDev with period 2
+    Then the indicator series equals "null, 1, 0, 0"
+
+  Scenario: Standard deviation of the full window is the population sigma
+    Given the price series "2, 4, 4, 4, 5, 5, 7, 9"
+    When I compute StdDev with period 8
+    Then the indicator series equals "null, null, null, null, null, null, null, 2"
+
   Scenario: Rolling maximum over the trailing window
     Given the price series "3, 1, 4, 1, 5, 9, 2, 6"
     When I compute RollingMax with period 3

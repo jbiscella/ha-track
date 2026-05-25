@@ -432,6 +432,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
             case Indicator.ADX ignored -> ThemeConstants.ADX_LINE;
             case Indicator.Stochastic ignored -> ThemeConstants.STOCHASTIC_K;
             case Indicator.ATR ignored -> ThemeConstants.ATR_LINE;
+            case Indicator.StdDev ignored -> ThemeConstants.STDDEV_LINE;
             case Indicator.VolumePane ignored -> ThemeConstants.VOLUME_BAR_UP;
         };
     }
@@ -450,6 +451,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
             case Indicator.Stochastic stoch -> "Stoch(" + stoch.kPeriod() + ","
                     + stoch.dPeriod() + "," + stoch.smoothing() + ")";
             case Indicator.ATR atr -> "ATR(" + atr.period() + ")";
+            case Indicator.StdDev sd -> "σ(" + sd.period() + ")";
             case Indicator.VolumePane ignored -> "Volume";
         };
     }
@@ -581,6 +583,11 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 return addLine(plot, index, "ATR", times,
                         Indicators.atr(highs(series), lows(series), closes(series), atr.period()),
                         ThemeConstants.ATR_LINE, ordinal);
+            }
+            case Indicator.StdDev sd -> {
+                return addLine(plot, index, "σ", times,
+                        Indicators.stdDev(prices(series, sd.priceSource()), sd.period()),
+                        ThemeConstants.STDDEV_LINE, ordinal);
             }
             case Indicator.VolumePane ignored -> {
                 return addVolumeBars(plot, index, series, ordinal);

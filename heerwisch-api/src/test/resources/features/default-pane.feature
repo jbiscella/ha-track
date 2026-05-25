@@ -57,3 +57,11 @@ Feature: Default pane assignment for indicators
     Then the chart spec has 2 indicators
     And indicator 0 is placed at pane MAIN
     And indicator 1 is placed at pane MAIN
+
+  Scenario: Standalone StdDev defaults to a sub-pane
+    Given a chart spec builder
+    And an OHLC series of 60 bars
+    And a StdDev indicator with period 20 and source CLOSE
+    When I build the chart spec
+    Then the chart spec has 1 indicators
+    And indicator 0 is placed at pane SUBPLOT_1

@@ -185,6 +185,7 @@ public final class ChartSpecBuilder {
             case Indicator.RollingMax max -> max.priceSource();
             case Indicator.RollingMin min -> min.priceSource();
             case Indicator.BollingerBands bb -> bb.priceSource();
+            case Indicator.StdDev sd -> sd.priceSource();
             case Indicator.MACD macd -> macd.priceSource();
             case Indicator.RSI rsi -> rsi.priceSource();
             case Indicator.ADX ignored -> null;
