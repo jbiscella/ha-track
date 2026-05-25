@@ -5,6 +5,18 @@ shared across all reactor modules (`commons`, `indicators`, `heerwisch-api`,
 `heerwisch-jfreechart`, `frau-holle`, `frau-holle-csv`, `frau-holle-eodhd`,
 `nachtkrapp`).
 
+## 0.55.0-alpha
+
+### Added
+
+- **frau-holle:** exact win/loss trade counts on `BacktestMetrics`. Two new accessors — `int winningTrades()` (number of trades with `pnl > 0`, identical to the `winRate` numerator) and `int losingTrades()` (`numTrades − winningTrades`) — replace the lossy downstream reconstruction `round(winRate × numTrades)`. Invariant `winningTrades() + losingTrades() == numTrades()` holds exactly; break-even trades (`pnl == 0`) are bucketed into `losingTrades()`, consistent with `winRate`. `winningTrades` is a new (11th) record component; `losingTrades()` is derived. The pre-0.55 10-argument `BacktestMetrics` constructor is preserved as an overload. Spec: `frau-holle/CLAUDE.md` §3, §18.
+- **heerwisch-api / heerwisch-jfreechart:** annotation-overlay legend. A new `AnnotationLegendEntry(String label, int rgb)` record and a `ChartImage.annotationLegend()` accessor (parallel to the indicator `legend()`) let a chart label its annotation overlays. The JFreeChart driver populates one entry per horizontal-line overlay — `PivotPointLevels` → `"Pivot Points (<variant>)"` colored `PIVOT_LEVEL`, `HorizontalLevel` → its label and resolved color, `FibRetracement` → `"Fib Retracement"` colored `FIB_LEVEL`. Glyph / text / band annotations carry no entry. `ChartImage` gains a 6th component with backward-compatible 5- and 4-argument constructors defaulting the annotation legend to empty. Spec: `heerwisch-api/CLAUDE.md` §1.8, §1.10; `heerwisch-jfreechart/CLAUDE.md` §7.3, §8.
+
+### Compatibility
+
+- Additive API only, japicmp-clean: the previous `BacktestMetrics` 10-argument constructor and the previous `ChartImage` 4-/5-argument constructors are retained as overloads, so nothing existing changed signature; the new accessors, record components and `AnnotationLegendEntry` type are pure additions. japicmp at 0.x skips the semver gate.
+- **No change required for pivot-line rendering** (a separately-reported downstream gap): the JFreeChart driver already renders `Annotation.PivotPointLevels` as horizontal P/R/S lines and, since 0.52.0-alpha, extends the main pane's Y auto-range to include off-window pivot levels. A chart that shows no pivot lines is a caller-side issue — confirm the consumer pins ≥ 0.52.0-alpha (ideally 0.55.0-alpha) and that the annotation is actually added to the spec.
+
 ## 0.54.0-alpha
 
 ### Added

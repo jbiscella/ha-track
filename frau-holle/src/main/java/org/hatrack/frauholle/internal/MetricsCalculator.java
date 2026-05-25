@@ -30,7 +30,8 @@ public final class MetricsCalculator {
         BigDecimal totalReturn = finalEquity.subtract(initialEquity, MC).divide(initialEquity, MC);
 
         int numTrades = trades.size();
-        BigDecimal winRate = winRate(trades, numTrades);
+        int winningTrades = (int) trades.stream().filter(t -> t.pnl().signum() > 0).count();
+        BigDecimal winRate = winRate(winningTrades, numTrades);
         BigDecimal maxDrawdown = maxDrawdown(equityCurve);
 
         List<BigDecimal> returns = barReturns(equityCurve);
@@ -44,15 +45,14 @@ public final class MetricsCalculator {
         BigDecimal calmar = calmar(totalReturn, maxDrawdown, equityCurve);
 
         return new BacktestMetrics(totalReturn, winRate, numTrades, maxDrawdown,
-                sharpe, sortino, profitFactor, avgWin, avgLoss, calmar);
+                sharpe, sortino, profitFactor, avgWin, avgLoss, calmar, winningTrades);
     }
 
-    private static BigDecimal winRate(List<Trade> trades, int numTrades) {
+    private static BigDecimal winRate(int winningTrades, int numTrades) {
         if (numTrades == 0) {
             return BigDecimal.ZERO;
         }
-        long wins = trades.stream().filter(t -> t.pnl().signum() > 0).count();
-        return new BigDecimal(wins).divide(new BigDecimal(numTrades), MC);
+        return new BigDecimal(winningTrades).divide(new BigDecimal(numTrades), MC);
     }
 
     private static BigDecimal maxDrawdown(List<EquityPoint> equityCurve) {

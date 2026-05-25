@@ -510,6 +510,8 @@ public class FrauHolleStepDefinitions {
             case "totalReturn" -> metrics.totalReturn();
             case "winRate" -> metrics.winRate();
             case "numTrades" -> new BigDecimal(metrics.numTrades());
+            case "winningTrades" -> new BigDecimal(metrics.winningTrades());
+            case "losingTrades" -> new BigDecimal(metrics.losingTrades());
             case "maxDrawdown" -> metrics.maxDrawdown();
             case "sharpeRatio" -> metrics.sharpeRatio();
             case "sortinoRatio" -> metrics.sortinoRatio();

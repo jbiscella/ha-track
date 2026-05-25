@@ -12,6 +12,7 @@ import org.hatrack.heerwisch.api.error.DriverInternalException;
 import org.hatrack.heerwisch.api.error.UnsupportedFeatureException;
 import org.hatrack.heerwisch.api.port.ChartRenderer;
 import org.hatrack.heerwisch.api.spec.Annotation;
+import org.hatrack.heerwisch.api.spec.AnnotationLegendEntry;
 import org.hatrack.heerwisch.api.spec.AxisMode;
 import org.hatrack.heerwisch.api.spec.ChartImage;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
@@ -118,7 +119,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
                     BufferedImage.TYPE_INT_RGB, null);
             byte[] bytes = encode(image, layout.format());
             return new ChartImage(bytes, contentType(layout.format()), width, height,
-                    buildLegend(spec));
+                    buildLegend(spec), buildAnnotationLegend(spec));
         } catch (RuntimeException e) {
             throw new DriverInternalException(e);
         }
@@ -376,6 +377,40 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 default ->
                         entries.add(new LegendEntry(placement, label,
                                 rgb(legendPrimaryColor(spec, i)), pane));
+            }
+        }
+        return entries;
+    }
+
+    /**
+     * Annotation-overlay legend rows in spec insertion order, one entry per
+     * horizontal-line overlay: {@code PivotPointLevels} (labeled
+     * {@code "Pivot Points (<variant>)"}, colored {@code PIVOT_LEVEL}),
+     * {@code HorizontalLevel} (its own label, colored by its resolved level color)
+     * and {@code FibRetracement} (labeled {@code "Fib Retracement"}, colored
+     * {@code FIB_LEVEL}). Glyph / text / band annotations carry no legend entry —
+     * they are not line "series".
+     */
+    private static List<AnnotationLegendEntry> buildAnnotationLegend(ChartSpec spec) {
+        List<AnnotationLegendEntry> entries = new ArrayList<>();
+        for (Annotation annotation : spec.annotations()) {
+            switch (annotation) {
+                case Annotation.PivotPointLevels pivots ->
+                        entries.add(new AnnotationLegendEntry(
+                                "Pivot Points (" + pivots.variant() + ")",
+                                rgb(ThemeConstants.PIVOT_LEVEL)));
+                case Annotation.HorizontalLevel level ->
+                        entries.add(new AnnotationLegendEntry(level.label(),
+                                rgb(level.fillColor()
+                                        .map(JFreeChartRenderer::horizontalLevelColor)
+                                        .orElse(ThemeConstants.HORIZONTAL_LEVEL))));
+                case Annotation.FibRetracement ignored ->
+                        entries.add(new AnnotationLegendEntry("Fib Retracement",
+                                rgb(ThemeConstants.FIB_LEVEL)));
+                case Annotation.BarHighlight ignored -> { }
+                case Annotation.EntryExitMarker ignored -> { }
+                case Annotation.EntryExitMarkerAuto ignored -> { }
+                case Annotation.TimeRangeHighlight ignored -> { }
             }
         }
         return entries;
