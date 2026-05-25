@@ -73,6 +73,7 @@ Rationale: rendering tests, byte-identical comparisons, and email-attachment con
 | `ADX` | `SUBPLOT_*` only |
 | `Stochastic` | `SUBPLOT_*` only |
 | `ATR` | `SUBPLOT_*` only |
+| `StdDev` | `SUBPLOT_*` only |
 | `VolumePane` | `SUBPLOT_*` only |
 
 Attempting to render a `ChartSpec` with a forbidden placement throws `UnsupportedFeatureException` from `render()` with:
@@ -114,6 +115,7 @@ The driver exposes a public class `ThemeConstants` with `public static final` fi
 | `STOCHASTIC_K` | `#1976D2` | Stochastic %K line |
 | `STOCHASTIC_D` | `#F57C00` | Stochastic %D line |
 | `ATR_LINE` | `#7B1FA2` | ATR line |
+| `STDDEV_LINE` | `#6D4C41` (brown) | standalone standard-deviation (σ) line |
 | `VOLUME_BAR_UP` | `#26A69A` at 60% alpha | volume bar when close ≥ open |
 | `VOLUME_BAR_DOWN` | `#EF5350` at 60% alpha | volume bar when close < open |
 | `ANNOTATION_BULLISH` | `#26A69A` | bar highlights and labels for bullish events |
@@ -208,6 +210,7 @@ The driver computes each indicator via the shared `indicators` module (`org.hatr
 | `ADX(period)` | Single line |
 | `Stochastic(k, d, smoothing)` | Two lines (%K and %D) |
 | `ATR(period)` | Single line |
+| `StdDev(period, priceSource)` | Single line in its own sub-pane using `STDDEV_LINE`; rolling **population** standard deviation of `priceSource` over the trailing `period` window (via `indicators.stdDev`, the same σ used for the Bollinger band offset). Sub-pane / legend label `σ(period)`. SUBPLOT-only (σ is unbounded relative to price, like ATR). Unlike `BollingerBands` this plots σ as its own value rather than as bands around a mean |
 | `VolumePane()` | Vertical bars per bar, colored by `VOLUME_BAR_UP` or `VOLUME_BAR_DOWN` based on the underlying close vs open of the source series |
 
 ### 7.2 Per-placement overlay colors
@@ -228,7 +231,7 @@ Annotation overlays are surfaced separately via `ChartImage.annotationLegend()` 
 
 ### 7.1 Sub-pane Y axis labels
 
-Each sub-pane's Y axis is labeled with the indicator(s) it carries, not the generic `Pane` enum name. The label is derived from the indicator type and its parameters: `RSI(<period>)`, `MACD(<fast>,<slow>,<signal>)`, `Stoch(<k>,<d>,<smoothing>)`, `ADX(<period>)`, `ATR(<period>)`, `BB(<period>,<stdDev>)`, `SMA(<period>)`, `EMA(<period>)`, `Volume`. When a pane carries more than one indicator the labels are joined with `" / "` (e.g. `RSI(14) / RSI(21)`). A pane with no indicator falls back to the `Pane` name (`SUBPLOT_1`, …), which should not occur for a referenced subplot. This aligns with the convention of TradingView and similar tools, where the pane label names the indicator and its period.
+Each sub-pane's Y axis is labeled with the indicator(s) it carries, not the generic `Pane` enum name. The label is derived from the indicator type and its parameters: `RSI(<period>)`, `MACD(<fast>,<slow>,<signal>)`, `Stoch(<k>,<d>,<smoothing>)`, `ADX(<period>)`, `ATR(<period>)`, `BB(<period>,<stdDev>)`, `SMA(<period>)`, `EMA(<period>)`, `σ(<period>)`, `Volume`. When a pane carries more than one indicator the labels are joined with `" / "` (e.g. `RSI(14) / RSI(21)`). A pane with no indicator falls back to the `Pane` name (`SUBPLOT_1`, …), which should not occur for a referenced subplot. This aligns with the convention of TradingView and similar tools, where the pane label names the indicator and its period.
 
 ## 8. Concrete behavior per annotation
 

@@ -138,6 +138,11 @@ public class HeerwischApiStepDefinitions {
         builder.addIndicator(new Indicator.BollingerBands(period, stdDev, PriceSource.valueOf(source)));
     }
 
+    @Given("a StdDev indicator with period {int} and source {word}")
+    public void stdDevIndicator(int period, String source) {
+        builder.addIndicator(new Indicator.StdDev(period, PriceSource.valueOf(source)));
+    }
+
     @Given("an RSI indicator with period {int} overbought {bigdecimal} oversold {bigdecimal} and source {word}")
     public void rsiIndicator(int period, BigDecimal overbought, BigDecimal oversold, String source) {
         builder.addIndicator(new Indicator.RSI(period, overbought, oversold, PriceSource.valueOf(source)));

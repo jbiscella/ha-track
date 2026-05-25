@@ -259,6 +259,30 @@ public sealed interface Indicator {
         }
     }
 
+    /**
+     * Rolling population standard deviation of {@code priceSource} over a
+     * trailing {@code period} window, drawn as a single line in its own sub-pane
+     * (σ is unbounded relative to price, like {@link ATR}). Unlike
+     * {@link BollingerBands}, this surfaces the raw σ(period) series as a value
+     * rather than as bands around a moving average.
+     */
+    record StdDev(int period, PriceSource priceSource) implements Indicator {
+        public StdDev {
+            requirePeriod(period, "period");
+            Objects.requireNonNull(priceSource, "priceSource");
+        }
+
+        @Override
+        public int minBars() {
+            return period;
+        }
+
+        @Override
+        public Pane defaultPane() {
+            return Pane.SUBPLOT_1;
+        }
+    }
+
     record VolumePane() implements Indicator {
         @Override
         public int minBars() {

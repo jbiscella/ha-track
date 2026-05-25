@@ -78,6 +78,11 @@ public class IndicatorsStepDefinitions {
         capture(() -> bollinger = Indicators.bollinger(prices, period, new BigDecimal(multiplier)));
     }
 
+    @When("I compute StdDev with period {int}")
+    public void iComputeStdDev(int period) {
+        capture(() -> series = Indicators.stdDev(prices, period));
+    }
+
     @When("I compute ATR with period {int}")
     public void iComputeAtr(int period) {
         capture(() -> series = Indicators.atr(highs, lows, closes, period));

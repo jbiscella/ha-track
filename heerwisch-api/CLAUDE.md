@@ -31,7 +31,7 @@ The `commons` constructor enforces only the defensive copy. The ordering / no-du
 ### 1.2 `Indicator` (sealed)
 
 ```
-sealed interface Indicator permits SMA, EMA, RollingMax, RollingMin, MACD, RSI, BollingerBands, ADX, Stochastic, ATR, VolumePane
+sealed interface Indicator permits SMA, EMA, RollingMax, RollingMin, MACD, RSI, BollingerBands, ADX, Stochastic, ATR, StdDev, VolumePane
 ```
 
 | Variant | Fields | Default `Pane` |
@@ -46,6 +46,7 @@ sealed interface Indicator permits SMA, EMA, RollingMax, RollingMin, MACD, RSI, 
 | `ADX` | `int period` | `SUBPLOT_1` |
 | `Stochastic` | `int kPeriod`, `int dPeriod`, `int smoothing` | `SUBPLOT_1` |
 | `ATR` | `int period` | `SUBPLOT_1` |
+| `StdDev` | `int period`, `PriceSource priceSource` | `SUBPLOT_1` |
 | `VolumePane` | (no parameters) | `SUBPLOT_1` |
 
 All `period` and period-like int fields MUST be ≥ 1 (rejected by canonical constructor). All `BigDecimal` ratio fields MUST be > 0. `priceSource` MUST be non-null where present.

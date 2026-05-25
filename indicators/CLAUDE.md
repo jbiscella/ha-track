@@ -8,7 +8,7 @@ This is the nested spec for the `indicators` module. The repo-wide rules (archit
 
 It contains:
 
-- A single public calculator class `Indicators` with one static method per indicator (`sma`, `ema`, `rsi`, `macd`, `bollinger`, `atr`, `stochastic`, `adx`, `rollingMax`, `rollingMin`).
+- A single public calculator class `Indicators` with one static method per indicator (`sma`, `ema`, `rsi`, `macd`, `bollinger`, `stdDev`, `atr`, `stochastic`, `adx`, `rollingMax`, `rollingMin`).
 - Result records for the multi-output indicators (`MacdResult`, `BollingerBands`, `StochasticResult`).
 
 The arithmetic is **unchanged** from the pre-extraction calculators: this module is the destination of a move, not a rewrite. `SMA(period)` and every other calculator produce values bit-identical to the formulas previously embedded in the two consumer modules (which were verified arithmetically identical before extraction).
@@ -39,6 +39,7 @@ Out of scope: I/O, persistence, clocks, framework annotations, anything that req
 | `rsi` | `rsi(List<BigDecimal> src, int period)` | `BigDecimal[]` — null before index `period` |
 | `macd` | `macd(List<BigDecimal> src, int fast, int slow, int signal)` | `MacdResult` |
 | `bollinger` | `bollinger(List<BigDecimal> src, int period, BigDecimal multiplier)` | `BollingerBands` |
+| `stdDev` | `stdDev(List<BigDecimal> src, int period)` | `BigDecimal[]` — null before index `period - 1`; rolling population standard deviation |
 | `atr` | `atr(List<BigDecimal> high, List<BigDecimal> low, List<BigDecimal> close, int period)` | `BigDecimal[]` — null before index `period - 1` |
 | `stochastic` | `stochastic(List<BigDecimal> high, List<BigDecimal> low, List<BigDecimal> close, int kPeriod, int dPeriod, int smoothing)` | `StochasticResult` |
 | `adx` | `adx(List<BigDecimal> high, List<BigDecimal> low, List<BigDecimal> close, int period)` | `BigDecimal[]` — needs at least `2 * period + 1` bars |
@@ -55,7 +56,7 @@ Eager validation: every source list is `Objects.requireNonNull`-checked, `multip
 | `BollingerBands` | `BigDecimal[] upper`, `BigDecimal[] middle`, `BigDecimal[] lower` |
 | `StochasticResult` | `BigDecimal[] percentK`, `BigDecimal[] percentD` |
 
-Single-output indicators (`sma`, `ema`, `rsi`, `atr`, `adx`, `rollingMax`, `rollingMin`) return a bare `BigDecimal[]` — wrapping them in a one-component record would add no value.
+Single-output indicators (`sma`, `ema`, `rsi`, `stdDev`, `atr`, `adx`, `rollingMax`, `rollingMin`) return a bare `BigDecimal[]` — wrapping them in a one-component record would add no value.
 
 ### 2.3 Why no sealed `Indicator` spec hierarchy
 
@@ -72,6 +73,7 @@ The implementation MUST use these formulas. They are the same formulas previousl
 | `rsi(period)` at bar `t` | Wilder's smoothing: seed `avgGain` / `avgLoss` = simple average of the first `period` gains / losses; thereafter `avg = (prevAvg * (period - 1) + current) / period`; `RSI = 100 - 100 / (1 + avgGain / avgLoss)`; when `avgLoss = 0`, `RSI = 100` |
 | `macd(fast, slow, signal)` | `macdLine = ema(fast) - ema(slow)`; `signalLine = ema(signal)` of the `macdLine` (seeded from the first non-null MACD value); `histogram = macdLine - signalLine` |
 | `bollinger(period, multiplier)` | `middle = sma(period)`; `stdDev` = population standard deviation over the same window (sum of squared deviations divided by `period`, then square-rooted); `upper = middle + multiplier * stdDev`; `lower = middle - multiplier * stdDev` |
+| `stdDev(period)` at bar `t` | population standard deviation over the window `[t - period + 1, t]`: `sqrt(sum of squared deviations from the window mean / period)`; null before index `period - 1`. The same σ used for the Bollinger band offset, surfaced as a standalone series |
 | `atr(period)` | true range `TR[t] = max(high - low, |high - close[t-1]|, |low - close[t-1]|)` with `TR[0] = high[0] - low[0]`; ATR is Wilder-smoothed TR: seed = simple average of the first `period` TRs, then `ATR = (prevATR * (period - 1) + TR) / period` |
 | `stochastic(kPeriod, dPeriod, smoothing)` | raw `%K = (close - lowestLow) / (highestHigh - lowestLow) * 100` over `kPeriod` bars (50 when the range is zero); `percentK` = SMA of raw %K over `smoothing`; `percentD` = SMA of `percentK` over `dPeriod` |
 | `adx(period)` | directional movement `+DM` / `-DM`, Wilder-smoothed alongside TR into `+DI` / `-DI`; `DX = 100 * |+DI - -DI| / (+DI + -DI)`; ADX is Wilder-smoothed DX seeded at index `2 * period` |
@@ -94,6 +96,16 @@ Feature: Shared indicator calculators
     Given the price series "7, 8, 9"
     When I compute SMA with period 1
     Then the indicator series equals "7, 8, 9"
+
+  Scenario: Standard deviation over the trailing window
+    Given the price series "2, 4, 4, 4"
+    When I compute StdDev with period 2
+    Then the indicator series equals "null, 1, 0, 0"
+
+  Scenario: Standard deviation of the full window is the population sigma
+    Given the price series "2, 4, 4, 4, 5, 5, 7, 9"
+    When I compute StdDev with period 8
+    Then the indicator series equals "null, null, null, null, null, null, null, 2"
 
   Scenario: Rolling maximum over the trailing window
     Given the price series "3, 1, 4, 1, 5, 9, 2, 6"

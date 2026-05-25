@@ -56,6 +56,7 @@ public final class ThemeConstants {
     public static final Color STOCHASTIC_K = new Color(0x1976D2);
     public static final Color STOCHASTIC_D = new Color(0xF57C00);
     public static final Color ATR_LINE = new Color(0x7B1FA2);
+    public static final Color STDDEV_LINE = new Color(0x6D4C41);
     public static final Color VOLUME_BAR_UP = new Color(0x26, 0xA6, 0x9A, 153);
     public static final Color VOLUME_BAR_DOWN = new Color(0xEF, 0x53, 0x50, 153);
     public static final Color ANNOTATION_BULLISH = new Color(0x26A69A);
