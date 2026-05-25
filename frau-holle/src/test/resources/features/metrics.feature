@@ -10,6 +10,8 @@ Feature: BacktestMetrics computation
     Then metrics totalReturn is 0
     And metrics numTrades is 0
     And metrics winRate is 0
+    And metrics winningTrades is 0
+    And metrics losingTrades is 0
     And metrics maxDrawdown is 0
 
   Scenario: Trade-based metrics on mixed outcomes
@@ -19,9 +21,21 @@ Feature: BacktestMetrics computation
     When I compute the metrics
     Then metrics numTrades is 10
     And metrics winRate is 0.6
+    And metrics winningTrades is 6
+    And metrics losingTrades is 4
     And metrics profitFactor is 3
     And metrics avgWin is 100
     And metrics avgLoss is -50
+
+  Scenario: Break-even trades count as losses and uphold the win/loss invariant
+    Given an equity curve 10000, 10000
+    And trades with pnls 100, 100, 0, -50, 0
+    And periodsPerYear is 252
+    When I compute the metrics
+    Then metrics numTrades is 5
+    And metrics winningTrades is 2
+    And metrics losingTrades is 3
+    And metrics winRate is 0.4
 
   Scenario: maxDrawdown as a non-negative fraction
     Given an equity curve 10000, 12000, 9000, 11000

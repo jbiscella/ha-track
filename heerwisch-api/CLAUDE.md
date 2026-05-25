@@ -180,8 +180,9 @@ Immutable record exposing:
 | `widthPx` | `int` |
 | `heightPx` | `int` |
 | `legend` | `List<LegendEntry>` (defensively copied to an immutable list) |
+| `annotationLegend` | `List<AnnotationLegendEntry>` (defensively copied to an immutable list) — annotation overlays, parallel to `legend` (see §1.10) |
 
-Defensive copy of `bytes` on construction and on access (it's a `byte[]`, not immutable). A backward-compatible 4-arg constructor `(bytes, contentType, widthPx, heightPx)` defaults `legend` to an empty list.
+Defensive copy of `bytes` on construction and on access (it's a `byte[]`, not immutable). A backward-compatible 5-arg constructor `(bytes, contentType, widthPx, heightPx, legend)` defaults `annotationLegend` to an empty list, and a 4-arg constructor `(bytes, contentType, widthPx, heightPx)` defaults both `legend` and `annotationLegend` to empty lists.
 
 ### 1.9 `LegendEntry`
 
@@ -195,6 +196,17 @@ Record describing one rendered series for consumer-side legend rendering:
 | `pane` | `Pane` (non-null) |
 
 Exposed via `ChartImage.legend()`. One entry per rendered series in `ChartSpec.indicators()` insertion order; single-line indicators yield one entry per placement, dual-line indicators (`MACD`, `Stochastic`) yield two entries that share the placement but carry distinct `label` and `rgb` (the line and its signal / `%D`). Consumers can group rows by `pane()` for per-pane legend sections. The colors and labels are a deterministic function of the spec; the driver computes them as it renders.
+
+### 1.10 `AnnotationLegendEntry`
+
+Record describing one annotation **overlay** for consumer-side legend rendering — parallel to `LegendEntry`, which names indicator series:
+
+| Field | Type |
+|---|---|
+| `label` | `String` (non-null; the overlay's name) |
+| `rgb` | `int` (plain 24-bit `0xRRGGBB`, no alpha — same engine-neutral contract as `LegendEntry.rgb`) |
+
+Exposed via `ChartImage.annotationLegend()` (added 0.55.0-alpha). Annotation overlays are not `IndicatorPlacement`s, so they carry no placement and no `Pane`; the slimmer `(label, rgb)` shape names them without bending the indicator-centric `LegendEntry` contract — `legend()` stays indicators-only. Which annotations produce an entry, and the label/color used, are driver decisions (the default JFreeChart driver emits one entry per horizontal-line overlay — `PivotPointLevels`, `HorizontalLevel`, `FibRetracement`; see `heerwisch-jfreechart/CLAUDE.md` §7.3). The list is empty when no annotation warrants a legend row. `rgb` is in `[0, 0xFFFFFF]`, enforced at construction.
 
 ## 2. Builder API
 

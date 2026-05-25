@@ -183,13 +183,15 @@ Immutable record:
 
 ## 3. Backtest metrics
 
-`BacktestMetrics` is an immutable record exposing 10 core metrics:
+`BacktestMetrics` is an immutable record exposing the 10 core metrics below, plus the exact `winningTrades` / `losingTrades` counts added in 0.55.0-alpha (§18):
 
 | Metric | Type | Definition |
 |---|---|---|
 | `totalReturn` | `BigDecimal` | `(finalEquity - initialCash) / initialCash`, as a fraction (e.g. 0.25 = +25%) |
 | `winRate` | `BigDecimal` | number of trades with `pnl > 0` divided by total trades. `BigDecimal.ZERO` if no trades |
 | `numTrades` | `int` | size of `trades()` |
+| `winningTrades` | `int` | number of trades with `pnl > 0` — identical to the `winRate` numerator. Added 0.55.0-alpha (§18) |
+| `losingTrades` | `int` | `numTrades − winningTrades`; break-even (`pnl == 0`) trades count here, so `winningTrades + losingTrades == numTrades` exactly. Added 0.55.0-alpha (§18) |
 | `maxDrawdown` | `BigDecimal` | maximum peak-to-trough decline of the equity curve, as a fraction of the peak. Always ≤ 0, expressed as a non-negative value (so 0.30 = -30% drawdown) |
 | `sharpeRatio` | `BigDecimal` | `mean(returns) / stddev(returns) × sqrt(periodsPerYear)`. `returns` are bar-to-bar percentage changes of equity. `periodsPerYear` is inferred from the series timeframe (see §3.1). Risk-free rate = 0. `BigDecimal.ZERO` if stddev = 0 or < 2 bars |
 | `sortinoRatio` | `BigDecimal` | same as Sharpe but with downside-only stddev (only negative `returns` contribute to the denominator). `BigDecimal.ZERO` if no negative returns or < 2 bars |
@@ -788,3 +790,59 @@ What Claude Code MUST NOT do unilaterally:
 - Add static mutable state
 - Expose `internal` calculators as public API
 - Catch and swallow `SignalGenerationException` — must propagate
+
+## 18. v1.3 additive extensions
+
+> **Status: IMPLEMENTED in 0.55.0-alpha.** Adds the exact `winningTrades()` /
+> `losingTrades()` counts to `BacktestMetrics` for the Wichtelm-app consumer, which
+> previously reconstructed the win count as `round(winRate × numTrades)` —
+> off-by-one-prone and able to disagree with the trade list.
+
+All v1.3 extensions are strictly **additive** and **non-breaking** (japicmp-clean):
+the pre-0.55 10-argument `BacktestMetrics` constructor is preserved as an overload;
+the new field and accessors are pure additions. A consumer reading only the prior
+ten metrics is unaffected.
+
+### 18.1 New BacktestMetrics accessors
+
+| Accessor | Type | Definition |
+|---|---|---|
+| `winningTrades()` | `int` | number of trades with `pnl > 0` — identical to the `winRate` numerator |
+| `losingTrades()` | `int` | `numTrades() − winningTrades()` |
+
+Invariant: `winningTrades() + losingTrades() == numTrades()` exactly. Break-even
+trades (`pnl == 0`) are bucketed into `losingTrades()` — consistent with `winRate`,
+whose numerator counts only `pnl > 0`. `winningTrades` is the sole new stored field
+(the 11th record component); `losingTrades()` is derived from it and `numTrades`, so
+the invariant cannot be violated by construction.
+
+The canonical constructor validates `0 ≤ winningTrades ≤ numTrades`. The retained
+10-argument constructor approximates `winningTrades` as `round(winRate × numTrades)`
+(the only signal available without the trade list); it exists solely for
+binary/source compatibility — the engine populates the exact count via the canonical
+constructor.
+
+### 18.2 Block 8 — winning/losing trade counts
+
+```gherkin
+Feature: BacktestMetrics winning/losing trade counts
+
+  Scenario: Mixed outcomes split into exact winning and losing counts
+    Given 10 trades: 6 with pnl > 0 and 4 with pnl < 0
+    When I compute the metrics
+    Then metrics.winningTrades = 6
+    And metrics.losingTrades = 4
+    And metrics.winningTrades + metrics.losingTrades = metrics.numTrades
+
+  Scenario: Break-even trades count as losses
+    Given trades with pnls 100, 100, 0, -50, 0
+    When I compute the metrics
+    Then metrics.winningTrades = 2
+    And metrics.losingTrades = 3
+    And metrics.winRate = 0.4
+
+  Scenario: No trades yields zero winning and losing
+    Given a backtest where no trades are taken
+    Then metrics.winningTrades = 0
+    And metrics.losingTrades = 0
+```
