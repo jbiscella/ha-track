@@ -1,6 +1,7 @@
 package org.hatrack.frauholle.result;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Objects;
 
@@ -54,7 +55,7 @@ public record BacktestMetrics(BigDecimal totalReturn, BigDecimal winRate, int nu
         if (winRate == null || numTrades <= 0) {
             return 0;
         }
-        int wins = winRate.multiply(new BigDecimal(numTrades))
+        int wins = winRate.multiply(new BigDecimal(numTrades), MathContext.DECIMAL64)
                 .setScale(0, RoundingMode.HALF_UP).intValue();
         return Math.max(0, Math.min(numTrades, wins));
     }
