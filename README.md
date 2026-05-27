@@ -5,25 +5,31 @@
 [![Java 25](https://img.shields.io/badge/Java-25-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Maven](https://img.shields.io/badge/Maven-multi--module-C71A36?style=flat-square&logo=apachemaven&logoColor=white)](#build)
 [![License: 0BSD](https://img.shields.io/badge/license-0BSD-3DA639?style=flat-square)](https://opensource.org/license/0bsd)
-[![Technical analysis](https://img.shields.io/badge/technical%20analysis-backtesting%20%26%20charting-26A69A?style=flat-square)](docs/concepts.md)
-[![Stars](https://img.shields.io/github/stars/jbiscella/ha-track?style=flat-square&logo=github&label=stars)](https://github.com/jbiscella/ha-track/stargazers)
+**ha-track** is a modular Java toolkit for **technical analysis, backtesting, and
+charting**, rooted in **Heikin Ashi** candle analysis. It is headless and
+framework-agnostic (no DI container), and strongly oriented toward code quality —
+so you can develop, test, and visualise trading strategies cleanly and reproducibly.
 
-**ha-track** is a Java toolkit for **technical analysis of financial price
-data**, rooted in Heikin Ashi candle analysis. It gives an application three
-capabilities — and a shared vocabulary to connect them:
+It is a set of **libraries**, not an application: pick the ones you need and compose
+them. The three are independent and give an application three capabilities, with a
+shared vocabulary to connect them:
 
 - **see** the market — chart prices and indicators (*heerwisch*)
 - **recognise** the market — detect patterns and indicator events (*nachtkrapp*)
 - **test** an idea — backtest a trading strategy over history (*frau-holle*)
 
-The three libraries are independent; an application picks the ones it needs and
-composes the results. They share one small kernel of data types (*commons*) so
-a bar of price data means the same thing everywhere. The modules are named
-after continental Germanic folklore — each a helper that can also mislead.
+They share one small kernel of data types (*commons*) so a bar of price data means
+the same thing everywhere. The modules are named after continental Germanic folklore
+— each a helper that can also mislead. The end-user product is a separate consumer
+application.
 
-ha-track is a set of **libraries**, not an application, and is deliberately
-framework-agnostic (no DI container). The end-user product is a separate
-consumer application.
+### Philosophy
+
+- Modular, independently testable architecture
+- Heikin Ashi as the foundation for pattern detection
+- No magic — specs are plain, inspectable data: configurable and debuggable (no
+  reflection, no DI container)
+- Built to be embedded in batch pipelines or interactive tools alike
 
 <p align="center">
   <img src="heerwisch-logo.png" alt="heerwisch" height="72">
