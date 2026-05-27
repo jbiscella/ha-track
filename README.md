@@ -1,5 +1,13 @@
 # ha-track
 
+[![CI](https://img.shields.io/github/actions/workflow/status/jbiscella/ha-track/ci.yml?branch=main&style=flat-square&logo=github&label=CI)](https://github.com/jbiscella/ha-track/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.55.0--alpha-blue?style=flat-square)](https://github.com/jbiscella/ha-track/releases)
+[![Java 25](https://img.shields.io/badge/Java-25-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net/)
+[![Maven](https://img.shields.io/badge/Maven-multi--module-C71A36?style=flat-square&logo=apachemaven&logoColor=white)](#build)
+[![License: 0BSD](https://img.shields.io/badge/license-0BSD-3DA639?style=flat-square)](https://opensource.org/license/0bsd)
+[![Technical analysis](https://img.shields.io/badge/technical%20analysis-backtesting%20%26%20charting-26A69A?style=flat-square)](docs/concepts.md)
+[![Stars](https://img.shields.io/github/stars/jbiscella/ha-track?style=flat-square&logo=github&label=stars)](https://github.com/jbiscella/ha-track/stargazers)
+
 **ha-track** is a Java toolkit for **technical analysis of financial price
 data**, rooted in Heikin Ashi candle analysis. It gives an application three
 capabilities — and a shared vocabulary to connect them:
