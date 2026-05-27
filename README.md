@@ -5,6 +5,7 @@
 [![Java 25](https://img.shields.io/badge/Java-25-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Maven](https://img.shields.io/badge/Maven-multi--module-C71A36?style=flat-square&logo=apachemaven&logoColor=white)](#build)
 [![License: 0BSD](https://img.shields.io/badge/license-0BSD-3DA639?style=flat-square)](https://opensource.org/license/0bsd)
+
 **ha-track** is a modular Java toolkit for **technical analysis, backtesting, and
 charting**, rooted in **Heikin Ashi** candle analysis. It is headless and
 framework-agnostic (no DI container), and strongly oriented toward code quality —
