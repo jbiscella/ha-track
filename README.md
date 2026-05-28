@@ -40,6 +40,28 @@ application.
   <img src="frau-holle-logo.png" alt="frau-holle" height="72">
 </p>
 
+## Charts at a glance
+
+A few headless outputs produced by the **heerwisch** charting library — rendered
+straight from a `ChartSpec` with no manual post-processing.
+
+**A single backtest trade** — candles, an SMA overlay, a Donchian-style HHV/LLV
+channel, semantic entry / target / stop horizontal levels, the in-position WIN
+band, and entry/exit glyphs.
+
+![Single trade visualisation](docs/images/showcase-trade.png)
+
+**Multi-pane indicators** — candles with an EMA overlay, a MACD sub-pane and an
+RSI(14) sub-pane with shaded overbought/oversold danger zones.
+
+![Multi-pane chart with MACD and RSI](docs/images/showcase-multipane.png)
+
+**Pivot levels and a σ sub-pane** — `STANDARD` pivot point levels drawn as
+horizontal lines on the price pane, plus a standalone σ(20) standard-deviation
+sub-pane (added in 0.55.0-alpha).
+
+![Pivot levels and standard-deviation sub-pane](docs/images/showcase-pivots-stddev.png)
+
 ## Documentation
 
 | Start here | For |
