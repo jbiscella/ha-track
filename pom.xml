@@ -65,6 +65,7 @@
         <module>frau-holle-csv</module>
         <module>frau-holle-eodhd</module>
         <module>nachtkrapp</module>
+        <module>dsl-eval</module>
     </modules>
 
     <dependencyManagement>
@@ -88,6 +89,16 @@
             <dependency>
                 <groupId>net.jacopobiscella</groupId>
                 <artifactId>frau-holle</artifactId>
+                <version>0.55.0-alpha</version>
+            </dependency>
+            <dependency>
+                <groupId>net.jacopobiscella</groupId>
+                <artifactId>nachtkrapp</artifactId>
+                <version>0.55.0-alpha</version>
+            </dependency>
+            <dependency>
+                <groupId>net.jacopobiscella</groupId>
+                <artifactId>dsl-eval</artifactId>
                 <version>0.55.0-alpha</version>
             </dependency>
             <!-- Shared MarketDataSourceContract suite, consumed by the driver

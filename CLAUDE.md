@@ -28,7 +28,7 @@ The root document fixes only what applies to the whole repo. Per-module specs �
 
 ## Module map
 
-The repo has 8 modules in v1: 3 library API surfaces + 1 plotting driver + 2 reference market-data drivers + 2 shared kernels (`commons` and `indicators`). The optional `frau-holle-<source>` slot can host additional market-data drivers in the future.
+The repo has 9 modules: 3 library API surfaces + 1 plotting driver + 2 reference market-data drivers + 3 shared kernels (`commons`, `indicators`, and `dsl-eval`). The optional `frau-holle-<source>` slot can host additional market-data drivers in the future.
 
 | Module | Purpose | Dependencies | Nested spec |
 |---|---|---|---|
@@ -40,6 +40,7 @@ The repo has 8 modules in v1: 3 library API surfaces + 1 plotting driver + 2 ref
 | `frau-holle-csv` | Reference `MarketDataSource` implementation reading OHLC bars from local CSV files. Baseline, zero HTTP dependencies. | `frau-holle`, `commons` | `frau-holle-csv/CLAUDE.md` |
 | `frau-holle-eodhd` | Reference `MarketDataSource` implementation hitting the EODHD End-of-Day API. Ported from the consumer project's existing EODHD adapter. | `frau-holle`, `commons` | `frau-holle-eodhd/CLAUDE.md` |
 | `nachtkrapp` | Pattern detection. Exposes the `PatternDetector` entry point and contains its rule-based implementation. Single module: there is no separate API artifact, and there is no "driver" abstraction — alternative implementations (e.g. ML-based) would be **separate, independent modules**, not interchangeable plug-ins. | `commons`, `indicators` | `nachtkrapp/CLAUDE.md` |
+| `dsl-eval` | Stateless DSL condition-evaluation kernel. Exposes the injected-interface seam (`ExpressionEvaluator.Values` / `ExpressionEvaluator.IndicatorSource`) by which a consumer plugs in its own value source, plus `BarIndicatorSource` (indicator resolution over `OHLCBar`s) and `NachtkrappMatchIndex` (boolean pattern primitives → `nachtkrapp` rules). Shared verbatim by consumers so a condition evaluates identically in each. No trading/position/signal state. | `commons`, `indicators`, `nachtkrapp` | `dsl-eval/CLAUDE.md` |
 
 The three libraries (`heerwisch`, `frau-holle`, `nachtkrapp`) are **independent**: none imports another. A consumer that needs more than one composes them externally.
 
@@ -116,8 +117,11 @@ These rules are enforced architecturally and must not be relaxed.
 | `frau-holle-eodhd` → `heerwisch-*` or `nachtkrapp` | no |
 | `nachtkrapp` → `commons`, `indicators` | yes |
 | `nachtkrapp` → `heerwisch-*` or `frau-holle*` | no |
+| `dsl-eval` → `commons`, `indicators`, `nachtkrapp` | yes |
+| `dsl-eval` → `heerwisch-*` or `frau-holle*` | no |
+| `dsl-eval` → external (non-JDK) libraries | no (JDK + the three ha-track kernels only) |
 | Any module → reflection-based bean discovery | no |
-| Library core modules (`commons`, `indicators`, `heerwisch-api`, `frau-holle`, `nachtkrapp`) → DI framework | no (the libraries are framework-agnostic; the consumer wires beans) |
+| Library core modules (`commons`, `indicators`, `heerwisch-api`, `frau-holle`, `nachtkrapp`, `dsl-eval`) → DI framework | no (the libraries are framework-agnostic; the consumer wires beans) |
 
 Driver modules (`heerwisch-jfreechart`, `frau-holle-csv`, `frau-holle-eodhd`) MAY declare DI-friendly types (no-arg or all-arg constructors, `final` fields, no static state), but MUST NOT depend on a DI framework themselves. The consumer is responsible for bean wiring.
 

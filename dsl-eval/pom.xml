@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>net.jacopobiscella</groupId>
+        <artifactId>ha-track</artifactId>
+        <version>0.55.0-alpha</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>dsl-eval</artifactId>
+    <packaging>jar</packaging>
+
+    <name>dsl-eval</name>
+    <description>Stateless DSL condition-evaluation kernel. Shared seam for consumers that compile a textual condition DSL down to per-bar boolean/arithmetic evaluation over ha-track indicators and nachtkrapp pattern matches.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>net.jacopobiscella</groupId>
+            <artifactId>commons</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.jacopobiscella</groupId>
+            <artifactId>indicators</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.jacopobiscella</groupId>
+            <artifactId>nachtkrapp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>
