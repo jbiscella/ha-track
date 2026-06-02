@@ -111,6 +111,29 @@ class NachtkrappMatchIndexTest {
     }
 
     @Test
+    void highPrecisionLiteralKeyMatchesEvaluatorRounding() {
+        // The prepass must round a >16-digit literal with DECIMAL64 just like
+        // ExpressionEvaluator.number() does, so the runtime key (built from the
+        // evaluator's rounded arg) hits the pre-indexed key instead of missing.
+        String literal = "0.12345678901234567890";
+        NachtkrappMatchIndex index = NachtkrappMatchIndex.buildFor(
+                List.of(new ExpressionRef("ha_doji(" + literal + ")", "1h")),
+                Map.of(), bars, "1h", Map.of());
+
+        // The key the runtime evaluator would build: literal rounded to DECIMAL64.
+        BigDecimal runtimeArg = new BigDecimal(literal, java.math.MathContext.DECIMAL64);
+        NachtkrappMatchIndex.Key runtimeKey =
+                new NachtkrappMatchIndex.Key("ha_doji", List.of(runtimeArg), "1h");
+        assertTrue(index.hasKey(runtimeKey),
+                "prepass key must equal the DECIMAL64-rounded runtime key");
+
+        // And end-to-end: BarIndicatorSource.tierB resolves rather than throwing.
+        BarIndicatorSource src = new BarIndicatorSource(bars, "strat",
+                bars.getLast().time(), bars.size() - 1, index, "1h");
+        src.evaluate("ha_doji", List.of(runtimeArg));
+    }
+
+    @Test
     void emptyFactoryHasNoKeys() {
         NachtkrappMatchIndex empty = NachtkrappMatchIndex.empty();
         assertFalse(empty.hasKey(new NachtkrappMatchIndex.Key("ha_doji", List.of(), "1h")));

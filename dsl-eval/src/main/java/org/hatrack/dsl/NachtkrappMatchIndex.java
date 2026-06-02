@@ -30,6 +30,7 @@ import org.hatrack.nachtkrapp.rule.MAType;
 import org.hatrack.nachtkrapp.spec.DetectionSpec;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -328,7 +329,13 @@ public final class NachtkrappMatchIndex {
                 continue;
             }
             try {
-                out.add(new BigDecimal(token));
+                // Parse with DECIMAL64 to match ExpressionEvaluator.number(), so a
+                // literal's prepass Key arg is byte-for-byte the same BigDecimal the
+                // runtime evaluator produces. Without this, a >16-significant-digit
+                // literal would round differently at runtime and the per-bar Key
+                // lookup would miss ("not pre-indexed"). Normal-precision literals
+                // (<= 16 digits) are unaffected.
+                out.add(new BigDecimal(token, MathContext.DECIMAL64));
             } catch (NumberFormatException e) {
                 // Boolean primitive args must be numeric literals or declared
                 // parameter names. Anything else (e.g. a market variable like
