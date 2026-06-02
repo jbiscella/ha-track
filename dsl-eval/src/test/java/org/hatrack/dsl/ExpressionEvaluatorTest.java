@@ -113,6 +113,25 @@ class ExpressionEvaluatorTest {
     }
 
     @Test
+    void malformedNumericLiteralWrappedInDslError() {
+        ExpressionEvaluator.Scope s = numbers();
+        DslEvaluationException e = assertThrows(DslEvaluationException.class,
+                () -> eval.arithmetic("1..2", s));
+        assertTrue(e.getMessage().contains("malformed numeric literal"));
+        assertEquals("strat", e.source());
+    }
+
+    @Test
+    void unaryNegationStaysDecimal64() {
+        // A >16-significant-digit identifier negated then compared: negation must
+        // apply DECIMAL64 like the surrounding operators (parity discipline).
+        BigDecimal hi = new BigDecimal("1.234567890123456789");
+        ExpressionEvaluator.Scope s = scope(Map.of("x", hi), Map.of());
+        BigDecimal negated = eval.arithmetic("-x", s);
+        assertEquals(hi.negate(java.math.MathContext.DECIMAL64), negated);
+    }
+
+    @Test
     void pivotStepRoutesToPivotPrimitive() {
         ExpressionEvaluator.IndicatorSource ind = new ExpressionEvaluator.IndicatorSource() {
             @Override

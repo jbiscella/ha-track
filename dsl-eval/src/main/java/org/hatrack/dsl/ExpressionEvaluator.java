@@ -231,7 +231,7 @@ public final class ExpressionEvaluator {
             }
             if (c == '-') {
                 pos++;
-                return factor().negate();
+                return factor().negate(DECIMAL);
             }
             if (Character.isDigit(c) || c == '.') {
                 return number();
@@ -247,7 +247,16 @@ public final class ExpressionEvaluator {
             while (pos < s.length() && (Character.isDigit(s.charAt(pos)) || s.charAt(pos) == '.')) {
                 pos++;
             }
-            return new BigDecimal(s.substring(start, pos), DECIMAL);
+            String literal = s.substring(start, pos);
+            try {
+                return new BigDecimal(literal, DECIMAL);
+            } catch (NumberFormatException e) {
+                // Route malformed literals (e.g. "1..2") through the DSL error so
+                // they carry the same source/bar diagnostic context as every
+                // other malformed-expression path, rather than leaking a raw
+                // NumberFormatException.
+                throw fail(s, "malformed numeric literal '" + literal + "'");
+            }
         }
 
         BigDecimal identifier() {
