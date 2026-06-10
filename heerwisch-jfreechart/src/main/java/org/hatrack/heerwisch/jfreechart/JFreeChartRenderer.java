@@ -2,6 +2,7 @@ package org.hatrack.heerwisch.jfreechart;
 
 import org.hatrack.commons.HABar;
 import org.hatrack.commons.HASeries;
+import org.hatrack.commons.HeikinAshiCalculator;
 import org.hatrack.commons.OHLCBar;
 import org.hatrack.commons.OHLCSeries;
 import org.hatrack.commons.PivotPoints;
@@ -14,6 +15,7 @@ import org.hatrack.heerwisch.api.port.ChartRenderer;
 import org.hatrack.heerwisch.api.spec.Annotation;
 import org.hatrack.heerwisch.api.spec.AnnotationLegendEntry;
 import org.hatrack.heerwisch.api.spec.AxisMode;
+import org.hatrack.heerwisch.api.spec.CandleStyle;
 import org.hatrack.heerwisch.api.spec.ChartImage;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
 import org.hatrack.heerwisch.api.spec.FillColor;
@@ -81,6 +83,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeSet;
 
 /**
@@ -185,7 +188,7 @@ public final class JFreeChartRenderer implements ChartRenderer {
         styleAxis(rangeAxis);
         rangeAxis.setAutoRangeIncludesZero(false);
 
-        XYPlot plot = new XYPlot(buildPriceDataset(spec.series(), ordinal), null, rangeAxis, candleRenderer);
+        XYPlot plot = new XYPlot(buildPriceDataset(displaySeries(spec), ordinal), null, rangeAxis, candleRenderer);
         stylePlot(plot);
 
         int datasetIndex = 1;
@@ -480,6 +483,21 @@ public final class JFreeChartRenderer implements ChartRenderer {
 
     // --- datasets ---
 
+    /**
+     * The series used for <em>candle rendering</em> (and glyph extents). When the
+     * spec asks for {@link CandleStyle#HEIKIN_ASHI} and a raw {@code OHLCSeries}
+     * was supplied, the bars are transformed to Heikin-Ashi for drawing only;
+     * overlay indicators and volume keep using {@code spec.series()} (the real
+     * price source of truth). An already-{@code HASeries} input is returned as-is.
+     */
+    private static Series displaySeries(ChartSpec spec) {
+        if (spec.candleStyle() == CandleStyle.HEIKIN_ASHI
+                && spec.series() instanceof OHLCSeries ohlc) {
+            return new HASeries(HeikinAshiCalculator.computeChain(Optional.empty(), ohlc.bars()));
+        }
+        return spec.series();
+    }
+
     private static OHLCDataset buildPriceDataset(Series series, boolean ordinal) {
         if (ordinal) {
             return new OrdinalOHLCDataset(series);
@@ -747,7 +765,10 @@ public final class JFreeChartRenderer implements ChartRenderer {
     private record GlyphExtents(double dx, double dy) {}
 
     private static GlyphExtents computeGlyphExtents(ChartSpec spec, boolean ordinal) {
-        Series series = spec.series();
+        // Glyphs auto-position outside the drawn candle (below low / above high),
+        // so measure against the displayed series — the HA candles when the spec
+        // selects Heikin-Ashi, otherwise the raw OHLC bars.
+        Series series = displaySeries(spec);
         long firstT, lastT;
         double priceMin = Double.POSITIVE_INFINITY;
         double priceMax = Double.NEGATIVE_INFINITY;
