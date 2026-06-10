@@ -29,6 +29,7 @@ public final class ChartSpecBuilder {
 
     private Series series;
     private LayoutSpec layout;
+    private CandleStyle candleStyle = CandleStyle.OHLC;
     private final List<IndicatorPlacement> placements = new ArrayList<>();
     private final List<Annotation> annotations = new ArrayList<>();
 
@@ -39,6 +40,17 @@ public final class ChartSpecBuilder {
 
     public ChartSpecBuilder withLayout(LayoutSpec layout) {
         this.layout = layout;
+        return this;
+    }
+
+    /**
+     * Selects how the price pane draws candles (default {@link CandleStyle#OHLC}).
+     * {@link CandleStyle#HEIKIN_ASHI} derives HA candles from the supplied OHLC
+     * series for rendering only; overlay indicators and volume still use the
+     * real series, so this never trips the price-source compatibility check.
+     */
+    public ChartSpecBuilder withCandleStyle(CandleStyle candleStyle) {
+        this.candleStyle = Objects.requireNonNull(candleStyle, "candleStyle");
         return this;
     }
 
@@ -174,7 +186,7 @@ public final class ChartSpecBuilder {
         if (effectiveLayout instanceof LayoutSpec.ExplicitLayoutSpec explicit) {
             checkExplicitLayout(explicit);
         }
-        return new ChartSpec(series, placements, annotations, effectiveLayout);
+        return new ChartSpec(series, placements, annotations, effectiveLayout, candleStyle);
     }
 
     private static void checkPriceSourceCompatibility(Indicator indicator, boolean haSeries)
