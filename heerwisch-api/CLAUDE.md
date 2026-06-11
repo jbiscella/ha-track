@@ -167,6 +167,7 @@ Immutable record exposing:
 | `indicators()` | `List<IndicatorPlacement>` (defensively copied; may be empty) |
 | `annotations()` | `List<Annotation>` (defensively copied; may be empty) |
 | `layout()` | `LayoutSpec` (non-null) |
+| `candleStyle()` | `CandleStyle` (non-null; defaults to `CandleStyle.OHLC` — see §1.11) |
 
 No public constructor. Built only via `ChartSpec.builder()`.
 
@@ -209,6 +210,17 @@ Record describing one annotation **overlay** for consumer-side legend rendering 
 
 Exposed via `ChartImage.annotationLegend()` (added 0.55.0-alpha). Annotation overlays are not `IndicatorPlacement`s, so they carry no placement and no `Pane`; the slimmer `(label, rgb)` shape names them without bending the indicator-centric `LegendEntry` contract — `legend()` stays indicators-only. Which annotations produce an entry, and the label/color used, are driver decisions (the default JFreeChart driver emits one entry per horizontal-line overlay — `PivotPointLevels`, `HorizontalLevel`, `FibRetracement`; see `heerwisch-jfreechart/CLAUDE.md` §7.3). The list is empty when no annotation warrants a legend row. `rgb` is in `[0, 0xFFFFFF]`, enforced at construction.
 
+### 1.11 `CandleStyle` (enum) — added 0.57.0-alpha
+
+How the price pane draws its candles from the supplied series. Two values:
+
+| Value | Meaning |
+|---|---|
+| `OHLC` | Draw raw open/high/low/close candles. **Default.** |
+| `HEIKIN_ASHI` | Draw Heikin-Ashi candles, derived from the supplied `OHLCSeries` via the standard HA transform (`commons.HeikinAshiCalculator`). No effect when an `HASeries` is supplied directly (it is already HA). |
+
+`CandleStyle` affects **only the candle bodies**. Overlay indicators (`SMA`, `EMA`, `RSI`, `MACD`, …) and the volume pane are always computed from the real supplied series at their declared `PriceSource` — the source of truth — regardless of the candle style. So a `HEIKIN_ASHI` chart still shows a standard, real-price RSI / moving average, matching mainstream platform convention (Heikin-Ashi is a visualization of price; indicators reflect the true underlying series). Because the series itself is unchanged, selecting `HEIKIN_ASHI` over an `OHLCSeries` with `PriceSource.CLOSE` overlays does **not** trip the V5 price-source compatibility rule (§6) — that rule only guards against mixing HA-source indicators with OHLC candle data and vice-versa. The transform is a driver (rendering) concern; see `heerwisch-jfreechart/CLAUDE.md` §6.5.
+
 ## 2. Builder API
 
 ### 2.1 `ChartSpec.builder()`
@@ -221,12 +233,15 @@ Builder methods (naming follows root §4.3):
 |---|---|
 | `withSeries(Series s)` | Sets the series (cardinality 1; replaces prior value) |
 | `withLayout(LayoutSpec l)` | Sets the layout (cardinality 1; replaces prior value) |
+| `withCandleStyle(CandleStyle s)` | Sets the candle display style (cardinality 1; replaces prior value). Non-null (`build()` is not involved — the setter rejects null eagerly) |
 | `addIndicator(Indicator i)` | Appends an indicator placed at `defaultPane(i)` |
 | `addIndicator(Indicator i, Pane p)` | Appends an indicator placed at an explicit `Pane` |
 | `addAnnotation(Annotation a)` | Appends an annotation |
 | `build()` | Validates eagerly; returns `ChartSpec` or throws `InvalidChartSpecException` |
 
 If `withLayout` is never called, `build()` defaults to `LayoutSpec.defaults()`.
+
+If `withCandleStyle` is never called, the candle style defaults to `CandleStyle.OHLC` (§1.11).
 
 If `withSeries` is never called, `build()` throws `InvalidChartSpecException`.
 
@@ -410,6 +425,23 @@ Feature: ChartSpecBuilder eager validation
     Given a TimeRangeHighlight with opacity < 0 or > 1
     When I addAnnotation(range) and build()
     Then InvalidChartSpecException is thrown with violatedRule = "V18"
+
+  Scenario: Candle style defaults to OHLC
+    Given a builder with a valid OHLCSeries and no withCandleStyle call
+    When I call build()
+    Then the built ChartSpec has candleStyle = OHLC
+
+  Scenario: withCandleStyle sets the style and survives build
+    Given a builder with a valid OHLCSeries
+    When I withCandleStyle(HEIKIN_ASHI) and build()
+    Then the built ChartSpec has candleStyle = HEIKIN_ASHI
+
+  Scenario: HEIKIN_ASHI over an OHLCSeries with CLOSE overlays does not trip V5
+    Given a builder with a valid OHLCSeries
+    And an SMA with priceSource = CLOSE
+    When I withCandleStyle(HEIKIN_ASHI), addIndicator(sma) and build()
+    Then no exception is thrown
+    And the built ChartSpec has candleStyle = HEIKIN_ASHI
 ```
 
 ## 7. Block 2 — Default pane assignment

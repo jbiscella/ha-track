@@ -709,7 +709,11 @@ public final class JFreeChartRenderer implements ChartRenderer {
                 }
                 case Annotation.EntryExitMarkerAuto entryExit -> {
                     Color color = entryExitColor(entryExit.direction());
-                    double[] hl = barHighLow(spec.series(), entryExit.time());
+                    // Anchor off the DISPLAYED candle (HA bars when the style is
+                    // Heikin-Ashi), so the auto glyph sits outside the bar the
+                    // viewer actually sees — an HA high/low can exceed the raw
+                    // high/low, which would otherwise place the marker inside it.
+                    double[] hl = barHighLow(displaySeries(spec), entryExit.time());
                     double padding = glyphExtents.dy() * ThemeConstants.GLYPH_OFFSET_FACTOR_BAR;
                     double yPosition = switch (entryExit.direction()) {
                         case LONG_ENTRY, SHORT_EXIT -> hl[1] - padding; // below bar.low
