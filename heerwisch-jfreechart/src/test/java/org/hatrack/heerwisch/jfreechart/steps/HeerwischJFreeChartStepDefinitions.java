@@ -11,6 +11,7 @@ import org.hatrack.heerwisch.api.error.DriverInternalException;
 import org.hatrack.heerwisch.api.error.UnsupportedFeatureException;
 import org.hatrack.heerwisch.api.spec.Annotation;
 import org.hatrack.heerwisch.api.spec.ChartImage;
+import org.hatrack.heerwisch.api.spec.CandleStyle;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
 import org.hatrack.heerwisch.api.spec.ChartSpecBuilder;
 import org.hatrack.heerwisch.api.spec.FillColor;
@@ -129,6 +130,11 @@ public class HeerwischJFreeChartStepDefinitions {
 
     // --- when ---
 
+    @Given("the candle style is {word}")
+    public void theCandleStyleIs(String style) {
+        builder.withCandleStyle(CandleStyle.valueOf(style));
+    }
+
     @When("I render the chart")
     public void iRenderTheChart() {
         thrown = null;
@@ -137,6 +143,15 @@ public class HeerwischJFreeChartStepDefinitions {
         } catch (Exception e) {
             thrown = e;
         }
+    }
+
+    @When("I render the chart as OHLC and as HEIKIN_ASHI")
+    public void iRenderTheChartAsOhlcAndAsHeikinAshi() throws Exception {
+        JFreeChartRenderer renderer = new JFreeChartRenderer();
+        builder.withCandleStyle(CandleStyle.OHLC);
+        image = renderer.render(builder.build());
+        builder.withCandleStyle(CandleStyle.HEIKIN_ASHI);
+        image2 = renderer.render(builder.build());
     }
 
     @When("I render the chart twice with the same renderer")
@@ -277,6 +292,19 @@ public class HeerwischJFreeChartStepDefinitions {
     public void theTwoChartImagesDiffer() {
         assertTrue(!Arrays.equals(image.bytes(), image2.bytes()),
                 "chart images were expected to differ but are byte-identical");
+    }
+
+    @Then("both chart images have the same legend")
+    public void bothChartImagesHaveTheSameLegend() {
+        assertTrue(image.legend().size() == image2.legend().size(),
+                "legend sizes differ: " + image.legend().size() + " vs " + image2.legend().size());
+        for (int i = 0; i < image.legend().size(); i++) {
+            assertTrue(image.legend().get(i).label().equals(image2.legend().get(i).label()),
+                    "legend[" + i + "] label differs: '" + image.legend().get(i).label()
+                            + "' vs '" + image2.legend().get(i).label() + "'");
+            assertTrue(image.legend().get(i).rgb() == image2.legend().get(i).rgb(),
+                    "legend[" + i + "] rgb differs at index " + i);
+        }
     }
 
     @Then("a DriverInternalException is thrown")

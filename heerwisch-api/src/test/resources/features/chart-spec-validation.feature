@@ -227,3 +227,27 @@ Feature: ChartSpecBuilder eager validation
     And an RSI indicator with period 14 overbought 100 oversold 0 and source CLOSE
     When I build the chart spec
     Then the chart spec builds successfully
+
+  Scenario: Candle style defaults to OHLC
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    When I build the chart spec
+    Then the chart spec builds successfully
+    And the chart spec has candleStyle OHLC
+
+  Scenario: withCandleStyle sets the style and survives build
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    And the candle style is set to HEIKIN_ASHI
+    When I build the chart spec
+    Then the chart spec builds successfully
+    And the chart spec has candleStyle HEIKIN_ASHI
+
+  Scenario: HEIKIN_ASHI over an OHLC series with CLOSE overlays does not trip V5
+    Given a chart spec builder
+    And an OHLC series of 30 bars
+    And the candle style is set to HEIKIN_ASHI
+    And an SMA indicator with period 10 and source CLOSE
+    When I build the chart spec
+    Then the chart spec builds successfully
+    And the chart spec has candleStyle HEIKIN_ASHI

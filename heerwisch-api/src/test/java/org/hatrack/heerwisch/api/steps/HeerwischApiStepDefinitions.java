@@ -14,6 +14,7 @@ import org.hatrack.heerwisch.api.error.DriverInternalException;
 import org.hatrack.heerwisch.api.error.InvalidChartSpecException;
 import org.hatrack.heerwisch.api.error.UnsupportedFeatureException;
 import org.hatrack.heerwisch.api.spec.Annotation;
+import org.hatrack.heerwisch.api.spec.CandleStyle;
 import org.hatrack.heerwisch.api.spec.ChartImage;
 import org.hatrack.heerwisch.api.spec.ChartSpec;
 import org.hatrack.heerwisch.api.spec.ChartSpecBuilder;
@@ -263,6 +264,19 @@ public class HeerwischApiStepDefinitions {
     }
 
     // --- actions ---
+
+    @Given("the candle style is set to {word}")
+    public void theCandleStyleIsSetTo(String style) {
+        builder.withCandleStyle(CandleStyle.valueOf(style));
+    }
+
+    @Then("the chart spec has candleStyle {word}")
+    public void theChartSpecHasCandleStyle(String style) {
+        assertTrue(spec != null, "chart spec was not built");
+        CandleStyle expected = CandleStyle.valueOf(style);
+        assertTrue(spec.candleStyle() == expected,
+                "candleStyle: expected " + expected + " but was " + spec.candleStyle());
+    }
 
     @When("I build the chart spec")
     public void iBuildTheChartSpec() {
